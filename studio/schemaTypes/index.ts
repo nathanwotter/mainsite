@@ -1,3 +1,9 @@
+import teachingPage from './teachingPage'
+import recreationFuturesPage from './recreationFuturesPage'
+import foodPage from './foodPage'
+import coachingPage from './coachingPage'
+import aboutPage from './aboutPage'
+
 import actionButton from './actionButton'
 import actionLink from './actionLink'
 import backgroundImage from './backgroundImage'
@@ -36,4 +42,9 @@ export const schemaTypes = [
   siteConfig,
   testimonial,
   testimonialsSection,
+  teachingPage,
+  recreationFuturesPage,
+  foodPage,
+  coachingPage,
+  aboutPage,
 ]
