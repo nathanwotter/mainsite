@@ -1,0 +1,90 @@
+---
+import type { Page } from 'types';
+import Layout from '@layouts/Layout.astro';
+import Cards from '@components/Cards.astro';
+import Cta from '@components/Cta.astro';
+import Hero from '@components/Hero.astro';
+import Logos from '@components/Logos.astro';
+import Testimonials from '@components/Testimonials.astro';
+import { fetchData, getPageById } from '@data/page';
+
+export async function getStaticPaths() {
+    const data = await fetchData();
+    return data.map((page: Page) => {
+        const slug = page.slug.current === '/' ? undefined : page.slug.current;
+        return {
+            params: { slug },
+            props: { id: page._id }
+        };
+    });
+}
+
+const { id } = Astro.props;
+const pages = await getPageById(id);
+const page: Page = pages.length ? pages[0] : null;
+const siteTitle = "Otter Adventure Lab";
+
+const { _id, title, sections, metaTitle, metaDescription, socialImage } = page || {};
+
+const componentMap = {
+    cardsSection: Cards,
+    ctaSection: Cta,
+    heroSection: Hero,
+    logosSection: Logos,
+    testimonialsSection: Testimonials
+};
+---
+
+{
+    page && (
+        <Layout title={metaTitle ?? title} description={metaDescription} image={socialImage}>
+            <div data-sb-object-id={_id}>
+                {sections?.length &&
+                    sections.map((section, idx) => {
+                        const Component = componentMap[section._type];
+                        return <Component {...section} data-sb-field-path={`sections.${idx}`} />;
+                    })}
+            </div>
+        </Layout>
+    )
+}
+
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>{siteTitle}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+  </head>
+  <body style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 0;">
+    <header style="padding: 1rem 1.5rem; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">
+      <div style="font-weight: 600; font-size: 1.1rem;">{siteTitle}</div>
+      <nav style="display: flex; gap: 1rem; font-size: 0.95rem;">
+        <a href="/teaching">Teaching</a>
+        <a href="/recreation-futures-lab">Recreation Futures Lab</a>
+        <a href="/food">Food</a>
+        <a href="/coaching">Coaching</a>
+        <a href="/about">About</a>
+      </nav>
+    </header>
+
+    <main style="padding: 2rem 1.5rem; max-width: 900px; margin: 0 auto;">
+      <h1 style="font-size: 2rem; margin-bottom: 0.5rem;">Welcome to Otter Adventure Lab</h1>
+      <p style="max-width: 640px; line-height: 1.6;">
+        This is the home for Nathan’s teaching, recreation futures experiments, food projects, and coaching work.
+        Use the navigation above to explore each area. Content will eventually be managed through Sanity and surfaced here.
+      </p>
+
+      <section style="margin-top: 2rem;">
+        <h2>Explore sections</h2>
+        <ul style="line-height: 1.7;">
+          <li><strong>Teaching</strong> – courses, syllabi, and resources for recreation students.</li>
+          <li><strong>Recreation Futures Lab</strong> – WebXR, digital twins, and recreation programming ideas.</li>
+          <li><strong>Food</strong> – cooking classes, mocktail resources, and local food maps.</li>
+          <li><strong>Coaching</strong> – wellness and life coaching offerings.</li>
+          <li><strong>About</strong> – who Nathan is, mission, and why an otter.</li>
+        </ul>
+      </section>
+    </main>
+  </body>
+</html>
