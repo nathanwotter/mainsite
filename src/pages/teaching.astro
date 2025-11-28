@@ -1,5 +1,16 @@
 ---
-const title = "Teaching";
+import { client } from "../utils/sanity-client";
+
+// Fetch the Teaching Page document from Sanity
+const teachingPage = await client.fetch(
+  `*[_type == "teachingPage"][0]`
+);
+
+// Fallback title & intro if somehow missing
+const title = teachingPage?.title ?? "Teaching";
+const intro =
+  teachingPage?.intro ??
+  "This page will eventually list courses, syllabi, and teaching resources for recreation students.";
 ---
 
 <html lang="en">
@@ -8,8 +19,13 @@ const title = "Teaching";
     <title>{title} • Otter Adventures</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
   </head>
-  <body style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 0;">
-    <header style="padding: 1rem 1.5rem; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">
+
+  <body
+    style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 0;"
+  >
+    <header
+      style="padding: 1rem 1.5rem; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;"
+    >
       <div style="font-weight: 600;">Otter Adventure Lab</div>
       <nav style="display: flex; gap: 1rem; font-size: 0.95rem;">
         <a href="/teaching">Teaching</a>
@@ -22,8 +38,8 @@ const title = "Teaching";
 
     <main style="padding: 2rem 1.5rem; max-width: 900px; margin: 0 auto;">
       <h1>{title}</h1>
-      <p>
-        This page will eventually list courses, syllabi, and teaching resources for recreation students.
+      <p style="margin-bottom: 1.5rem; white-space: pre-line;">
+        {intro}
       </p>
     </main>
   </body>
