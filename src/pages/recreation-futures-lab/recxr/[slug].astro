@@ -41,7 +41,22 @@ const recxrSite = slug
           longitude,
           activationRadiusMeters,
           order,
+          videoMode,
           promptText,
+          standardVideo{
+            asset->{
+              playbackId,
+              assetId,
+              filename
+            }
+          },
+          arGuideVideo{
+            asset->{
+              playbackId,
+              assetId,
+              filename
+            }
+          },
           video{
             asset->{
               playbackId,
@@ -68,13 +83,22 @@ const activationRadiusMeters = recxrSite?.activationRadiusMeters;
 const experienceStops = [...(recxrSite?.experienceStops ?? [])]
   .sort((a, b) => (a?.order ?? 999) - (b?.order ?? 999))
   .map((stop, index) => {
-    const playbackId = stop?.video?.asset?.playbackId;
+    const legacyPlaybackId = stop?.video?.asset?.playbackId;
+    const standardPlaybackId = stop?.standardVideo?.asset?.playbackId ?? legacyPlaybackId;
+    const arGuidePlaybackId =
+      stop?.arGuideVideo?.asset?.playbackId ??
+      (stop?.videoMode === "packedAlpha" ? legacyPlaybackId : "");
 
     return {
       ...stop,
       index,
-      playbackId: playbackId ?? "",
-      hlsUrl: playbackId ? `https://stream.mux.com/${playbackId}.m3u8` : "",
+      videoMode: stop?.videoMode ?? (arGuidePlaybackId ? "packedAlpha" : "standard"),
+      playbackId: standardPlaybackId ?? legacyPlaybackId ?? "",
+      standardPlaybackId: standardPlaybackId ?? "",
+      arGuidePlaybackId: arGuidePlaybackId ?? "",
+      hlsUrl: standardPlaybackId ? `https://stream.mux.com/${standardPlaybackId}.m3u8` : "",
+      standardHlsUrl: standardPlaybackId ? `https://stream.mux.com/${standardPlaybackId}.m3u8` : "",
+      arGuideHlsUrl: arGuidePlaybackId ? `https://stream.mux.com/${arGuidePlaybackId}.m3u8` : "",
     };
   });
 
@@ -140,26 +164,78 @@ const experienceStops = [...(recxrSite?.experienceStops ?? [])]
   </section>
 
   <section style="padding: 0 0 2rem 0;">
-    <div id="recxr-active-stop" style="max-width: 900px; padding: 1.25rem; border: 1px solid #e5e5e5; border-radius: 16px; background: #fafafa;">
-      <h2 style="font-size: 1.25rem; margin: 0 0 0.75rem 0;">Active Stop</h2>
-      <p id="recxr-active-stop-name" style="margin: 0 0 0.5rem 0;">Nearest stop: not detected yet.</p>
-      <p id="recxr-active-stop-distance" style="margin: 0 0 0.5rem 0; color: #555;">Distance: unavailable</p>
-      <p id="recxr-active-stop-status" style="margin: 0 0 0.75rem 0; font-weight: 600;">Status: locked</p>
-      <p id="recxr-active-stop-prompt" style="margin: 0; color: #555;">Prompt text will appear here when an active stop is detected.</p>
-      <div id="recxr-active-stop-video" style="display: none; margin-top: 1rem;">
-        <video
-          id="recxr-active-stop-player"
-          controls
-          playsinline
-          preload="metadata"
-          style="display: block; width: 100%; max-width: 720px; border-radius: 16px; background: #000;"
-        >
-          <source id="recxr-active-stop-source" src="" type="application/x-mpegURL" />
-          Your browser does not support HTML5 video playback.
-        </video>
+    <div id="recxr-active-stop" style="max-width: 900px; padding: 1.25rem; border: 1px solid #e5e5e5; border-radius: 16px; background: linear-gradient(180deg, #fcfbff, #f6f4fa);">
+      <div style="display: grid; gap: 1rem; align-items: start;">
+        <div style="display: flex; justify-content: space-between; gap: 1rem; align-items: start; flex-wrap: wrap;">
+          <div>
+            <p style="margin: 0 0 0.35rem 0; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #6b21a8;">
+              Current Stop
+            </p>
+            <h2 style="font-size: 1.4rem; margin: 0;">On-Site Guide</h2>
+          </div>
+          <p id="recxr-active-stop-status" style="margin: 0; padding: 0.45rem 0.8rem; border-radius: 999px; background: #ede9fe; color: #5b21b6; font-weight: 700;">
+            Locked
+          </p>
+        </div>
+
+        <div style="display: grid; gap: 1rem; grid-template-columns: minmax(0, 1.7fr) minmax(260px, 1fr);">
+          <div style="padding: 1.1rem; border-radius: 16px; border: 1px solid #e9e2f7; background: rgba(255,255,255,0.72);">
+            <p id="recxr-active-stop-sequence" style="margin: 0 0 0.4rem 0; font-size: 0.9rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #7c3aed;">
+              Route status pending
+            </p>
+            <h3 id="recxr-active-stop-name" style="margin: 0 0 0.6rem 0; font-size: 1.5rem; line-height: 1.15;">Nearest stop: not detected yet.</h3>
+            <p id="recxr-active-stop-description" style="margin: 0 0 0.75rem 0; line-height: 1.7; color: #3f3f46;">
+              This stop will become more descriptive once the page knows where the visitor is standing.
+            </p>
+            <p id="recxr-active-stop-distance" style="margin: 0 0 0.9rem 0; color: #555;">Distance: unavailable</p>
+            <div style="padding: 0.95rem 1rem; border-radius: 14px; background: #f3f0ff; border: 1px solid #e4ddfb;">
+              <p style="margin: 0 0 0.35rem 0; font-size: 0.82rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #6d28d9;">
+                Prompt
+              </p>
+              <p id="recxr-active-stop-prompt" style="margin: 0; color: #4b5563;">
+                Prompt text will appear here when an active stop is detected.
+              </p>
+            </div>
+            <div id="recxr-active-stop-video" style="display: none; margin-top: 1rem;">
+              <video
+                id="recxr-active-stop-player"
+                controls
+                playsinline
+                preload="metadata"
+                style="display: block; width: 100%; max-width: 720px; border-radius: 16px; background: #000;"
+              >
+                <source id="recxr-active-stop-source" src="" type="application/x-mpegURL" />
+                Your browser does not support HTML5 video playback.
+              </video>
+            </div>
+          </div>
+
+          <aside style="padding: 1.1rem; border-radius: 16px; border: 1px solid #e5e7eb; background: rgba(255,255,255,0.88);">
+            <p style="margin: 0 0 0.35rem 0; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #0f766e;">
+              Next Stop
+            </p>
+            <h3 id="recxr-next-stop-name" style="margin: 0 0 0.5rem 0; font-size: 1.15rem;">Waiting for route context</h3>
+            <p id="recxr-next-stop-description" style="margin: 0 0 0.75rem 0; color: #52525b; line-height: 1.7;">
+              Once a current stop is identified, the next moment in the sequence will appear here.
+            </p>
+            <p id="recxr-next-stop-distance" style="margin: 0 0 0.4rem 0; color: #555;">Distance: unavailable</p>
+            <p id="recxr-next-stop-status" style="margin: 0; color: #0f766e; font-weight: 600;">Route progression not available yet.</p>
+          </aside>
+        </div>
       </div>
     </div>
   </section>
+
+  {experienceStops.length > 0 && (
+    <section style="padding: 0 0 2rem 0;">
+      <div style="max-width: 900px; padding: 1.25rem; border: 1px solid #ece7f4; border-radius: 16px; background: #faf8fd;">
+        <h2 style="font-size: 1.25rem; margin: 0 0 0.75rem 0;">Pilot Route</h2>
+        <p style="margin: 0; color: #555; line-height: 1.7;">
+          This route currently includes {experienceStops.length} stop{experienceStops.length === 1 ? "" : "s"}. Each stop can carry a short description, a place-based prompt, and an optional Mux video so the NCMA walk feels authored rather than generic.
+        </p>
+      </div>
+    </section>
+  )}
 
   <RecxrArGuide client:load />
 
@@ -219,30 +295,47 @@ const experienceStops = [...(recxrSite?.experienceStops ?? [])]
           {experienceStops.map((stop, index) => (
               <article
                 data-stop-index={stop.index}
-                style="padding: 1.25rem; border: 1px solid #e5e5e5; border-radius: 16px;"
+                style="padding: 1.25rem; border: 1px solid #e5e5e5; border-radius: 16px; background: #fff;"
               >
-                <p style="margin: 0 0 0.35rem 0; font-size: 0.9rem; font-weight: 600; color: #666;">
-                  Stop {index + 1}
+                <div style="display: flex; justify-content: space-between; gap: 0.75rem; align-items: start; flex-wrap: wrap; margin-bottom: 0.75rem;">
+                  <div>
+                    <p style="margin: 0 0 0.35rem 0; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #7c3aed;">
+                      Stop {index + 1}
+                    </p>
+                    <h3 style="margin: 0; line-height: 1.2;">{stop?.title || "Untitled Stop"}</h3>
+                  </div>
+                  <p
+                    data-stop-role={stop.index}
+                    style="margin: 0; padding: 0.45rem 0.8rem; border-radius: 999px; background: #f4f4f5; color: #52525b; font-size: 0.85rem; font-weight: 700;"
+                  >
+                    Along the route
+                  </p>
+                </div>
+
+                <p style="margin: 0 0 0.75rem 0; color: #555; font-size: 0.95rem;">
+                  {typeof stop.order === "number" ? `Route order ${stop.order}` : `Route order ${index + 1}`}
                 </p>
-                <h3 style="margin: 0 0 0.5rem 0;">{stop?.title || "Untitled Stop"}</h3>
 
                 {stop?.description && <p style="margin: 0 0 0.75rem 0; line-height: 1.7;">{stop.description}</p>}
 
                 {stop?.promptText && (
-                  <p style="margin: 0 0 0.75rem 0; padding: 0.85rem 1rem; border-radius: 12px; background: #f6f6f6;">
-                    <strong>Prompt:</strong> {stop.promptText}
-                  </p>
+                  <div style="margin: 0 0 0.75rem 0; padding: 0.9rem 1rem; border-radius: 12px; background: #f8f5ff; border: 1px solid #ece3ff;">
+                    <p style="margin: 0 0 0.3rem 0; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #6d28d9;">
+                      Prompt Text
+                    </p>
+                    <p style="margin: 0; line-height: 1.7;"><strong>{stop.promptText}</strong></p>
+                  </div>
                 )}
 
                 <p style="margin: 0 0 0.75rem 0; color: #555; line-height: 1.7;">
                   <strong>Debug:</strong> {stop.latitude}, {stop.longitude}
                   {typeof stop.activationRadiusMeters === "number" ? ` • Radius ${stop.activationRadiusMeters}m` : ""}
                 </p>
-                <p data-stop-debug={stop.index} style="margin: 0 0 0.75rem 0; color: #555;">
+                <p data-stop-debug={stop.index} style="margin: 0 0 0.75rem 0; color: #555; font-weight: 600;">
                   Distance: unavailable • Status: locked
                 </p>
 
-                {stop.hlsUrl ? (
+                {stop.standardHlsUrl ? (
                   <div style="margin-top: 1rem;">
                     <video
                       controls
@@ -250,15 +343,16 @@ const experienceStops = [...(recxrSite?.experienceStops ?? [])]
                       preload="metadata"
                       style="display: block; width: 100%; max-width: 720px; border-radius: 16px; background: #000;"
                     >
-                      <source src={stop.hlsUrl} type="application/x-mpegURL" />
+                      <source src={stop.standardHlsUrl} type="application/x-mpegURL" />
                       Your browser does not support HTML5 video playback.
                     </video>
                     <p style="margin: 0.5rem 0 0 0; color: #555;">
-                      Mux playback ID: {stop.playbackId}
+                      Standard playback ID: {stop.standardPlaybackId || stop.playbackId}
+                      {stop.videoMode === "packedAlpha" && stop.arGuidePlaybackId ? ` • AR guide playback ID: ${stop.arGuidePlaybackId}` : ""}
                     </p>
                   </div>
                 ) : (
-                  <p style="margin: 0; color: #555;">No Mux video uploaded for this stop yet.</p>
+                  <p style="margin: 0; color: #555;">No standard video uploaded for this stop yet.</p>
                 )}
               </article>
           ))}
@@ -275,12 +369,18 @@ const experienceStops = [...(recxrSite?.experienceStops ?? [])]
   const geolocateStatus = document.getElementById('recxr-geolocate-status');
   const geolocateCoords = document.getElementById('recxr-geolocate-coords');
   const activeStopName = document.getElementById('recxr-active-stop-name');
+  const activeStopSequence = document.getElementById('recxr-active-stop-sequence');
+  const activeStopDescription = document.getElementById('recxr-active-stop-description');
   const activeStopDistance = document.getElementById('recxr-active-stop-distance');
   const activeStopStatus = document.getElementById('recxr-active-stop-status');
   const activeStopPrompt = document.getElementById('recxr-active-stop-prompt');
   const activeStopVideo = document.getElementById('recxr-active-stop-video');
   const activeStopPlayer = document.getElementById('recxr-active-stop-player');
   const activeStopSource = document.getElementById('recxr-active-stop-source');
+  const nextStopName = document.getElementById('recxr-next-stop-name');
+  const nextStopDescription = document.getElementById('recxr-next-stop-description');
+  const nextStopDistance = document.getElementById('recxr-next-stop-distance');
+  const nextStopStatus = document.getElementById('recxr-next-stop-status');
 
   function toRadians(value) {
     return (value * Math.PI) / 180;
@@ -304,15 +404,66 @@ const experienceStops = [...(recxrSite?.experienceStops ?? [])]
     return distance < 1000 ? `${Math.round(distance)} m` : `${(distance / 1000).toFixed(2)} km`;
   }
 
-  function updateStopCards(nearestStop) {
+  function findNextStop(stops, currentStop) {
+    if (!stops?.length || !currentStop) return null;
+
+    return stops.find((stop) => stop.index !== currentStop.index && (stop.order ?? stop.index) > (currentStop.order ?? currentStop.index)) || null;
+  }
+
+  function updateNextStopPanel(nextStop) {
+    if (!nextStop) {
+      if (nextStopName) nextStopName.textContent = 'No later stop configured';
+      if (nextStopDescription) nextStopDescription.textContent = 'This appears to be the final moment in the current route, or later stops have not been added yet.';
+      if (nextStopDistance) nextStopDistance.textContent = 'Distance: unavailable';
+      if (nextStopStatus) nextStopStatus.textContent = 'Add another stop in Sanity to extend the journey.';
+      return;
+    }
+
+    if (nextStopName) nextStopName.textContent = nextStop.title || 'Untitled next stop';
+    if (nextStopDescription) {
+      nextStopDescription.textContent =
+        nextStop.description || nextStop.promptText || 'Add a short description or prompt so the transition into this stop feels intentional.';
+    }
+    if (nextStopDistance) {
+      nextStopDistance.textContent = `Distance: ${formatDistance(nextStop.distanceMeters)}`;
+    }
+    if (nextStopStatus) {
+      nextStopStatus.textContent = `Up next in the route${nextStop.promptText ? `: ${nextStop.promptText}` : '.'}`;
+    }
+  }
+
+  function updateStopCards(nearestStop, nextStop) {
     const cards = document.querySelectorAll('[data-stop-index]');
     const debugRows = document.querySelectorAll('[data-stop-debug]');
+    const roleBadges = document.querySelectorAll('[data-stop-role]');
 
     cards.forEach((card) => {
       const index = Number(card.getAttribute('data-stop-index'));
       const isActive = nearestStop && index === nearestStop.index;
+      const isNext = nextStop && index === nextStop.index;
       card.style.borderColor = isActive ? '#171227' : '#e5e5e5';
-      card.style.background = isActive ? '#fafafa' : '#fff';
+      card.style.background = isActive ? '#faf7ff' : isNext ? '#f7fffc' : '#fff';
+      card.style.boxShadow = isActive ? '0 12px 32px rgba(23, 18, 39, 0.08)' : 'none';
+    });
+
+    roleBadges.forEach((badge) => {
+      const index = Number(badge.getAttribute('data-stop-role'));
+      const isActive = nearestStop && index === nearestStop.index;
+      const isNext = nextStop && index === nextStop.index;
+
+      if (isActive) {
+        badge.textContent = 'Current stop';
+        badge.style.background = '#ede9fe';
+        badge.style.color = '#5b21b6';
+      } else if (isNext) {
+        badge.textContent = 'Next stop';
+        badge.style.background = '#ccfbf1';
+        badge.style.color = '#115e59';
+      } else {
+        badge.textContent = 'Along the route';
+        badge.style.background = '#f4f4f5';
+        badge.style.color = '#52525b';
+      }
     });
 
     debugRows.forEach((row) => {
@@ -320,13 +471,15 @@ const experienceStops = [...(recxrSite?.experienceStops ?? [])]
       const stop = nearestStop?.allStops?.find((entry) => entry.index === index) || experienceStops.find((entry) => entry.index === index);
       if (!stop) return;
       const unlocked = Boolean(stop.isUnlocked);
-      row.textContent = `Distance: ${formatDistance(stop.distanceMeters)} • Status: ${unlocked ? 'unlocked' : 'locked'}`;
+      const label = nearestStop && stop.index === nearestStop.index ? 'Current stop' : nextStop && stop.index === nextStop.index ? 'Next stop' : 'Route stop';
+      row.textContent = `${label} • Distance: ${formatDistance(stop.distanceMeters)} • Status: ${unlocked ? 'unlocked' : 'locked'}`;
     });
   }
 
   function updateActiveStop(userLatitude, userLongitude, accuracy) {
     if (!experienceStops.length) {
       if (activeStopName) activeStopName.textContent = 'Nearest stop: no experience stops configured.';
+      updateNextStopPanel(null);
       return;
     }
 
@@ -343,22 +496,32 @@ const experienceStops = [...(recxrSite?.experienceStops ?? [])]
 
     const nearestStop = [...stopsWithDistance].sort((a, b) => a.distanceMeters - b.distanceMeters)[0];
     nearestStop.allStops = stopsWithDistance;
+    const nextStop = findNextStop(stopsWithDistance, nearestStop);
 
-    if (activeStopName) activeStopName.textContent = `Nearest stop: ${nearestStop.title || 'Untitled Stop'}`;
+    if (activeStopSequence) {
+      activeStopSequence.textContent = `Stop ${nearestStop.index + 1} of ${experienceStops.length}`;
+    }
+    if (activeStopName) activeStopName.textContent = nearestStop.title || 'Untitled Stop';
+    if (activeStopDescription) {
+      activeStopDescription.textContent =
+        nearestStop.description || 'Add a short stop description in Sanity to give this moment a stronger sense of place.';
+    }
     if (activeStopDistance) {
       activeStopDistance.textContent = `Distance: ${formatDistance(nearestStop.distanceMeters)}${accuracy ? ` • Accuracy ±${Math.round(accuracy)}m` : ''}`;
     }
     if (activeStopStatus) {
-      activeStopStatus.textContent = `Status: ${nearestStop.isUnlocked ? 'unlocked' : 'locked'}`;
-      activeStopStatus.style.color = nearestStop.isUnlocked ? '#0f766e' : '#171227';
+      activeStopStatus.textContent = nearestStop.isUnlocked ? 'Unlocked on site' : 'Approaching stop';
+      activeStopStatus.style.color = nearestStop.isUnlocked ? '#0f766e' : '#5b21b6';
+      activeStopStatus.style.background = nearestStop.isUnlocked ? '#ccfbf1' : '#ede9fe';
     }
     if (activeStopPrompt) {
       activeStopPrompt.textContent = nearestStop.promptText || 'No prompt text is configured for the nearest stop.';
     }
+    updateNextStopPanel(nextStop);
 
-    if (nearestStop.isUnlocked && nearestStop.hlsUrl && activeStopVideo && activeStopSource && activeStopPlayer) {
+    if (nearestStop.isUnlocked && nearestStop.standardHlsUrl && activeStopVideo && activeStopSource && activeStopPlayer) {
       activeStopVideo.style.display = 'block';
-      activeStopSource.src = nearestStop.hlsUrl;
+      activeStopSource.src = nearestStop.standardHlsUrl;
       activeStopPlayer.load();
     } else if (activeStopVideo && activeStopSource && activeStopPlayer) {
       activeStopVideo.style.display = 'none';
@@ -369,7 +532,7 @@ const experienceStops = [...(recxrSite?.experienceStops ?? [])]
     const activeStop = nearestStop.isUnlocked ? nearestStop : null;
     window.dispatchEvent(new CustomEvent('recxr-active-stop', { detail: activeStop }));
 
-    updateStopCards(nearestStop);
+    updateStopCards(nearestStop, nextStop);
   }
 
   geolocateButton?.addEventListener('click', () => {
@@ -392,6 +555,7 @@ const experienceStops = [...(recxrSite?.experienceStops ?? [])]
       (error) => {
         if (geolocateStatus) geolocateStatus.textContent = `Location request failed: ${error.message}`;
         if (geolocateCoords) geolocateCoords.textContent = '';
+        updateNextStopPanel(null);
         updateStopCards();
       },
       {
@@ -401,5 +565,6 @@ const experienceStops = [...(recxrSite?.experienceStops ?? [])]
     );
   });
   window.dispatchEvent(new CustomEvent('recxr-active-stop', { detail: null }));
+  updateNextStopPanel(null);
   updateStopCards();
 </script>

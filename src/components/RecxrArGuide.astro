@@ -166,6 +166,37 @@
       >
         Watch Standard Video
       </button>
+      <button
+        id="recxr-camera-place-here"
+        type="button"
+        style="display: inline-block; padding: 0.8rem 1.1rem; border: 1px solid rgba(255,255,255,0.5); color: #fff; background: rgba(255,255,255,0.08); border-radius: 999px; cursor: pointer;"
+      >
+        Place Guide Here
+      </button>
+    </div>
+
+    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem;">
+      <button
+        id="recxr-camera-pos-center"
+        type="button"
+        style="display: inline-block; padding: 0.65rem 0.95rem; border: 1px solid rgba(255,255,255,0.35); color: #fff; background: rgba(255,255,255,0.08); border-radius: 999px; cursor: pointer;"
+      >
+        Lower Center
+      </button>
+      <button
+        id="recxr-camera-pos-left"
+        type="button"
+        style="display: inline-block; padding: 0.65rem 0.95rem; border: 1px solid rgba(255,255,255,0.35); color: #fff; background: rgba(255,255,255,0.08); border-radius: 999px; cursor: pointer;"
+      >
+        Lower Left
+      </button>
+      <button
+        id="recxr-camera-pos-right"
+        type="button"
+        style="display: inline-block; padding: 0.65rem 0.95rem; border: 1px solid rgba(255,255,255,0.35); color: #fff; background: rgba(255,255,255,0.08); border-radius: 999px; cursor: pointer;"
+      >
+        Lower Right
+      </button>
     </div>
 
     <p id="recxr-camera-status" style="margin: 0; color: #d1d5db;">
@@ -174,8 +205,13 @@
   </div>
 
   <div
+    id="recxr-camera-panel-shadow"
+    style="display: none; position: absolute; left: 50%; top: 72%; width: min(52vw, 16rem); height: 1.75rem; transform: translate(-50%, -50%); z-index: 2; pointer-events: none; border-radius: 999px; background: radial-gradient(circle, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.18) 45%, rgba(0,0,0,0) 75%); filter: blur(10px); opacity: 0.8;"
+  ></div>
+
+  <div
     id="recxr-camera-panel"
-    style="display: none; position: absolute; left: 50%; top: 58%; width: min(82vw, 28rem); transform: translate(-50%, -50%); z-index: 3; border-radius: 20px; overflow: hidden; border: 1px solid rgba(255,255,255,0.4); box-shadow: 0 24px 80px rgba(0,0,0,0.38); background: rgba(14, 18, 28, 0.86); backdrop-filter: blur(12px); touch-action: none;"
+    style="display: none; position: absolute; left: 50%; top: 72%; width: min(82vw, 28rem); transform: translate(-50%, -50%); z-index: 3; border-radius: 20px; overflow: hidden; border: 1px solid rgba(255,255,255,0.4); box-shadow: 0 24px 80px rgba(0,0,0,0.38), 0 0 0 1px rgba(255,255,255,0.06) inset; background: linear-gradient(180deg, rgba(23, 18, 39, 0.9), rgba(14, 18, 28, 0.82)); backdrop-filter: blur(12px); touch-action: none; transition: left 180ms ease, top 180ms ease, transform 180ms ease;"
   >
     <div
       id="recxr-camera-panel-handle"
@@ -183,6 +219,10 @@
     >
       <p style="margin: 0; font-size: 0.9rem; color: #f3f4f6;">Drag guide panel</p>
     </div>
+    <canvas
+      id="recxr-camera-panel-canvas"
+      style="display: none; width: 100%; background: transparent;"
+    ></canvas>
     <video
       id="recxr-camera-panel-video"
       controls
@@ -193,6 +233,13 @@
       <source id="recxr-camera-panel-source" src="" type="application/x-mpegURL" />
       Your browser does not support HTML5 video playback.
     </video>
+    <video
+      id="recxr-camera-panel-guide-video"
+      muted
+      playsinline
+      preload="metadata"
+      style="display: none;"
+    ></video>
     <div style="padding: 1rem;">
       <p id="recxr-camera-panel-prompt" style="margin: 0; line-height: 1.7; color: #f3f4f6;">
         Prompt text will appear here when a stop is unlocked.
@@ -225,10 +272,17 @@
   const cameraCloseButton = document.getElementById('recxr-camera-close');
   const cameraResetButton = document.getElementById('recxr-camera-reset');
   const cameraStandardVideoButton = document.getElementById('recxr-camera-standard-video');
+  const cameraPlaceHereButton = document.getElementById('recxr-camera-place-here');
+  const cameraPosCenterButton = document.getElementById('recxr-camera-pos-center');
+  const cameraPosLeftButton = document.getElementById('recxr-camera-pos-left');
+  const cameraPosRightButton = document.getElementById('recxr-camera-pos-right');
+  const cameraPanelShadow = document.getElementById('recxr-camera-panel-shadow');
   const cameraPanel = document.getElementById('recxr-camera-panel');
   const cameraPanelHandle = document.getElementById('recxr-camera-panel-handle');
+  const cameraPanelCanvas = document.getElementById('recxr-camera-panel-canvas');
   const cameraPanelVideo = document.getElementById('recxr-camera-panel-video');
   const cameraPanelSource = document.getElementById('recxr-camera-panel-source');
+  const cameraPanelGuideVideo = document.getElementById('recxr-camera-panel-guide-video');
   const cameraPanelPrompt = document.getElementById('recxr-camera-panel-prompt');
   const standardVideoContainer = document.getElementById('recxr-active-stop-video');
   const standardVideoPlayer = document.getElementById('recxr-active-stop-player');
@@ -265,6 +319,37 @@
   let panelPlaced = false;
   let cameraStream = null;
   let panelDrag = null;
+  let cameraPlacementMode = false;
+  let cameraGuideAnimationFrame = null;
+  let cameraGuideCanvasContext = null;
+  let cameraGuideBufferCanvas = null;
+  let cameraGuideBufferContext = null;
+  const alphaPackedVideoVertexShader = `
+    varying vec2 vUv;
+
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `;
+  const alphaPackedVideoFragmentShader = `
+    uniform sampler2D videoMap;
+    varying vec2 vUv;
+
+    float luma(vec3 color) {
+      return dot(color, vec3(0.299, 0.587, 0.114));
+    }
+
+    void main() {
+      vec2 colorUv = vec2(vUv.x, 0.5 + (vUv.y * 0.5));
+      vec2 alphaUv = vec2(vUv.x, vUv.y * 0.5);
+      vec4 colorSample = texture2D(videoMap, colorUv);
+      vec4 alphaSample = texture2D(videoMap, alphaUv);
+      float alpha = luma(alphaSample.rgb);
+
+      gl_FragColor = vec4(colorSample.rgb, alpha);
+    }
+  `;
 
   function setRuntimeStep(step) {
     if (runtimeStep) {
@@ -295,8 +380,213 @@
     button.style.cursor = enabled ? 'pointer' : 'not-allowed';
   }
 
+  function getStandardVideoUrl(stop) {
+    return stop?.standardHlsUrl || stop?.hlsUrl || '';
+  }
+
+  function getGuideVideoUrl(stop) {
+    return stop?.arGuideHlsUrl || stop?.standardHlsUrl || stop?.hlsUrl || '';
+  }
+
+  function isPackedAlphaStop(stop) {
+    return stop?.videoMode === 'packedAlpha' && Boolean(stop?.arGuideHlsUrl || stop?.hlsUrl);
+  }
+
+  function createVideoPanelMaterial(stop, texture) {
+    if (isPackedAlphaStop(stop)) {
+      return new THREE.ShaderMaterial({
+        uniforms: {
+          videoMap: { value: texture },
+        },
+        vertexShader: alphaPackedVideoVertexShader,
+        fragmentShader: alphaPackedVideoFragmentShader,
+        transparent: true,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+        toneMapped: false,
+      });
+    }
+
+    return new THREE.MeshBasicMaterial({
+      map: texture,
+      transparent: true,
+      side: THREE.DoubleSide,
+      toneMapped: false,
+    });
+  }
+
+  function stopPackedAlphaCameraRender() {
+    if (cameraGuideAnimationFrame) {
+      window.cancelAnimationFrame(cameraGuideAnimationFrame);
+      cameraGuideAnimationFrame = null;
+    }
+
+    if (cameraPanelGuideVideo) {
+      cameraPanelGuideVideo.pause();
+      cameraPanelGuideVideo.removeAttribute('src');
+      cameraPanelGuideVideo.load();
+    }
+
+    if (cameraPanelCanvas) {
+      cameraPanelCanvas.style.display = 'none';
+    }
+
+    if (cameraPanelVideo) {
+      cameraPanelVideo.style.display = 'block';
+    }
+  }
+
+  function renderPackedAlphaFrame() {
+    if (!cameraPanelGuideVideo || !cameraPanelCanvas) return;
+
+    if (cameraPanelGuideVideo.readyState < 2 || cameraPanelGuideVideo.videoWidth === 0 || cameraPanelGuideVideo.videoHeight === 0) {
+      cameraGuideAnimationFrame = window.requestAnimationFrame(renderPackedAlphaFrame);
+      return;
+    }
+
+    if (!cameraGuideCanvasContext) {
+      cameraGuideCanvasContext = cameraPanelCanvas.getContext('2d', { willReadFrequently: true });
+    }
+    if (!cameraGuideBufferCanvas) {
+      cameraGuideBufferCanvas = document.createElement('canvas');
+      cameraGuideBufferContext = cameraGuideBufferCanvas.getContext('2d', { willReadFrequently: true });
+    }
+    if (!cameraGuideCanvasContext || !cameraGuideBufferContext) {
+      return;
+    }
+
+    const frameWidth = cameraPanelGuideVideo.videoWidth;
+    const packedHeight = cameraPanelGuideVideo.videoHeight;
+    const frameHeight = Math.floor(packedHeight / 2);
+
+    if (frameHeight <= 0) {
+      cameraGuideAnimationFrame = window.requestAnimationFrame(renderPackedAlphaFrame);
+      return;
+    }
+
+    if (cameraPanelCanvas.width !== frameWidth || cameraPanelCanvas.height !== frameHeight) {
+      cameraPanelCanvas.width = frameWidth;
+      cameraPanelCanvas.height = frameHeight;
+    }
+    if (cameraGuideBufferCanvas.width !== frameWidth || cameraGuideBufferCanvas.height !== packedHeight) {
+      cameraGuideBufferCanvas.width = frameWidth;
+      cameraGuideBufferCanvas.height = packedHeight;
+    }
+
+    cameraGuideBufferContext.drawImage(cameraPanelGuideVideo, 0, 0, frameWidth, packedHeight);
+    const colorFrame = cameraGuideBufferContext.getImageData(0, 0, frameWidth, frameHeight);
+    const alphaFrame = cameraGuideBufferContext.getImageData(0, frameHeight, frameWidth, frameHeight);
+    const colorPixels = colorFrame.data;
+    const alphaPixels = alphaFrame.data;
+
+    for (let index = 0; index < colorPixels.length; index += 4) {
+      colorPixels[index + 3] = Math.round(
+        (alphaPixels[index] * 0.299) +
+        (alphaPixels[index + 1] * 0.587) +
+        (alphaPixels[index + 2] * 0.114)
+      );
+    }
+
+    cameraGuideCanvasContext.clearRect(0, 0, frameWidth, frameHeight);
+    cameraGuideCanvasContext.putImageData(colorFrame, 0, 0);
+    cameraGuideAnimationFrame = window.requestAnimationFrame(renderPackedAlphaFrame);
+  }
+
+  async function startPackedAlphaCameraRender(stop) {
+    if (!cameraPanelGuideVideo || !cameraPanelCanvas) return false;
+
+    const guideVideoUrl = getGuideVideoUrl(stop);
+    if (!guideVideoUrl) return false;
+
+    stopPackedAlphaCameraRender();
+    if (cameraPanelVideo) {
+      cameraPanelVideo.pause();
+      cameraPanelVideo.style.display = 'none';
+    }
+
+    cameraPanelCanvas.style.display = 'block';
+    cameraPanelGuideVideo.src = guideVideoUrl;
+    cameraPanelGuideVideo.crossOrigin = 'anonymous';
+    cameraPanelGuideVideo.loop = true;
+    cameraPanelGuideVideo.muted = true;
+    cameraPanelGuideVideo.playsInline = true;
+    cameraPanelGuideVideo.setAttribute('webkit-playsinline', 'true');
+    cameraPanelGuideVideo.preload = 'auto';
+
+    await cameraPanelGuideVideo.play();
+    renderPackedAlphaFrame();
+    return true;
+  }
+
+  async function playCameraGuideMedia(stop) {
+    if (isPackedAlphaStop(stop)) {
+      try {
+        const started = await startPackedAlphaCameraRender(stop);
+        if (started) return;
+      } catch (_error) {
+        // Fall through to the standard rectangular player when packed-alpha decode fails.
+      }
+    }
+
+    if (cameraPanelCanvas) {
+      cameraPanelCanvas.style.display = 'none';
+    }
+    if (cameraPanelVideo) {
+      cameraPanelVideo.style.display = 'block';
+      await cameraPanelVideo.play().catch(() => {});
+    }
+  }
+
+  function syncCameraShadow() {
+    if (!cameraPanel || !cameraPanelShadow) return;
+
+    const left = cameraPanel.style.left || '50%';
+    const top = cameraPanel.style.top || '72%';
+    cameraPanelShadow.style.left = left;
+    cameraPanelShadow.style.top = top;
+    cameraPanelShadow.style.display = cameraPanel.style.display === 'none' ? 'none' : 'block';
+  }
+
+  function setCameraPlacementMode(enabled) {
+    cameraPlacementMode = enabled;
+    if (cameraPlaceHereButton) {
+      cameraPlaceHereButton.textContent = enabled ? 'Tap Anywhere To Place' : 'Place Guide Here';
+      cameraPlaceHereButton.style.background = enabled ? '#fff' : 'rgba(255,255,255,0.08)';
+      cameraPlaceHereButton.style.color = enabled ? '#171227' : '#fff';
+    }
+    if (cameraStatus && enabled) {
+      cameraStatus.textContent = 'Tap anywhere on the camera view to place the guide panel.';
+    }
+  }
+
+  function setCameraPanelPosition(left, top, { center = false, smooth = true } = {}) {
+    if (!cameraPanel) return;
+
+    cameraPanel.style.transition = smooth ? 'left 180ms ease, top 180ms ease, transform 180ms ease' : 'none';
+    cameraPanel.style.left = left;
+    cameraPanel.style.top = top;
+    cameraPanel.style.transform = center ? 'translate(-50%, -50%)' : 'none';
+    syncCameraShadow();
+  }
+
+  function applyPresetPlacement(position) {
+    if (!cameraPanel) return;
+
+    if (position === 'left') {
+      setCameraPanelPosition('22%', '74%', { center: true });
+    } else if (position === 'right') {
+      setCameraPanelPosition('78%', '74%', { center: true });
+    } else {
+      setCameraPanelPosition('50%', '72%', { center: true });
+    }
+
+    if (cameraStatus) {
+      cameraStatus.textContent = `Guide panel moved to ${position === 'center' ? 'lower center' : `lower ${position}`}.`;
+    }
+  }
+
   function updateDebugPanel(stop) {
-    const hasVideo = Boolean(stop?.hlsUrl);
+    const hasVideo = Boolean(getStandardVideoUrl(stop) || getGuideVideoUrl(stop));
     const isUnlocked = Boolean(stop?.isUnlocked);
     if (debugMounted) {
       debugMounted.textContent = 'Section mounted: yes';
@@ -444,10 +734,11 @@
   function createVideoPanel(stop) {
     disposeVideoPanel();
 
-    if (!scene || !stop?.hlsUrl) return;
+    const guideVideoUrl = getGuideVideoUrl(stop);
+    if (!scene || !guideVideoUrl) return;
 
     videoElement = document.createElement('video');
-    videoElement.src = stop.hlsUrl;
+    videoElement.src = guideVideoUrl;
     videoElement.crossOrigin = 'anonymous';
     videoElement.loop = true;
     videoElement.muted = true;
@@ -457,9 +748,12 @@
 
     videoTexture = new THREE.VideoTexture(videoElement);
     videoTexture.colorSpace = THREE.SRGBColorSpace;
+    videoTexture.minFilter = THREE.LinearFilter;
+    videoTexture.magFilter = THREE.LinearFilter;
+    videoTexture.generateMipmaps = false;
 
     const geometry = new THREE.PlaneGeometry(1.2, 0.675);
-    const material = new THREE.MeshBasicMaterial({ map: videoTexture, side: THREE.DoubleSide, toneMapped: false });
+    const material = createVideoPanelMaterial(stop, videoTexture);
     videoMesh = new THREE.Mesh(geometry, material);
     videoMesh.visible = false;
     scene.add(videoMesh);
@@ -497,13 +791,12 @@
   }
 
   function resetCameraPanelPosition() {
-    if (!cameraPanel) return;
-    cameraPanel.style.left = '50%';
-    cameraPanel.style.top = '58%';
-    cameraPanel.style.transform = 'translate(-50%, -50%)';
+    applyPresetPlacement('center');
   }
 
   function stopCameraGuide() {
+    stopPackedAlphaCameraRender();
+
     if (cameraStream) {
       cameraStream.getTracks().forEach((track) => track.stop());
       cameraStream = null;
@@ -517,10 +810,14 @@
       cameraPanelVideo.pause();
       cameraPanelSource.src = '';
       cameraPanelVideo.load();
+      cameraPanelVideo.style.display = 'block';
     }
 
     if (cameraPanel) {
       cameraPanel.style.display = 'none';
+    }
+    if (cameraPanelShadow) {
+      cameraPanelShadow.style.display = 'none';
     }
 
     if (cameraOverlay) {
@@ -534,7 +831,8 @@
 
   // Camera Guide path: for iPhone and unsupported browsers, use live camera plus a draggable guide panel.
   async function startCameraGuide(stop) {
-    if (!stop?.hlsUrl || !cameraGuideSupported || !cameraOverlay || !cameraFeed) return;
+    const guideVideoUrl = getGuideVideoUrl(stop);
+    if (!guideVideoUrl || !cameraGuideSupported || !cameraOverlay || !cameraFeed) return;
 
     await endArSession().catch(() => {});
     stopCameraGuide();
@@ -549,12 +847,18 @@
       cameraPanelPrompt.textContent = stop.promptText || 'Move the guide panel around the screen to simulate on-site placement while we prepare full AR support.';
     }
     if (cameraPanelSource && cameraPanelVideo) {
-      cameraPanelSource.src = stop.hlsUrl;
+      const standardVideoUrl = getStandardVideoUrl(stop);
+      cameraPanelSource.src = standardVideoUrl;
       cameraPanelVideo.load();
+      cameraPanelVideo.style.display = standardVideoUrl ? 'block' : 'none';
     }
     if (cameraPanel) {
       cameraPanel.style.display = 'block';
       resetCameraPanelPosition();
+    }
+    if (cameraPanelShadow) {
+      cameraPanelShadow.style.display = 'block';
+      syncCameraShadow();
     }
     if (cameraOverlay) {
       cameraOverlay.style.display = 'block';
@@ -574,19 +878,19 @@
 
         cameraFeed.srcObject = cameraStream;
         await cameraFeed.play();
-        await cameraPanelVideo?.play?.().catch(() => {});
+        await playCameraGuideMedia(stop);
 
         if (cameraStatus) {
           cameraStatus.textContent = 'Camera Guide is live. Drag the panel to line it up with your surroundings.';
         }
       } else {
-        await cameraPanelVideo?.play?.().catch(() => {});
+        await playCameraGuideMedia(stop);
         if (cameraStatus) {
           cameraStatus.textContent = 'Camera access is limited here, but the guide panel is still available as a fullscreen fallback for iPhone testing.';
         }
       }
     } catch (error) {
-      await cameraPanelVideo?.play?.().catch(() => {});
+      await playCameraGuideMedia(stop);
       if (cameraStatus) {
         cameraStatus.textContent = `Camera access failed, so RecXR is showing the fullscreen guide panel instead: ${error instanceof Error ? error.message : 'Unknown error'}`;
       }
@@ -604,7 +908,7 @@
   }
 
   async function startArSession(stop) {
-    if (!xrSupported || !stop?.hlsUrl || !navigator.xr) return;
+    if (!xrSupported || !getGuideVideoUrl(stop) || !navigator.xr) return;
 
     stopCameraGuide();
     ensureThreeScene();
@@ -709,15 +1013,16 @@
 
     if (!arLaunchSection || !arLaunchCopy) return;
 
-    const hasVideo = Boolean(stop?.hlsUrl);
+    const hasStandardVideo = Boolean(getStandardVideoUrl(stop));
+    const hasGuideVideo = Boolean(getGuideVideoUrl(stop));
     const isUnlocked = Boolean(stop?.isUnlocked);
-    const canLaunchAr = Boolean(isUnlocked && hasVideo && xrSupported);
-    const canLaunchCamera = Boolean(isUnlocked && hasVideo && cameraGuideSupported);
+    const canLaunchAr = Boolean(isUnlocked && hasGuideVideo && xrSupported);
+    const canLaunchCamera = Boolean(isUnlocked && hasGuideVideo && cameraGuideSupported);
 
     // Temporary debug override: keep the launcher visible so we can inspect capability and stop state.
     arLaunchSection.style.display = 'block';
     if (isUnlocked) {
-      if (hasVideo) {
+      if (hasGuideVideo || hasStandardVideo) {
         if (canLaunchAr && canLaunchCamera) {
           arLaunchCopy.textContent = `The nearest stop, ${stop.title || 'this stop'}, is unlocked. On WebXR-capable phones you can place the guide on a detected surface, and on other phones you can use Camera Guide mode with the same stop video.`;
         } else if (canLaunchCamera) {
@@ -735,12 +1040,12 @@
     }
 
     if (cameraLaunchButton) {
-      cameraLaunchButton.style.display = hasVideo && isUnlocked ? 'inline-block' : 'none';
+      cameraLaunchButton.style.display = hasGuideVideo && isUnlocked ? 'inline-block' : 'none';
     }
 
     setButtonState(arLaunchButton, canLaunchAr);
-    setButtonState(cameraLaunchButton, Boolean(isUnlocked && hasVideo && cameraGuideSupported));
-    setButtonState(standardVideoButton, Boolean(isUnlocked && hasVideo));
+    setButtonState(cameraLaunchButton, Boolean(isUnlocked && hasGuideVideo && cameraGuideSupported));
+    setButtonState(standardVideoButton, Boolean(isUnlocked && hasStandardVideo));
     updateDebugPanel(stop);
   }
 
@@ -760,13 +1065,13 @@
   try {
     setRuntimeStep('binding launch buttons');
     arLaunchButton?.addEventListener('click', () => {
-      if (currentActiveStop?.isUnlocked && currentActiveStop?.hlsUrl) {
+      if (currentActiveStop?.isUnlocked && getGuideVideoUrl(currentActiveStop)) {
         startArSession(currentActiveStop);
       }
     });
 
     cameraLaunchButton?.addEventListener('click', () => {
-      if (currentActiveStop?.isUnlocked && currentActiveStop?.hlsUrl) {
+      if (currentActiveStop?.isUnlocked && getGuideVideoUrl(currentActiveStop)) {
         startCameraGuide(currentActiveStop);
       }
     });
@@ -792,10 +1097,26 @@
       resetCameraPanelPosition();
     });
 
+    cameraPosCenterButton?.addEventListener('click', () => {
+      applyPresetPlacement('center');
+    });
+
+    cameraPosLeftButton?.addEventListener('click', () => {
+      applyPresetPlacement('left');
+    });
+
+    cameraPosRightButton?.addEventListener('click', () => {
+      applyPresetPlacement('right');
+    });
+
     cameraStandardVideoButton?.addEventListener('click', () => {
       stopCameraGuide();
       standardVideoContainer?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       standardVideoPlayer?.play?.().catch(() => {});
+    });
+
+    cameraPlaceHereButton?.addEventListener('click', () => {
+      setCameraPlacementMode(!cameraPlacementMode);
     });
 
     setRuntimeStep('binding drag handlers');
@@ -810,6 +1131,7 @@
         offsetY: event.clientY - rect.top,
       };
       cameraPanelHandle.style.cursor = 'grabbing';
+      cameraPanel.style.transition = 'none';
       cameraPanel.style.transform = 'none';
     });
 
@@ -820,6 +1142,7 @@
       const nextTop = event.clientY - panelDrag.offsetY;
       cameraPanel.style.left = `${Math.max(12, Math.min(window.innerWidth - cameraPanel.offsetWidth - 12, nextLeft))}px`;
       cameraPanel.style.top = `${Math.max(100, Math.min(window.innerHeight - cameraPanel.offsetHeight - 12, nextTop))}px`;
+      syncCameraShadow();
     });
 
     cameraPanelHandle?.addEventListener('pointerup', (event) => {
@@ -828,6 +1151,8 @@
         panelDrag = null;
         cameraPanelHandle.releasePointerCapture(event.pointerId);
         cameraPanelHandle.style.cursor = 'grab';
+        cameraPanel.style.transition = 'left 180ms ease, top 180ms ease, transform 180ms ease';
+        syncCameraShadow();
       }
     });
 
@@ -836,6 +1161,40 @@
       if (panelDrag?.pointerId === event.pointerId) {
         panelDrag = null;
         cameraPanelHandle.style.cursor = 'grab';
+        cameraPanel.style.transition = 'left 180ms ease, top 180ms ease, transform 180ms ease';
+        syncCameraShadow();
+      }
+    });
+
+    setRuntimeStep('binding camera placement interaction');
+    cameraOverlay?.addEventListener('pointerdown', (event) => {
+      if (!cameraPlacementMode || !cameraPanel || !cameraOverlay) return;
+
+      const target = event.target;
+      if (
+        target instanceof Element &&
+        (target.closest('#recxr-camera-panel') ||
+          target.closest('#recxr-camera-close') ||
+          target.closest('#recxr-camera-reset') ||
+          target.closest('#recxr-camera-standard-video') ||
+          target.closest('#recxr-camera-place-here') ||
+          target.closest('#recxr-camera-pos-center') ||
+          target.closest('#recxr-camera-pos-left') ||
+          target.closest('#recxr-camera-pos-right'))
+      ) {
+        return;
+      }
+
+      const panelWidth = cameraPanel.offsetWidth;
+      const panelHeight = cameraPanel.offsetHeight;
+      const nextLeft = Math.max(12, Math.min(window.innerWidth - panelWidth - 12, event.clientX - panelWidth / 2));
+      const nextTop = Math.max(100, Math.min(window.innerHeight - panelHeight - 12, event.clientY - panelHeight / 2));
+
+      setCameraPanelPosition(`${nextLeft}px`, `${nextTop}px`, { center: false, smooth: true });
+      setCameraPlacementMode(false);
+
+      if (cameraStatus) {
+        cameraStatus.textContent = 'Guide panel placed. Drag it further if you want to refine the position.';
       }
     });
 

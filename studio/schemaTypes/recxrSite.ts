@@ -151,10 +151,37 @@ export default defineType({
               type: 'number',
             }),
             defineField({
-              name: 'video',
-              title: 'Stop Video',
-              description: 'Upload the primary Mux-hosted AR guide video for this trigger location.',
+              name: 'videoMode',
+              title: 'Video Mode',
+              description: 'Choose whether this stop uses a normal rectangular video or a packed-alpha AR guide asset.',
+              type: 'string',
+              initialValue: 'standard',
+              options: {
+                list: [
+                  {title: 'Standard Video', value: 'standard'},
+                  {title: 'Packed Alpha Guide', value: 'packedAlpha'},
+                ],
+                layout: 'radio',
+              },
+            }),
+            defineField({
+              name: 'standardVideo',
+              title: 'Standard Video',
+              description: 'Upload the regular Mux-hosted video used for standard playback and fallback viewing.',
               type: 'mux.video',
+            }),
+            defineField({
+              name: 'arGuideVideo',
+              title: 'AR Guide Video',
+              description: 'Upload the packed-alpha Mux video used by WebXR AR and iPhone Camera Guide mode.',
+              type: 'mux.video',
+            }),
+            defineField({
+              name: 'video',
+              title: 'Legacy Stop Video',
+              description: 'Optional legacy field kept for backward compatibility while older stops are migrated.',
+              type: 'mux.video',
+              hidden: true,
             }),
             defineField({
               name: 'order',
@@ -175,18 +202,19 @@ export default defineType({
               latitude: 'latitude',
               longitude: 'longitude',
               order: 'order',
+              videoMode: 'videoMode',
             },
-            prepare({title, latitude, longitude, order}) {
-              const subtitle =
+            prepare({title, latitude, longitude, order, videoMode}) {
+              const locationLabel =
                 typeof latitude === 'number' && typeof longitude === 'number'
                   ? `${latitude}, ${longitude}`
-                  : typeof order === 'number'
-                    ? `Order ${order}`
-                    : 'AR guide trigger location'
+                  : 'AR guide trigger location'
+              const orderLabel = typeof order === 'number' ? `Order ${order}` : null
+              const modeLabel = videoMode === 'packedAlpha' ? 'Packed alpha guide' : 'Standard video'
 
               return {
                 title: title || 'Untitled Experience Stop',
-                subtitle,
+                subtitle: [orderLabel, modeLabel, locationLabel].filter(Boolean).join(' | '),
               }
             },
           },
