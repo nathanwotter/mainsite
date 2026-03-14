@@ -1,8 +1,23 @@
 ---
 ---
 
-<section id="recxr-ar-launch" style="display: none; padding: 0 0 2rem 0;">
+<section id="recxr-ar-launch" style="display: block; padding: 0 0 2rem 0;">
   <div style="max-width: 900px; padding: 1.25rem; border: 1px solid #171227; border-radius: 16px; background: #f8f7fb;">
+    <div
+      style="margin: 0 0 1rem 0; padding: 1rem; border: 2px solid #b91c1c; border-radius: 12px; background: #fef2f2;"
+    >
+      <p style="margin: 0 0 0.5rem 0; font-size: 0.85rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #991b1b;">
+        Temporary Debug Override
+      </p>
+      <p id="recxr-debug-mounted" style="margin: 0 0 0.35rem 0; color: #222;">Section mounted: no</p>
+      <p id="recxr-debug-global-stop" style="margin: 0 0 0.35rem 0; color: #222;">window.recxrActiveStop exists: no</p>
+      <p id="recxr-debug-stop-title" style="margin: 0 0 0.35rem 0; color: #222;">Active stop title: none</p>
+      <p id="recxr-debug-stop-unlocked" style="margin: 0 0 0.35rem 0; color: #222;">Active stop unlocked: no</p>
+      <p id="recxr-debug-video" style="margin: 0 0 0.35rem 0; color: #222;">Active stop has usable video: no</p>
+      <p id="recxr-debug-webxr" style="margin: 0 0 0.35rem 0; color: #222;">WebXR immersive-ar supported: checking</p>
+      <p id="recxr-debug-camera" style="margin: 0 0 0.35rem 0; color: #222;">Camera guide supported: checking</p>
+      <p id="recxr-debug-device-branch" style="margin: 0; color: #222;">Detected device branch: standard</p>
+    </div>
     <h2 style="font-size: 1.25rem; margin: 0 0 0.75rem 0;">AR Launch</h2>
     <p id="recxr-ar-launch-copy" style="margin: 0 0 1rem 0;">
       Your nearest stop is unlocked. You can launch the AR guide for this stop or use the standard video player.
@@ -222,6 +237,9 @@
   const cameraPanelPrompt = document.getElementById('recxr-camera-panel-prompt');
   const standardVideoContainer = document.getElementById('recxr-active-stop-video');
   const standardVideoPlayer = document.getElementById('recxr-active-stop-player');
+  const debugMounted = document.getElementById('recxr-debug-mounted');
+  const debugGlobalStop = document.getElementById('recxr-debug-global-stop');
+  const debugStopTitle = document.getElementById('recxr-debug-stop-title');
   const debugStopUnlocked = document.getElementById('recxr-debug-stop-unlocked');
   const debugVideo = document.getElementById('recxr-debug-video');
   const debugWebxr = document.getElementById('recxr-debug-webxr');
@@ -270,6 +288,15 @@
   function updateDebugPanel(stop) {
     const hasVideo = Boolean(stop?.hlsUrl);
     const isUnlocked = Boolean(stop?.isUnlocked);
+    if (debugMounted) {
+      debugMounted.textContent = 'Section mounted: yes';
+    }
+    if (debugGlobalStop) {
+      debugGlobalStop.textContent = `window.recxrActiveStop exists: ${window.recxrActiveStop ? 'yes' : 'no'}`;
+    }
+    if (debugStopTitle) {
+      debugStopTitle.textContent = `Active stop title: ${stop?.title || 'none'}`;
+    }
     if (debugStopUnlocked) {
       debugStopUnlocked.textContent = `Active stop unlocked: ${isUnlocked ? 'yes' : 'no'}`;
     }
@@ -680,8 +707,9 @@
     const canLaunchAr = Boolean(isUnlocked && hasVideo && xrSupported);
     const canLaunchCamera = Boolean(isUnlocked && hasVideo && cameraGuideSupported);
 
+    // Temporary debug override: keep the launcher visible so we can inspect capability and stop state.
+    arLaunchSection.style.display = 'block';
     if (isUnlocked) {
-      arLaunchSection.style.display = 'block';
       if (hasVideo) {
         if (canLaunchAr && canLaunchCamera) {
           arLaunchCopy.textContent = `The nearest stop, ${stop.title || 'this stop'}, is unlocked. On WebXR-capable phones you can place the guide on a detected surface, and on other phones you can use Camera Guide mode with the same stop video.`;
@@ -696,7 +724,7 @@
         arLaunchCopy.textContent = `The nearest stop, ${stop.title || 'this stop'}, is unlocked, but it does not have a Mux video yet.`;
       }
     } else {
-      arLaunchSection.style.display = 'none';
+      arLaunchCopy.textContent = 'Temporary debug override is keeping this launch section visible even though no unlocked active stop is currently available.';
     }
 
     if (cameraLaunchButton) {
@@ -801,6 +829,7 @@
   });
 
   updateArCapabilityMessage().then(() => {
+    updateDebugPanel(window.recxrActiveStop || null);
     updateLaunchUi(null);
   });
 </script>
