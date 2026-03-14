@@ -429,6 +429,9 @@
 
     if (cameraPanelCanvas) {
       cameraPanelCanvas.style.display = 'none';
+      if (cameraGuideCanvasContext) {
+        cameraGuideCanvasContext.clearRect(0, 0, cameraPanelCanvas.width, cameraPanelCanvas.height);
+      }
     }
 
     if (cameraPanelVideo) {
@@ -467,6 +470,7 @@
     if (cameraPanelCanvas.width !== frameWidth || cameraPanelCanvas.height !== frameHeight) {
       cameraPanelCanvas.width = frameWidth;
       cameraPanelCanvas.height = frameHeight;
+      cameraPanelCanvas.style.aspectRatio = `${frameWidth} / ${frameHeight}`;
     }
     if (cameraGuideBufferCanvas.width !== frameWidth || cameraGuideBufferCanvas.height !== packedHeight) {
       cameraGuideBufferCanvas.width = frameWidth;
@@ -505,6 +509,7 @@
     }
 
     cameraPanelCanvas.style.display = 'block';
+    cameraPanelGuideVideo.style.display = 'none';
     cameraPanelGuideVideo.src = guideVideoUrl;
     cameraPanelGuideVideo.crossOrigin = 'anonymous';
     cameraPanelGuideVideo.loop = true;
