@@ -73,7 +73,11 @@ function formatCanonicalURL(url: string | URL) {
     </head>
     <body class="antialiased">
         <Header {...configData.header} data-sb-field-path={`${configData._id}:header`} />
-        <slot />
+        <main class="w-full px-4 sm:px-5">
+            <div class="page-shell mx-auto w-full max-w-7xl">
+                <slot />
+            </div>
+        </main>
         <Footer {...configData.footer} data-sb-field-path={`${configData._id}:footer`} />
         <script is:inline>
             window.addEventListener('stackbitObjectsChanged', () => {
@@ -82,3 +86,15 @@ function formatCanonicalURL(url: string | URL) {
         </script>
     </body>
 </html>
+
+<style>
+    .page-shell {
+        width: 100%;
+    }
+    @media (min-width: 64rem) {
+        .page-shell {
+            padding-left: clamp(8rem, 22vw, 18rem);
+            padding-right: clamp(10rem, 22vw, 18rem);
+        }
+    }
+</style>

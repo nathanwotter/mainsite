@@ -11,6 +11,10 @@ export interface ActionButton extends Action {
 
 export interface ActionLink extends Action {}
 
+export interface NavigationItem extends Action {
+    children?: Array<ActionLink>;
+}
+
 export interface BackgroundImage {
     image?: CustomImage;
     opacity?: number;
@@ -65,7 +69,7 @@ export interface Footer {
 export interface Header {
     title?: string;
     logo?: CustomImage;
-    navLinks?: Array<ActionButton | ActionLink>;
+    navLinks?: Array<NavigationItem | ActionButton | ActionLink>;
 }
 
 export interface HeroSection extends Section {

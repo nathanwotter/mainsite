@@ -13,7 +13,9 @@
 
 # environment variables
 .env
-.env.production
+.env.local
+.env.*
+!.env.example
 
 # macOS-specific files
 .DS_Store

@@ -1,5 +1,5 @@
 ---
-import { type Header } from 'types';
+import { type ActionLink, type Header, type NavigationItem } from 'types';
 import Action from '@components/Action.astro';
 import ResponsiveImage from '@components/ResponsiveImage.astro';
 
@@ -7,35 +7,114 @@ interface Props extends Header {
     'data-sb-field-path'?: string;
 }
 
+type HeaderNavItem = NonNullable<Header['navLinks']>[number];
+
 const { title, logo, navLinks, 'data-sb-field-path': fieldPath } = Astro.props;
+const hasLogo = Boolean(logo?.src);
+const logoAlt = logo?.alt || title || 'Otter Adventures';
+const isNavigationItem = (item: HeaderNavItem) => item?._type === 'navigationItem';
+const hasChildren = (item: HeaderNavItem) => Array.isArray((item as NavigationItem)?.children) && (item as NavigationItem).children.length > 0;
 ---
 
 <nav class="p-4 sm:p-5" data-sb-field-path={fieldPath}>
-    <div class="flex items-center justify-between w-full gap-6 mx-auto max-w-7xl">
+    <div class="flex items-start justify-between w-full gap-6 mx-auto max-w-7xl">
         {
-            logo.src ? (
-                <a class="flex items-center" href="/">
-                    <ResponsiveImage _id={logo._id} src={logo.src} width={logo.dimensions?.width} height={logo.dimensions?.height} alt={logo.alt} />
+            hasLogo ? (
+                <a class="flex items-start header-logo-link" href="/">
+                    <ResponsiveImage
+                        _id={logo?._id}
+                        src={logo?.src}
+                        width={logo?.dimensions?.width}
+                        height={logo?.dimensions?.height}
+                        alt={logoAlt}
+                        class="header-logo"
+                    />
                 </a>
             ) : (
-                <a class="text-xl font-bold sm:text-2xl" href="/" data-sb-field-path=".title">
-                    {title}
+                <a class="flex items-center gap-3 text-xl font-bold sm:text-2xl" href="/" data-sb-field-path=".title" aria-label={logoAlt}>
+                    <svg
+                        aria-hidden="true"
+                        viewBox="0 0 48 48"
+                        class="w-9 h-9 shrink-0"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                    >
+                        <circle cx="24" cy="24" r="20" />
+                        <path d="M16 18c1.5-3 4.2-5 8-5s6.5 2 8 5" />
+                        <circle cx="19" cy="23" r="1.5" fill="currentColor" stroke="none" />
+                        <circle cx="29" cy="23" r="1.5" fill="currentColor" stroke="none" />
+                        <path d="M24 24.5l-2.5 2h5z" fill="currentColor" stroke="none" />
+                        <path d="M20 29c1.4 1.7 3 2.5 4 2.5s2.6-.8 4-2.5" />
+                        <path d="M15 27c1.5-1 3-1.5 4.5-1.5" />
+                        <path d="M33 27c-1.5-1-3-1.5-4.5-1.5" />
+                        <path d="M14 14l3-3" />
+                        <path d="M34 14l-3-3" />
+                    </svg>
+                    <span>{title}</span>
                 </a>
             )
         }
         {
             navLinks && navLinks.length > 0 && (
                 <>
-                    <ul class="hidden lg:flex lg:flex-wrap lg:items-center lg:gap-6" data-sb-field-path=".navLinks">
-                        {navLinks.map((item, index) => (
-                            <li>
-                                <Action
-                                    action={item}
-                                    class:list={[item._type === 'actionLink' ? 'no-underline hover:underline' : 'px-4 py-3 h-auto min-h-0']}
-                                    data-sb-field-path={`.${index}`}
-                                />
-                            </li>
-                        ))}
+                    <ul class="hidden lg:flex lg:flex-wrap lg:items-center lg:gap-6 header-nav-list" data-sb-field-path=".navLinks">
+                        {navLinks.map((item, index) => {
+                            const itemHasChildren = hasChildren(item);
+
+                            return (
+                                <li class:list={['header-nav-item', itemHasChildren && 'header-nav-item-has-children']}>
+                                    {
+                                        itemHasChildren ? (
+                                            <>
+                                                <a
+                                                    class="header-nav-link text-neutral no-underline"
+                                                    href={item.url || '#'}
+                                                    aria-label={item.ariaLabel}
+                                                    data-sb-field-path={`.${index}`}
+                                                >
+                                                    <span data-sb-field-path=".label">{item.label}</span>
+                                                    <span class="header-nav-caret" aria-hidden="true" />
+                                                </a>
+                                                <ul class="header-subnav" data-sb-field-path={`.${index}.children`}>
+                                                    {item.children?.map((child: ActionLink, childIndex: number) => (
+                                                        <li>
+                                                            <a
+                                                                class="header-subnav-link text-neutral no-underline"
+                                                                href={child.url}
+                                                                aria-label={child.ariaLabel}
+                                                                data-sb-field-path={`.${childIndex}`}
+                                                            >
+                                                                <span data-sb-field-path=".label">{child.label}</span>
+                                                            </a>
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </>
+                                        ) : (
+                                            isNavigationItem(item) ? (
+                                                <a
+                                                    class="text-neutral no-underline hover:underline"
+                                                    href={item.url || '#'}
+                                                    aria-label={item.ariaLabel}
+                                                    data-sb-field-path={`.${index}`}
+                                                >
+                                                    <span data-sb-field-path=".label">{item.label}</span>
+                                                </a>
+                                            ) : (
+                                                <Action
+                                                    action={item}
+                                                    class:list={[item._type === 'actionLink' ? 'no-underline hover:underline' : 'px-4 py-3 h-auto min-h-0']}
+                                                    data-sb-field-path={`.${index}`}
+                                                />
+                                            )
+                                        )
+                                    }
+                                </li>
+                            );
+                        })}
                     </ul>
                     <div class="relative lg:hidden">
                         <button
@@ -48,17 +127,52 @@ const { title, logo, navLinks, 'data-sb-field-path': fieldPath } = Astro.props;
                         </button>
                         <div id="nav-panel" class="nav-panel absolute rounded-box -top-2 -right-2 z-1 shadow-xl bg-base-100 border border-base-200/70">
                             <ul class="flex flex-col px-4 pb-6 pt-14" data-sb-field-path=".navLinks">
-                                {navLinks.map((item, index) => (
-                                    <li>
-                                        <Action
-                                            action={item}
-                                            class:list={[
-                                                item._type === 'actionLink' ? 'block py-2 no-underline hover:underline' : 'w-full px-4 py-3.5 h-auto min-h-0'
-                                            ]}
-                                            data-sb-field-path={`.${index}`}
-                                        />
-                                    </li>
-                                ))}
+                                {navLinks.map((item, index) => {
+                                    const itemHasChildren = hasChildren(item);
+
+                                    return (
+                                        <li class:list={[itemHasChildren && 'mobile-nav-item-has-children']}>
+                                            {
+                                                isNavigationItem(item) ? (
+                                                    <a
+                                                        class="text-neutral block py-2 no-underline hover:underline"
+                                                        href={item.url || '#'}
+                                                        aria-label={item.ariaLabel}
+                                                        data-sb-field-path={`.${index}`}
+                                                    >
+                                                        <span data-sb-field-path=".label">{item.label}</span>
+                                                    </a>
+                                                ) : (
+                                                    <Action
+                                                        action={item}
+                                                        class:list={[
+                                                            item._type === 'actionLink' ? 'block py-2 no-underline hover:underline' : 'w-full px-4 py-3.5 h-auto min-h-0'
+                                                        ]}
+                                                        data-sb-field-path={`.${index}`}
+                                                    />
+                                                )
+                                            }
+                                            {
+                                                itemHasChildren && (
+                                                    <ul class="mobile-subnav" data-sb-field-path={`.${index}.children`}>
+                                                        {item.children?.map((child: ActionLink, childIndex: number) => (
+                                                            <li>
+                                                                <a
+                                                                    class="mobile-subnav-link text-neutral no-underline hover:underline"
+                                                                    href={child.url}
+                                                                    aria-label={child.ariaLabel}
+                                                                    data-sb-field-path={`.${childIndex}`}
+                                                                >
+                                                                    <span data-sb-field-path=".label">{child.label}</span>
+                                                                </a>
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                )
+                                            }
+                                        </li>
+                                    );
+                                })}
                             </ul>
                         </div>
                     </div>
@@ -70,6 +184,91 @@ const { title, logo, navLinks, 'data-sb-field-path': fieldPath } = Astro.props;
 
 <style>
     @reference "../styles/globals.css";
+    :global(.header-logo) {
+        display: block;
+        width: auto !important;
+        height: clamp(5.75rem, 8.75vw, 7rem) !important;
+        max-width: none;
+        margin-top: -0.75rem;
+        margin-left: clamp(8rem, 22vw, 18rem);
+    }
+    .header-nav-list {
+        margin-top: clamp(2.5rem, 5vw, 3.75rem);
+        margin-right: clamp(10rem, 22vw, 18rem);
+    }
+    .header-nav-item {
+        position: relative;
+    }
+    .header-nav-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.25rem 0;
+    }
+    .header-nav-link:hover,
+    .header-nav-link:focus-visible {
+        text-decoration: underline;
+    }
+    .header-nav-caret {
+        display: inline-block;
+        width: 0.5rem;
+        height: 0.5rem;
+        border-right: 1.5px solid currentColor;
+        border-bottom: 1.5px solid currentColor;
+        transform: rotate(45deg) translateY(-0.1rem);
+        transition: transform 0.2s ease;
+    }
+    .header-subnav {
+        position: absolute;
+        top: calc(100% + 0.75rem);
+        left: 0;
+        min-width: 14rem;
+        padding: 0.75rem 0;
+        border: 1px solid color-mix(in oklab, var(--color-base-200) 70%, transparent);
+        border-radius: var(--radius-box);
+        background: var(--color-base-100);
+        box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(0.5rem);
+        transition:
+            opacity 0.2s ease,
+            transform 0.2s ease,
+            visibility 0s 0.2s;
+        z-index: 20;
+    }
+    .header-subnav-link {
+        display: block;
+        padding: 0.55rem 1rem;
+    }
+    .header-subnav-link:hover,
+    .header-subnav-link:focus-visible {
+        background: color-mix(in oklab, var(--color-base-200) 40%, transparent);
+        text-decoration: none;
+    }
+    .header-nav-item-has-children:hover .header-subnav,
+    .header-nav-item-has-children:focus-within .header-subnav {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0);
+        transition-delay: 0s;
+    }
+    .header-nav-item-has-children:hover .header-nav-caret,
+    .header-nav-item-has-children:focus-within .header-nav-caret {
+        transform: rotate(225deg) translateY(-0.05rem);
+    }
+    .mobile-nav-item-has-children + .mobile-nav-item-has-children,
+    .mobile-nav-item-has-children + li,
+    li + .mobile-nav-item-has-children {
+        margin-top: 0.25rem;
+    }
+    .mobile-subnav {
+        padding: 0.25rem 0 0.75rem 1rem;
+    }
+    .mobile-subnav-link {
+        display: block;
+        padding: 0.45rem 0;
+    }
     .nav-panel {
         @apply max-w-72 opacity-0 scale-90 origin-top-right invisible;
         width: calc(100vw - 1rem);

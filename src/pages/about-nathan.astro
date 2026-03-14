@@ -3,13 +3,13 @@ import { client } from "../utils/sanity-client";
 import { PortableText } from "astro-portabletext";
 import Layout from "../layouts/Layout.astro";
 
-const coachingPage = await client.fetch(
-  `*[_type == "coachingPage"][0]`
+const aboutNathanPage = await client.fetch(
+  `*[_type == "aboutNathanPage"][0]`
 );
 
-const title = coachingPage?.title ?? "Coaching";
-const intro = coachingPage?.intro ?? "";
-const body = coachingPage?.body ?? [];
+const title = aboutNathanPage?.title ?? "About Nathan";
+const intro = aboutNathanPage?.intro ?? "";
+const body = aboutNathanPage?.body ?? [];
 ---
 
 <Layout title={title}>

@@ -1,0 +1,42 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import { client } from "../../utils/sanity-client";
+import { PortableText } from "astro-portabletext";
+
+export async function getStaticPaths() {
+  const slugs = await client.fetch(
+    `*[_type == "recreationFuturesSubpage" && defined(slug.current)]{
+      "slug": slug.current
+    }`
+  );
+
+  return slugs.map(({ slug }: { slug: string }) => ({
+    params: { slug },
+  }));
+}
+
+const { slug } = Astro.params;
+
+const recreationFuturesSubpage = slug
+  ? await client.fetch(
+      `*[_type == "recreationFuturesSubpage" && slug.current == $slug][0]{
+        title,
+        intro,
+        body
+      }`,
+      { slug }
+    )
+  : null;
+
+const title = recreationFuturesSubpage?.title ?? "Recreation Futures Lab";
+const intro = recreationFuturesSubpage?.intro ?? "";
+const body = recreationFuturesSubpage?.body ?? [];
+---
+
+<Layout title={title}>
+  <h1>{title}</h1>
+
+  {intro && <p>{intro}</p>}
+
+  {body.length > 0 && <PortableText value={body} />}
+</Layout>

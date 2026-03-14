@@ -1,0 +1,64 @@
+---
+import Layout from "../../../layouts/Layout.astro";
+import { client } from "../../../utils/sanity-client";
+
+const recxrSites = await client.fetch(
+  `*[_type == "recxrSite" && status == "active"] | order(title asc) {
+    title,
+    shortTitle,
+    locationName,
+    activityName,
+    intro,
+    "slug": slug.current
+  }`
+);
+---
+
+<Layout title="RecXR">
+  <section style="padding: 2rem 0 3rem 0;">
+    <div style="max-width: 900px; line-height: 1.7;">
+      <p style="font-size: 0.9rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 0.75rem; color: #666;">
+        Recreation Futures Lab
+      </p>
+      <h1 style="font-size: clamp(2rem, 5vw, 3.5rem); line-height: 1.1; margin: 0 0 1rem 0;">
+        RecXR
+      </h1>
+      <p style="font-size: 1.1rem; margin: 0 0 1rem 0;">
+        RecXR explores geolocated AR recreation helpers for physical sites, blending wayfinding, storytelling, and guided activity support.
+      </p>
+      <p style="margin: 0;">
+        The first pilot is <strong>NCMA Outdoor Exploration Guide</strong>.
+      </p>
+    </div>
+  </section>
+
+  <section style="padding: 0 0 3rem 0;">
+    <div style="max-width: 900px;">
+      <h2 style="font-size: 1.5rem; margin-bottom: 1rem;">Pilot Experiences</h2>
+
+      {recxrSites.length > 0 ? (
+        <div
+          style="
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1rem;
+          "
+        >
+          {recxrSites.map((site) => (
+            <a
+              href={`/recreation-futures-lab/recxr/${site.slug}`}
+              style="display: block; padding: 1.25rem; border: 1px solid #e5e5e5; border-radius: 16px; text-decoration: none; color: inherit;"
+            >
+              <h3 style="margin: 0 0 0.5rem 0;">{site.shortTitle || site.title || "Untitled RecXR Site"}</h3>
+              {site.locationName && <p style="margin: 0 0 0.5rem 0; color: #555;">{site.locationName}</p>}
+              {site.activityName && <p style="margin: 0 0 0.5rem 0; color: #555;">{site.activityName}</p>}
+              {site.intro && <p style="margin: 0; line-height: 1.6; color: #555;">{site.intro}</p>}
+            </a>
+          ))}
+        </div>
+      ) : (
+        <p style="margin: 0; color: #555;">No active RecXR pilots are published yet.</p>
+      )}
+    </div>
+  </section>
+</Layout>

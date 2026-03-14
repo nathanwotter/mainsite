@@ -1,0 +1,419 @@
+---
+---
+
+<section id="recxr-ar-launch" style="display: none; padding: 0 0 2rem 0;">
+  <div style="max-width: 900px; padding: 1.25rem; border: 1px solid #171227; border-radius: 16px; background: #f8f7fb;">
+    <h2 style="font-size: 1.25rem; margin: 0 0 0.75rem 0;">AR Launch</h2>
+    <p id="recxr-ar-launch-copy" style="margin: 0 0 1rem 0;">
+      Your nearest stop is unlocked. You can launch the AR guide for this stop or use the standard video player.
+    </p>
+    <p id="recxr-ar-capability" style="margin: 0 0 1rem 0; color: #555;">
+      Checking AR browser capability...
+    </p>
+    <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+      <button
+        id="recxr-ar-launch-button"
+        type="button"
+        style="display: inline-block; padding: 0.8rem 1.1rem; border: 1px solid #171227; text-decoration: none; color: #fff; background: #171227; border-radius: 999px; cursor: pointer;"
+      >
+        Launch AR Guide
+      </button>
+      <button
+        id="recxr-standard-video-button"
+        type="button"
+        style="display: inline-block; padding: 0.8rem 1.1rem; border: 1px solid #ccc; text-decoration: none; color: #222; background: #fff; border-radius: 999px; cursor: pointer;"
+      >
+        Watch Standard Video
+      </button>
+    </div>
+  </div>
+</section>
+
+<div
+  id="recxr-ar-overlay"
+  style="display: none; position: fixed; inset: 0; z-index: 1000; background: rgba(15, 15, 20, 0.96); color: #fff; overflow: hidden;"
+>
+  <div
+    id="recxr-ar-ui"
+    style="position: relative; z-index: 2; padding: 1rem; pointer-events: auto;"
+  >
+    <div style="display: flex; justify-content: space-between; gap: 1rem; align-items: start; flex-wrap: wrap; margin-bottom: 1rem;">
+      <div>
+        <p style="margin: 0 0 0.35rem 0; font-size: 0.9rem; letter-spacing: 0.08em; text-transform: uppercase; color: #d1d5db;">
+          RecXR AR Mode
+        </p>
+        <h2 id="recxr-ar-overlay-title" style="margin: 0;">Preparing guide...</h2>
+      </div>
+      <button
+        id="recxr-ar-close"
+        type="button"
+        style="display: inline-block; padding: 0.8rem 1.1rem; border: 1px solid #fff; color: #fff; background: transparent; border-radius: 999px; cursor: pointer;"
+      >
+        Close AR Mode
+      </button>
+    </div>
+
+    <p id="recxr-ar-overlay-copy" style="margin: 0 0 1rem 0; line-height: 1.7; color: #e5e7eb; max-width: 42rem;">
+      Scan for a surface, then tap to place the guide panel. This uses true WebXR hit testing, with a simple rectangular video panel for MVP 1.
+    </p>
+
+    <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1rem;">
+      <button
+        id="recxr-ar-place-guide"
+        type="button"
+        style="display: inline-block; padding: 0.8rem 1.1rem; border: 1px solid #fff; color: #171227; background: #fff; border-radius: 999px; cursor: pointer;"
+      >
+        Tap Surface To Place
+      </button>
+      <button
+        id="recxr-ar-reset-guide"
+        type="button"
+        style="display: inline-block; padding: 0.8rem 1.1rem; border: 1px solid rgba(255,255,255,0.5); color: #fff; background: transparent; border-radius: 999px; cursor: pointer;"
+      >
+        Reset Placement
+      </button>
+    </div>
+
+    <p id="recxr-ar-session-status" style="margin: 0; color: #d1d5db;">
+      AR session not started.
+    </p>
+  </div>
+
+  <div
+    id="recxr-ar-canvas"
+    style="position: absolute; inset: 0; z-index: 1;"
+  ></div>
+</div>
+
+<script type="module">
+  import * as THREE from 'three';
+
+  const arLaunchSection = document.getElementById('recxr-ar-launch');
+  const arLaunchCopy = document.getElementById('recxr-ar-launch-copy');
+  const arCapability = document.getElementById('recxr-ar-capability');
+  const arLaunchButton = document.getElementById('recxr-ar-launch-button');
+  const standardVideoButton = document.getElementById('recxr-standard-video-button');
+  const arOverlay = document.getElementById('recxr-ar-overlay');
+  const arOverlayTitle = document.getElementById('recxr-ar-overlay-title');
+  const arOverlayCopy = document.getElementById('recxr-ar-overlay-copy');
+  const arCloseButton = document.getElementById('recxr-ar-close');
+  const arCanvasMount = document.getElementById('recxr-ar-canvas');
+  const arSessionStatus = document.getElementById('recxr-ar-session-status');
+  const arResetGuideButton = document.getElementById('recxr-ar-reset-guide');
+  const standardVideoContainer = document.getElementById('recxr-active-stop-video');
+  const standardVideoPlayer = document.getElementById('recxr-active-stop-player');
+
+  let currentActiveStop = null;
+  let xrSupported = false;
+  let renderer = null;
+  let scene = null;
+  let camera = null;
+  let controller = null;
+  let currentSession = null;
+  let localReferenceSpace = null;
+  let viewerSpace = null;
+  let hitTestSource = null;
+  let hitTestSourceRequested = false;
+  let reticle = null;
+  let videoMesh = null;
+  let videoElement = null;
+  let videoTexture = null;
+  let panelPlaced = false;
+
+  function setButtonState(button, enabled) {
+    if (!button) return;
+    button.disabled = !enabled;
+    button.style.opacity = enabled ? '1' : '0.5';
+    button.style.cursor = enabled ? 'pointer' : 'not-allowed';
+  }
+
+  async function updateArCapabilityMessage() {
+    if (!arCapability) return;
+
+    if (!('xr' in navigator) || !navigator.xr?.isSessionSupported) {
+      xrSupported = false;
+      arCapability.textContent = 'WebXR immersive AR is not available in this browser.';
+      return;
+    }
+
+    try {
+      xrSupported = await navigator.xr.isSessionSupported('immersive-ar');
+      arCapability.textContent = xrSupported
+        ? 'WebXR immersive AR is available. When your nearest stop is unlocked, you can place a video panel on a detected surface.'
+        : 'This browser does not currently support immersive-ar. Use the standard video fallback.';
+    } catch (_error) {
+      xrSupported = false;
+      arCapability.textContent = 'AR capability could not be confirmed. Use the standard video fallback.';
+    }
+  }
+
+  function ensureThreeScene() {
+    if (renderer) return;
+
+    renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: false });
+    renderer.xr.enabled = true;
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    arCanvasMount?.appendChild(renderer.domElement);
+
+    scene = new THREE.Scene();
+    camera = new THREE.PerspectiveCamera();
+
+    const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1.5);
+    scene.add(light);
+
+    reticle = new THREE.Mesh(
+      new THREE.RingGeometry(0.08, 0.1, 32).rotateX(-Math.PI / 2),
+      new THREE.MeshBasicMaterial({ color: 0x00d4aa })
+    );
+    reticle.matrixAutoUpdate = false;
+    reticle.visible = false;
+    scene.add(reticle);
+
+    controller = renderer.xr.getController(0);
+    controller.addEventListener('select', onSelect);
+    scene.add(controller);
+
+    window.addEventListener('resize', () => {
+      if (!renderer || !camera) return;
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+    });
+  }
+
+  function disposeVideoPanel() {
+    if (videoMesh && scene) {
+      scene.remove(videoMesh);
+      videoMesh.geometry.dispose();
+      videoMesh.material.dispose();
+      videoMesh = null;
+    }
+
+    if (videoTexture) {
+      videoTexture.dispose();
+      videoTexture = null;
+    }
+
+    if (videoElement) {
+      videoElement.pause();
+      videoElement.src = '';
+      videoElement.load();
+      videoElement = null;
+    }
+  }
+
+  function createVideoPanel(stop) {
+    disposeVideoPanel();
+
+    if (!scene || !stop?.hlsUrl) return;
+
+    videoElement = document.createElement('video');
+    videoElement.src = stop.hlsUrl;
+    videoElement.crossOrigin = 'anonymous';
+    videoElement.loop = true;
+    videoElement.muted = true;
+    videoElement.playsInline = true;
+    videoElement.setAttribute('webkit-playsinline', 'true');
+    videoElement.preload = 'auto';
+
+    videoTexture = new THREE.VideoTexture(videoElement);
+    videoTexture.colorSpace = THREE.SRGBColorSpace;
+
+    const geometry = new THREE.PlaneGeometry(1.2, 0.675);
+    const material = new THREE.MeshBasicMaterial({ map: videoTexture, side: THREE.DoubleSide, toneMapped: false });
+    videoMesh = new THREE.Mesh(geometry, material);
+    videoMesh.visible = false;
+    scene.add(videoMesh);
+    panelPlaced = false;
+  }
+
+  function placeVideoPanel() {
+    if (!reticle?.visible || !videoMesh || !camera || !renderer) return;
+
+    const position = new THREE.Vector3();
+    const quaternion = new THREE.Quaternion();
+    const scale = new THREE.Vector3();
+    reticle.matrix.decompose(position, quaternion, scale);
+
+    videoMesh.position.copy(position);
+    videoMesh.position.y += 0.45;
+
+    const xrCamera = renderer.xr.getCamera(camera);
+    const cameraWorldPosition = new THREE.Vector3();
+    xrCamera.getWorldPosition(cameraWorldPosition);
+    videoMesh.lookAt(cameraWorldPosition.x, videoMesh.position.y, cameraWorldPosition.z);
+    videoMesh.visible = true;
+    panelPlaced = true;
+
+    videoElement?.play?.().catch(() => {});
+    if (arSessionStatus) {
+      arSessionStatus.textContent = 'Guide panel placed. Move around the panel and use the video as your on-site guide.';
+    }
+  }
+
+  function onSelect() {
+    if (!panelPlaced) {
+      placeVideoPanel();
+    }
+  }
+
+  function resetPlacement() {
+    panelPlaced = false;
+    if (videoMesh) {
+      videoMesh.visible = false;
+    }
+    if (arSessionStatus) {
+      arSessionStatus.textContent = 'Move your device to detect a surface, then tap to place the guide panel.';
+    }
+  }
+
+  async function startArSession(stop) {
+    if (!xrSupported || !stop?.hlsUrl || !navigator.xr) return;
+
+    ensureThreeScene();
+    createVideoPanel(stop);
+
+    try {
+      currentSession = await navigator.xr.requestSession('immersive-ar', {
+        requiredFeatures: ['hit-test'],
+        optionalFeatures: ['dom-overlay'],
+        domOverlay: { root: arOverlay },
+      });
+    } catch (error) {
+      if (arSessionStatus) {
+        arSessionStatus.textContent = `Unable to start AR session: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      }
+      return;
+    }
+
+    currentSession.addEventListener('end', onSessionEnd);
+    await renderer.xr.setSession(currentSession);
+
+    localReferenceSpace = await currentSession.requestReferenceSpace('local');
+    viewerSpace = await currentSession.requestReferenceSpace('viewer');
+    hitTestSource = await currentSession.requestHitTestSource({ space: viewerSpace });
+    hitTestSourceRequested = true;
+
+    if (arOverlay) {
+      arOverlay.style.display = 'block';
+    }
+    if (arOverlayTitle) {
+      arOverlayTitle.textContent = stop.title || 'RecXR Guide';
+    }
+    if (arOverlayCopy) {
+      arOverlayCopy.textContent = stop.promptText || 'Move your device to detect a surface, then tap to place the guide panel.';
+    }
+    if (arSessionStatus) {
+      arSessionStatus.textContent = 'Scanning for a surface...';
+    }
+
+    renderer.setAnimationLoop((time, frame) => {
+      if (frame && hitTestSource && localReferenceSpace && reticle) {
+        const hitTestResults = frame.getHitTestResults(hitTestSource);
+
+        if (!panelPlaced && hitTestResults.length > 0) {
+          const hit = hitTestResults[0];
+          const pose = hit.getPose(localReferenceSpace);
+          if (pose) {
+            reticle.visible = true;
+            reticle.matrix.fromArray(pose.transform.matrix);
+            if (arSessionStatus) {
+              arSessionStatus.textContent = 'Surface detected. Tap the screen to place the guide panel.';
+            }
+          }
+        } else {
+          reticle.visible = false;
+        }
+      }
+
+      renderer.render(scene, camera);
+    });
+  }
+
+  async function endArSession() {
+    if (currentSession) {
+      await currentSession.end();
+    } else {
+      onSessionEnd();
+    }
+  }
+
+  function onSessionEnd() {
+    if (hitTestSource) {
+      hitTestSource.cancel();
+      hitTestSource = null;
+    }
+
+    hitTestSourceRequested = false;
+    localReferenceSpace = null;
+    viewerSpace = null;
+    currentSession = null;
+
+    if (renderer) {
+      renderer.setAnimationLoop(null);
+    }
+
+    if (reticle) {
+      reticle.visible = false;
+    }
+
+    disposeVideoPanel();
+
+    if (arOverlay) {
+      arOverlay.style.display = 'none';
+    }
+    if (arSessionStatus) {
+      arSessionStatus.textContent = 'AR session ended.';
+    }
+  }
+
+  function updateLaunchUi(stop) {
+    currentActiveStop = stop || null;
+
+    if (!arLaunchSection || !arLaunchCopy) return;
+
+    const hasVideo = Boolean(stop?.hlsUrl);
+    const canLaunch = Boolean(stop?.isUnlocked && hasVideo && xrSupported);
+
+    if (stop?.isUnlocked) {
+      arLaunchSection.style.display = 'block';
+      arLaunchCopy.textContent = hasVideo
+        ? `The nearest stop, ${stop.title || 'this stop'}, is unlocked. Launch the AR guide to place the video on a detected surface, or use the standard video player.`
+        : `The nearest stop, ${stop.title || 'this stop'}, is unlocked, but it does not have a Mux video yet.`;
+    } else {
+      arLaunchSection.style.display = 'none';
+    }
+
+    setButtonState(arLaunchButton, canLaunch);
+    setButtonState(standardVideoButton, Boolean(stop?.isUnlocked && hasVideo));
+  }
+
+  arLaunchButton?.addEventListener('click', () => {
+    if (currentActiveStop?.isUnlocked && currentActiveStop?.hlsUrl) {
+      startArSession(currentActiveStop);
+    }
+  });
+
+  standardVideoButton?.addEventListener('click', () => {
+    standardVideoContainer?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    standardVideoPlayer?.play?.().catch(() => {});
+  });
+
+  arCloseButton?.addEventListener('click', () => {
+    endArSession();
+  });
+
+  arResetGuideButton?.addEventListener('click', () => {
+    resetPlacement();
+  });
+
+  window.addEventListener('recxr:active-stop', (event) => {
+    const stop = event.detail?.stop || null;
+    updateLaunchUi(stop);
+  });
+
+  updateArCapabilityMessage().then(() => {
+    updateLaunchUi(null);
+  });
+</script>

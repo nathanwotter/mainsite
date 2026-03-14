@@ -1,0 +1,409 @@
+---
+import Layout from "../../../layouts/Layout.astro";
+import { client } from "../../../utils/sanity-client";
+import { PortableText } from "astro-portabletext";
+import RecxrArGuide from "../../../components/RecxrArGuide.astro";
+
+export async function getStaticPaths() {
+  const slugs = await client.fetch(
+    `*[_type == "recxrSite" && defined(slug.current)]{
+      "slug": slug.current
+    }`
+  );
+
+  return slugs.map(({ slug }: { slug: string }) => ({
+    params: { slug },
+  }));
+}
+
+const { slug } = Astro.params;
+
+const recxrSite = slug
+  ? await client.fetch(
+      `*[_type == "recxrSite" && slug.current == $slug][0]{
+        title,
+        shortTitle,
+        locationName,
+        activityName,
+        intro,
+        body,
+        latitude,
+        longitude,
+        activationRadiusMeters,
+        guideVideoUrl,
+        fallbackVideoUrl,
+        safetyNotes,
+        experienceStops[]{
+          title,
+          slug,
+          description,
+          latitude,
+          longitude,
+          activationRadiusMeters,
+          order,
+          promptText,
+          video{
+            asset->{
+              playbackId,
+              assetId,
+              filename
+            }
+          }
+        }
+      }`,
+      { slug }
+    )
+  : null;
+
+const title = recxrSite?.title ?? "RecXR Experience";
+const locationName = recxrSite?.locationName ?? "Location to be announced";
+const activityName = recxrSite?.activityName ?? "RecXR Pilot Experience";
+const intro = recxrSite?.intro ?? "";
+const body = recxrSite?.body ?? [];
+const guideVideoUrl = recxrSite?.guideVideoUrl ?? "";
+const fallbackVideoUrl = recxrSite?.fallbackVideoUrl ?? "";
+const safetyNotes = recxrSite?.safetyNotes ?? [];
+const hasCoordinates = typeof recxrSite?.latitude === "number" && typeof recxrSite?.longitude === "number";
+const activationRadiusMeters = recxrSite?.activationRadiusMeters;
+const experienceStops = [...(recxrSite?.experienceStops ?? [])]
+  .sort((a, b) => (a?.order ?? 999) - (b?.order ?? 999))
+  .map((stop, index) => {
+    const playbackId = stop?.video?.asset?.playbackId;
+
+    return {
+      ...stop,
+      index,
+      playbackId: playbackId ?? "",
+      hlsUrl: playbackId ? `https://stream.mux.com/${playbackId}.m3u8` : "",
+    };
+  });
+---
+
+<Layout title={title}>
+  <section style="padding: 2rem 0 3rem 0;">
+    <div style="max-width: 900px; line-height: 1.7;">
+      <p style="font-size: 0.9rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 0.75rem; color: #666;">
+        RecXR Pilot
+      </p>
+      <h1 style="font-size: clamp(2rem, 5vw, 3.5rem); line-height: 1.1; margin: 0 0 1rem 0;">
+        {title}
+      </h1>
+      <p style="margin: 0 0 0.5rem 0;"><strong>Location:</strong> {locationName}</p>
+      <p style="margin: 0 0 1rem 0;"><strong>Activity:</strong> {activityName}</p>
+      {intro && <p style="margin: 0;">{intro}</p>}
+    </div>
+  </section>
+
+  <section style="padding: 0 0 2rem 0;">
+    <div style="max-width: 900px; padding: 1.25rem; border: 1px solid #e5e5e5; border-radius: 16px; background: #fafafa;">
+      <h2 style="font-size: 1.25rem; margin: 0 0 0.75rem 0;">Viewer Mode</h2>
+      <p style="margin: 0;">
+        This is the current RecXR pilot viewer for testing site content, stop sequencing, and video playback. Geolocation unlocking and AR guide placement will come later.
+      </p>
+    </div>
+  </section>
+
+  <section style="padding: 0 0 2rem 0;">
+    <div style="max-width: 900px; padding: 1.25rem; border: 1px solid #e5e5e5; border-radius: 16px;">
+      <h2 style="font-size: 1.25rem; margin: 0 0 0.75rem 0;">Geolocation Status</h2>
+      <p style="margin: 0 0 0.5rem 0;">
+        This pilot will later support geolocation unlocking and AR guide placement. The current version is focused on content architecture only.
+      </p>
+      <p style="margin: 0 0 0.5rem 0;">
+        <strong>Coordinates configured:</strong> {hasCoordinates ? "Yes" : "Not yet"}
+      </p>
+      {hasCoordinates && (
+        <p style="margin: 0 0 0.5rem 0;">
+          <strong>Site coordinates:</strong> {recxrSite.latitude}, {recxrSite.longitude}
+        </p>
+      )}
+      {typeof activationRadiusMeters === "number" && (
+        <p style="margin: 0;">
+          <strong>Activation radius:</strong> {activationRadiusMeters} meters
+        </p>
+      )}
+      <div style="margin-top: 1rem; display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+        <button
+          id="recxr-geolocate"
+          type="button"
+          style="display: inline-block; padding: 0.8rem 1.1rem; border: 1px solid #222; text-decoration: none; color: #fff; background: #222; border-radius: 999px; cursor: pointer;"
+        >
+          Request My Location
+        </button>
+        <p id="recxr-geolocate-status" style="margin: 0; color: #555;">
+          Location permission not requested yet.
+        </p>
+      </div>
+      <p id="recxr-geolocate-coords" style="margin: 0.75rem 0 0 0; color: #555;"></p>
+    </div>
+  </section>
+
+  <section style="padding: 0 0 2rem 0;">
+    <div id="recxr-active-stop" style="max-width: 900px; padding: 1.25rem; border: 1px solid #e5e5e5; border-radius: 16px; background: #fafafa;">
+      <h2 style="font-size: 1.25rem; margin: 0 0 0.75rem 0;">Active Stop</h2>
+      <p id="recxr-active-stop-name" style="margin: 0 0 0.5rem 0;">Nearest stop: not detected yet.</p>
+      <p id="recxr-active-stop-distance" style="margin: 0 0 0.5rem 0; color: #555;">Distance: unavailable</p>
+      <p id="recxr-active-stop-status" style="margin: 0 0 0.75rem 0; font-weight: 600;">Status: locked</p>
+      <p id="recxr-active-stop-prompt" style="margin: 0; color: #555;">Prompt text will appear here when an active stop is detected.</p>
+      <div id="recxr-active-stop-video" style="display: none; margin-top: 1rem;">
+        <video
+          id="recxr-active-stop-player"
+          controls
+          playsinline
+          preload="metadata"
+          style="display: block; width: 100%; max-width: 720px; border-radius: 16px; background: #000;"
+        >
+          <source id="recxr-active-stop-source" src="" type="application/x-mpegURL" />
+          Your browser does not support HTML5 video playback.
+        </video>
+      </div>
+    </div>
+  </section>
+
+  <RecxrArGuide />
+
+  {body.length > 0 && (
+    <section style="padding: 0 0 2rem 0;">
+      <div style="max-width: 900px; line-height: 1.7;">
+        <PortableText value={body} />
+      </div>
+    </section>
+  )}
+
+  {(guideVideoUrl || fallbackVideoUrl) && (
+    <section style="padding: 0 0 2rem 0;">
+      <div style="max-width: 900px;">
+        <h2 style="font-size: 1.25rem; margin: 0 0 0.75rem 0;">Guide Media</h2>
+        <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+          {guideVideoUrl && (
+            <a
+              href={guideVideoUrl}
+              target="_blank"
+              rel="noreferrer"
+              style="display: inline-block; padding: 0.8rem 1.1rem; border: 1px solid #222; text-decoration: none; color: #fff; background: #222; border-radius: 999px;"
+            >
+              Open Guide Video
+            </a>
+          )}
+          {fallbackVideoUrl && (
+            <a
+              href={fallbackVideoUrl}
+              target="_blank"
+              rel="noreferrer"
+              style="display: inline-block; padding: 0.8rem 1.1rem; border: 1px solid #ccc; text-decoration: none; color: #222; background: #fff; border-radius: 999px;"
+            >
+              Open Fallback Video
+            </a>
+          )}
+        </div>
+      </div>
+    </section>
+  )}
+
+  {safetyNotes.length > 0 && (
+    <section style="padding: 0 0 2rem 0;">
+      <div style="max-width: 900px; line-height: 1.7;">
+        <h2 style="font-size: 1.25rem; margin: 0 0 0.75rem 0;">Safety Notes</h2>
+        <PortableText value={safetyNotes} />
+      </div>
+    </section>
+  )}
+
+  <section style="padding: 0 0 3rem 0;">
+    <div style="max-width: 900px;">
+      <h2 style="font-size: 1.25rem; margin: 0 0 0.75rem 0;">Experience Stops</h2>
+
+      {experienceStops.length > 0 ? (
+        <div style="display: grid; gap: 1rem;">
+          {experienceStops.map((stop, index) => (
+              <article
+                data-stop-index={stop.index}
+                style="padding: 1.25rem; border: 1px solid #e5e5e5; border-radius: 16px;"
+              >
+                <p style="margin: 0 0 0.35rem 0; font-size: 0.9rem; font-weight: 600; color: #666;">
+                  Stop {index + 1}
+                </p>
+                <h3 style="margin: 0 0 0.5rem 0;">{stop?.title || "Untitled Stop"}</h3>
+
+                {stop?.description && <p style="margin: 0 0 0.75rem 0; line-height: 1.7;">{stop.description}</p>}
+
+                {stop?.promptText && (
+                  <p style="margin: 0 0 0.75rem 0; padding: 0.85rem 1rem; border-radius: 12px; background: #f6f6f6;">
+                    <strong>Prompt:</strong> {stop.promptText}
+                  </p>
+                )}
+
+                <p style="margin: 0 0 0.75rem 0; color: #555; line-height: 1.7;">
+                  <strong>Debug:</strong> {stop.latitude}, {stop.longitude}
+                  {typeof stop.activationRadiusMeters === "number" ? ` • Radius ${stop.activationRadiusMeters}m` : ""}
+                </p>
+                <p data-stop-debug={stop.index} style="margin: 0 0 0.75rem 0; color: #555;">
+                  Distance: unavailable • Status: locked
+                </p>
+
+                {stop.hlsUrl ? (
+                  <div style="margin-top: 1rem;">
+                    <video
+                      controls
+                      playsinline
+                      preload="metadata"
+                      style="display: block; width: 100%; max-width: 720px; border-radius: 16px; background: #000;"
+                    >
+                      <source src={stop.hlsUrl} type="application/x-mpegURL" />
+                      Your browser does not support HTML5 video playback.
+                    </video>
+                    <p style="margin: 0.5rem 0 0 0; color: #555;">
+                      Mux playback ID: {stop.playbackId}
+                    </p>
+                  </div>
+                ) : (
+                  <p style="margin: 0; color: #555;">No Mux video uploaded for this stop yet.</p>
+                )}
+              </article>
+          ))}
+        </div>
+      ) : (
+        <p style="margin: 0; color: #555;">No experience stops have been added to this RecXR site yet.</p>
+      )}
+    </div>
+  </section>
+</Layout>
+
+<script define:vars={{ experienceStops }} is:inline>
+  const geolocateButton = document.getElementById('recxr-geolocate');
+  const geolocateStatus = document.getElementById('recxr-geolocate-status');
+  const geolocateCoords = document.getElementById('recxr-geolocate-coords');
+  const activeStopName = document.getElementById('recxr-active-stop-name');
+  const activeStopDistance = document.getElementById('recxr-active-stop-distance');
+  const activeStopStatus = document.getElementById('recxr-active-stop-status');
+  const activeStopPrompt = document.getElementById('recxr-active-stop-prompt');
+  const activeStopVideo = document.getElementById('recxr-active-stop-video');
+  const activeStopPlayer = document.getElementById('recxr-active-stop-player');
+  const activeStopSource = document.getElementById('recxr-active-stop-source');
+
+  function toRadians(value) {
+    return (value * Math.PI) / 180;
+  }
+
+  function distanceInMeters(fromLat, fromLng, toLat, toLng) {
+    const earthRadius = 6371000;
+    const dLat = toRadians(toLat - fromLat);
+    const dLng = toRadians(toLng - fromLng);
+    const startLat = toRadians(fromLat);
+    const endLat = toRadians(toLat);
+    const haversine =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(startLat) * Math.cos(endLat) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+
+    return 2 * earthRadius * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
+  }
+
+  function formatDistance(distance) {
+    if (distance == null || Number.isNaN(distance)) return 'unavailable';
+    return distance < 1000 ? `${Math.round(distance)} m` : `${(distance / 1000).toFixed(2)} km`;
+  }
+
+  function updateStopCards(nearestStop) {
+    const cards = document.querySelectorAll('[data-stop-index]');
+    const debugRows = document.querySelectorAll('[data-stop-debug]');
+
+    cards.forEach((card) => {
+      const index = Number(card.getAttribute('data-stop-index'));
+      const isActive = nearestStop && index === nearestStop.index;
+      card.style.borderColor = isActive ? '#171227' : '#e5e5e5';
+      card.style.background = isActive ? '#fafafa' : '#fff';
+    });
+
+    debugRows.forEach((row) => {
+      const index = Number(row.getAttribute('data-stop-debug'));
+      const stop = nearestStop?.allStops?.find((entry) => entry.index === index) || experienceStops.find((entry) => entry.index === index);
+      if (!stop) return;
+      const unlocked = Boolean(stop.isUnlocked);
+      row.textContent = `Distance: ${formatDistance(stop.distanceMeters)} • Status: ${unlocked ? 'unlocked' : 'locked'}`;
+    });
+  }
+
+  function updateActiveStop(userLatitude, userLongitude, accuracy) {
+    if (!experienceStops.length) {
+      if (activeStopName) activeStopName.textContent = 'Nearest stop: no experience stops configured.';
+      return;
+    }
+
+    const stopsWithDistance = experienceStops.map((stop) => {
+      const distanceMeters = distanceInMeters(userLatitude, userLongitude, stop.latitude, stop.longitude);
+      const radius = typeof stop.activationRadiusMeters === 'number' ? stop.activationRadiusMeters : 0;
+
+      return {
+        ...stop,
+        distanceMeters,
+        isUnlocked: radius > 0 && distanceMeters <= radius,
+      };
+    });
+
+    const nearestStop = [...stopsWithDistance].sort((a, b) => a.distanceMeters - b.distanceMeters)[0];
+    nearestStop.allStops = stopsWithDistance;
+
+    if (activeStopName) activeStopName.textContent = `Nearest stop: ${nearestStop.title || 'Untitled Stop'}`;
+    if (activeStopDistance) {
+      activeStopDistance.textContent = `Distance: ${formatDistance(nearestStop.distanceMeters)}${accuracy ? ` • Accuracy ±${Math.round(accuracy)}m` : ''}`;
+    }
+    if (activeStopStatus) {
+      activeStopStatus.textContent = `Status: ${nearestStop.isUnlocked ? 'unlocked' : 'locked'}`;
+      activeStopStatus.style.color = nearestStop.isUnlocked ? '#0f766e' : '#171227';
+    }
+    if (activeStopPrompt) {
+      activeStopPrompt.textContent = nearestStop.promptText || 'No prompt text is configured for the nearest stop.';
+    }
+
+    if (nearestStop.isUnlocked && nearestStop.hlsUrl && activeStopVideo && activeStopSource && activeStopPlayer) {
+      activeStopVideo.style.display = 'block';
+      activeStopSource.src = nearestStop.hlsUrl;
+      activeStopPlayer.load();
+    } else if (activeStopVideo && activeStopSource && activeStopPlayer) {
+      activeStopVideo.style.display = 'none';
+      activeStopSource.src = '';
+      activeStopPlayer.load();
+    }
+
+    window.dispatchEvent(
+      new CustomEvent('recxr:active-stop', {
+        detail: {
+          stop: nearestStop.isUnlocked ? nearestStop : null,
+        },
+      })
+    );
+
+    updateStopCards(nearestStop);
+  }
+
+  geolocateButton?.addEventListener('click', () => {
+    if (!navigator.geolocation) {
+      if (geolocateStatus) geolocateStatus.textContent = 'Geolocation is not supported in this browser.';
+      return;
+    }
+
+    if (geolocateStatus) geolocateStatus.textContent = 'Requesting your location...';
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude, accuracy } = position.coords;
+        if (geolocateStatus) geolocateStatus.textContent = 'Location access granted.';
+        if (geolocateCoords) {
+          geolocateCoords.textContent = `Your coordinates: ${latitude.toFixed(6)}, ${longitude.toFixed(6)} (accuracy ±${Math.round(accuracy)}m)`;
+        }
+        updateActiveStop(latitude, longitude, accuracy);
+      },
+      (error) => {
+        if (geolocateStatus) geolocateStatus.textContent = `Location request failed: ${error.message}`;
+        if (geolocateCoords) geolocateCoords.textContent = '';
+        updateStopCards();
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+      }
+    );
+  });
+  window.dispatchEvent(new CustomEvent('recxr:active-stop', { detail: { stop: null } }));
+  updateStopCards();
+</script>

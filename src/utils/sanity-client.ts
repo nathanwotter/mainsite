@@ -28,7 +28,7 @@ export const client = createClient(sanityConfig);
  * @param {Array<String>} types An array of types the listener should take an action on
  * Creating Sanity listener to subscribe to whenever a new document is created or deleted to refresh the list in Create
  */
-[{ client: client, types: ['page'] }].forEach(({ client, types }: { client: SanityClient; types: Array<String> }) =>
+[{ client: client, types: ['page', 'recxrSite'] }].forEach(({ client, types }: { client: SanityClient; types: Array<String> }) =>
     client.listen(`*[_type in ${JSON.stringify(types)}]`, {}, { visibility: 'query' }).subscribe(async (event: any) => {
         // only refresh when pages are deleted or created
         if (event.transition === 'appear' || event.transition === 'disappear') {

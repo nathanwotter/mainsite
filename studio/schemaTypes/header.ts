@@ -1,4 +1,4 @@
-import {defineField, defineType} from 'sanity'
+import {defineArrayMember, defineField, defineType} from 'sanity'
 import {SquareIcon} from '@sanity/icons'
 
 export default defineType({
@@ -29,9 +29,13 @@ export default defineType({
     }),
     defineField({
       name: 'navLinks',
-      title: 'Navigation links',
+      title: 'Navigation Items',
       type: 'array',
-      of: [{type: 'actionButton'}, {type: 'actionLink'}],
+      of: [
+        defineArrayMember({type: 'navigationItem', title: 'Navigation Item'}),
+        defineArrayMember({type: 'actionLink', title: 'Navigation Item'}),
+        defineArrayMember({type: 'actionButton', title: 'Navigation Item'}),
+      ],
       group: 'content',
     }),
   ],

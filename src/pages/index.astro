@@ -1,90 +1,119 @@
 ---
-import type { Page } from 'types';
-import Layout from '@layouts/Layout.astro';
-import Cards from '@components/Cards.astro';
-import Cta from '@components/Cta.astro';
-import Hero from '@components/Hero.astro';
-import Logos from '@components/Logos.astro';
-import Testimonials from '@components/Testimonials.astro';
-import { fetchData, getPageById } from '@data/page';
+import Layout from "../layouts/Layout.astro";
+import { client } from "../utils/sanity-client";
+import { PortableText } from "astro-portabletext";
 
-export async function getStaticPaths() {
-    const data = await fetchData();
-    return data.map((page: Page) => {
-        const slug = page.slug.current === '/' ? undefined : page.slug.current;
-        return {
-            params: { slug },
-            props: { id: page._id }
-        };
-    });
-}
+const homePage = await client.fetch(`*[_type == "homePage"][0]`);
 
-const { id } = Astro.props;
-const pages = await getPageById(id);
-const page: Page = pages.length ? pages[0] : null;
-const siteTitle = "Otter Adventure Lab";
-
-const { _id, title, sections, metaTitle, metaDescription, socialImage } = page || {};
-
-const componentMap = {
-    cardsSection: Cards,
-    ctaSection: Cta,
-    heroSection: Hero,
-    logosSection: Logos,
-    testimonialsSection: Testimonials
-};
+const title = homePage?.title ?? "Otter Adventures";
+const intro =
+  homePage?.intro ??
+  "Exploring teaching, recreation futures, food, and coaching through creative, practical, and immersive work.";
+const body = homePage?.body ?? [];
 ---
 
-{
-    page && (
-        <Layout title={metaTitle ?? title} description={metaDescription} image={socialImage}>
-            <div data-sb-object-id={_id}>
-                {sections?.length &&
-                    sections.map((section, idx) => {
-                        const Component = componentMap[section._type];
-                        return <Component {...section} data-sb-field-path={`sections.${idx}`} />;
-                    })}
-            </div>
-        </Layout>
-    )
-}
-
-
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <title>{siteTitle}</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-  </head>
-  <body style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 0;">
-    <header style="padding: 1rem 1.5rem; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">
-      <div style="font-weight: 600; font-size: 1.1rem;">{siteTitle}</div>
-      <nav style="display: flex; gap: 1rem; font-size: 0.95rem;">
-        <a href="/teaching">Teaching</a>
-        <a href="/recreation-futures-lab">Recreation Futures Lab</a>
-        <a href="/food">Food</a>
-        <a href="/coaching">Coaching</a>
-        <a href="/about">About</a>
-      </nav>
-    </header>
-
-    <main style="padding: 2rem 1.5rem; max-width: 900px; margin: 0 auto;">
-      <h1 style="font-size: 2rem; margin-bottom: 0.5rem;">Welcome to Otter Adventure Lab</h1>
-      <p style="max-width: 640px; line-height: 1.6;">
-        This is the home for Nathan’s teaching, recreation futures experiments, food projects, and coaching work.
-        Use the navigation above to explore each area. Content will eventually be managed through Sanity and surfaced here.
+<Layout title={title}>
+  <section style="padding: 2rem 0 3rem 0;">
+    <div style="max-width: 900px; margin: 0 auto;">
+      <p style="font-size: 0.9rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 0.75rem; color: #666;">
+        Welcome
       </p>
 
-      <section style="margin-top: 2rem;">
-        <h2>Explore sections</h2>
-        <ul style="line-height: 1.7;">
-          <li><strong>Teaching</strong> – courses, syllabi, and resources for recreation students.</li>
-          <li><strong>Recreation Futures Lab</strong> – WebXR, digital twins, and recreation programming ideas.</li>
-          <li><strong>Food</strong> – cooking classes, mocktail resources, and local food maps.</li>
-          <li><strong>Coaching</strong> – wellness and life coaching offerings.</li>
-          <li><strong>About</strong> – who Nathan is, mission, and why an otter.</li>
-        </ul>
-      </section>
-    </main>
-  </body>
-</html>
+      <h1 style="font-size: clamp(2.2rem, 6vw, 4rem); line-height: 1.05; margin: 0 0 1rem 0;">
+        {title}
+      </h1>
+
+      <p style="font-size: 1.15rem; line-height: 1.7; max-width: 700px; margin: 0 0 1.5rem 0;">
+        {intro}
+      </p>
+
+      <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 1.5rem;">
+        <a
+          href="/recreation-futures-lab"
+          style="display: inline-block; padding: 0.8rem 1.1rem; border: 1px solid #222; text-decoration: none; color: #fff; background: #222; border-radius: 999px;"
+        >
+          Explore Recreation Futures Lab
+        </a>
+
+        <a
+          href="/teaching"
+          style="display: inline-block; padding: 0.8rem 1.1rem; border: 1px solid #ccc; text-decoration: none; color: #222; background: #fff; border-radius: 999px;"
+        >
+          View Teaching
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <section style="padding: 1rem 0 3rem 0;">
+    <div style="max-width: 900px; margin: 0 auto;">
+      <h2 style="font-size: 1.5rem; margin-bottom: 1rem;">Explore Otter Adventures</h2>
+
+      <div
+        style="
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+          gap: 1rem;
+        "
+      >
+        <a
+          href="/teaching"
+          style="display: block; padding: 1.25rem; border: 1px solid #e5e5e5; border-radius: 16px; text-decoration: none; color: inherit;"
+        >
+          <h3 style="margin-top: 0; margin-bottom: 0.5rem;">Teaching</h3>
+          <p style="margin: 0; line-height: 1.6; color: #555;">
+            Courses, learning resources, and ideas related to recreation, play, and experiential education.
+          </p>
+        </a>
+
+        <a
+          href="/recreation-futures-lab"
+          style="display: block; padding: 1.25rem; border: 1px solid #e5e5e5; border-radius: 16px; text-decoration: none; color: inherit;"
+        >
+          <h3 style="margin-top: 0; margin-bottom: 0.5rem;">Recreation Futures Lab</h3>
+          <p style="margin: 0; line-height: 1.6; color: #555;">
+            WebXR, digital twins, immersive media, and future-facing recreation programming.
+          </p>
+        </a>
+
+        <a
+          href="/food"
+          style="display: block; padding: 1.25rem; border: 1px solid #e5e5e5; border-radius: 16px; text-decoration: none; color: inherit;"
+        >
+          <h3 style="margin-top: 0; margin-bottom: 0.5rem;">Food</h3>
+          <p style="margin: 0; line-height: 1.6; color: #555;">
+            Cooking classes, food resources, maps, and cultural exploration through meals and ingredients.
+          </p>
+        </a>
+
+        <a
+          href="/coaching"
+          style="display: block; padding: 1.25rem; border: 1px solid #e5e5e5; border-radius: 16px; text-decoration: none; color: inherit;"
+        >
+          <h3 style="margin-top: 0; margin-bottom: 0.5rem;">Coaching</h3>
+          <p style="margin: 0; line-height: 1.6; color: #555;">
+            Support for growth, reflection, wellbeing, and meaningful next steps.
+          </p>
+        </a>
+
+        <a
+          href="/about-nathan"
+          style="display: block; padding: 1.25rem; border: 1px solid #e5e5e5; border-radius: 16px; text-decoration: none; color: inherit;"
+        >
+          <h3 style="margin-top: 0; margin-bottom: 0.5rem;">About Nathan</h3>
+          <p style="margin: 0; line-height: 1.6; color: #555;">
+            Learn more about the person, ideas, and motivations behind Otter Adventures.
+          </p>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  {body.length > 0 && (
+    <section style="padding: 0 0 3rem 0;">
+      <div style="max-width: 900px; margin: 0 auto; line-height: 1.7;">
+        <PortableText value={body} />
+      </div>
+    </section>
+  )}
+</Layout>

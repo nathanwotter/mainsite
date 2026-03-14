@@ -2,7 +2,11 @@ import teachingPage from './teachingPage'
 import recreationFuturesPage from './recreationFuturesPage'
 import foodPage from './foodPage'
 import coachingPage from './coachingPage'
-import aboutPage from './aboutPage'
+import aboutNathanPage from './aboutNathanPage'
+import homePage from './homePage'
+import teachingSubpage from './teachingSubpage'
+import recreationFuturesSubpage from './recreationFuturesSubpage'
+import recxrSite from './recxrSite'
 
 import actionButton from './actionButton'
 import actionLink from './actionLink'
@@ -17,6 +21,7 @@ import footer from './footer'
 import header from './header'
 import heroSection from './heroSection'
 import logosSection from './logosSection'
+import navigationItem from './navigationItem'
 import page from './page'
 import person from './person'
 import siteConfig from './siteConfig'
@@ -37,6 +42,7 @@ export const schemaTypes = [
   header,
   heroSection,
   logosSection,
+  navigationItem,
   page,
   person,
   siteConfig,
@@ -46,5 +52,9 @@ export const schemaTypes = [
   recreationFuturesPage,
   foodPage,
   coachingPage,
-  aboutPage,
+  aboutNathanPage,
+  homePage,
+  teachingSubpage,
+  recreationFuturesSubpage,
+  recxrSite,
 ]
