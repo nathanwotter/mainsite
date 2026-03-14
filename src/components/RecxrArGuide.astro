@@ -717,6 +717,10 @@
     updateDebugPanel(stop);
   }
 
+  function updateLaunchState(stop) {
+    updateLaunchUi(stop);
+  }
+
   arLaunchButton?.addEventListener('click', () => {
     if (currentActiveStop?.isUnlocked && currentActiveStop?.hlsUrl) {
       startArSession(currentActiveStop);
@@ -797,7 +801,8 @@
   // This listener handles the client-side geolocation result once the page determines the active stop.
   window.addEventListener('recxr-active-stop', (event) => {
     const stop = event.detail || null;
-    updateLaunchUi(stop);
+    currentActiveStop = stop;
+    updateLaunchState(stop);
   });
 
   window.addEventListener('beforeunload', () => {
@@ -805,7 +810,7 @@
   });
 
   updateArCapabilityMessage().then(() => {
-    updateDebugPanel(null);
-    updateLaunchUi(null);
+    updateDebugPanel(currentActiveStop);
+    updateLaunchState(currentActiveStop);
   });
 </script>
