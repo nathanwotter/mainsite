@@ -78,7 +78,6 @@ const experienceStops = [...(recxrSite?.experienceStops ?? [])]
     };
   });
 
-const activeStop = null;
 ---
 
 <Layout title={title}>
@@ -162,8 +161,7 @@ const activeStop = null;
     </div>
   </section>
 
-  <script id="recxr-active-stop-store" type="application/json">null</script>
-  <RecxrArGuide activeStop={activeStop} />
+  <RecxrArGuide />
 
   {body.length > 0 && (
     <section style="padding: 0 0 2rem 0;">
@@ -283,7 +281,6 @@ const activeStop = null;
   const activeStopVideo = document.getElementById('recxr-active-stop-video');
   const activeStopPlayer = document.getElementById('recxr-active-stop-player');
   const activeStopSource = document.getElementById('recxr-active-stop-source');
-  const activeStopStore = document.getElementById('recxr-active-stop-store');
 
   function toRadians(value) {
     return (value * Math.PI) / 180;
@@ -369,16 +366,8 @@ const activeStop = null;
       activeStopPlayer.load();
     }
 
-    if (activeStopStore) {
-      activeStopStore.textContent = JSON.stringify(nearestStop.isUnlocked ? nearestStop : null);
-    }
-    window.dispatchEvent(
-      new CustomEvent('recxr:active-stop', {
-        detail: {
-          stop: nearestStop.isUnlocked ? nearestStop : null,
-        },
-      })
-    );
+    const activeStop = nearestStop.isUnlocked ? nearestStop : null;
+    window.dispatchEvent(new CustomEvent('recxr-active-stop', { detail: activeStop }));
 
     updateStopCards(nearestStop);
   }
@@ -411,9 +400,6 @@ const activeStop = null;
       }
     );
   });
-  if (activeStopStore) {
-    activeStopStore.textContent = 'null';
-  }
-  window.dispatchEvent(new CustomEvent('recxr:active-stop', { detail: { stop: null } }));
+  window.dispatchEvent(new CustomEvent('recxr-active-stop', { detail: null }));
   updateStopCards();
 </script>
