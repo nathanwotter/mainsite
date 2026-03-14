@@ -19,6 +19,13 @@
         Launch AR Guide
       </button>
       <button
+        id="recxr-camera-launch-button"
+        type="button"
+        style="display: inline-block; padding: 0.8rem 1.1rem; border: 1px solid #171227; text-decoration: none; color: #171227; background: #fff2d7; border-radius: 999px; cursor: pointer;"
+      >
+        Launch Camera Guide
+      </button>
+      <button
         id="recxr-standard-video-button"
         type="button"
         style="display: inline-block; padding: 0.8rem 1.1rem; border: 1px solid #ccc; text-decoration: none; color: #222; background: #fff; border-radius: 999px; cursor: pointer;"
@@ -85,6 +92,92 @@
   ></div>
 </div>
 
+<div
+  id="recxr-camera-overlay"
+  style="display: none; position: fixed; inset: 0; z-index: 999; background: #05070b; color: #fff; overflow: hidden;"
+>
+  <video
+    id="recxr-camera-feed"
+    autoplay
+    muted
+    playsinline
+    style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; background: #000;"
+  ></video>
+
+  <div
+    style="position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(5, 7, 11, 0.72), rgba(5, 7, 11, 0.08) 35%, rgba(5, 7, 11, 0.65)); pointer-events: none;"
+  ></div>
+
+  <div style="position: relative; z-index: 2; padding: 1rem; pointer-events: auto;">
+    <div style="display: flex; justify-content: space-between; gap: 1rem; align-items: start; flex-wrap: wrap; margin-bottom: 1rem;">
+      <div style="max-width: 36rem;">
+        <p style="margin: 0 0 0.35rem 0; font-size: 0.9rem; letter-spacing: 0.08em; text-transform: uppercase; color: #d1d5db;">
+          RecXR Camera Guide
+        </p>
+        <h2 id="recxr-camera-title" style="margin: 0 0 0.5rem 0;">Preparing camera guide...</h2>
+        <p id="recxr-camera-copy" style="margin: 0; line-height: 1.7; color: #e5e7eb;">
+          This fallback mode keeps the guide immersive on phones that do not support WebXR AR.
+        </p>
+      </div>
+      <button
+        id="recxr-camera-close"
+        type="button"
+        style="display: inline-block; padding: 0.8rem 1.1rem; border: 1px solid #fff; color: #fff; background: transparent; border-radius: 999px; cursor: pointer;"
+      >
+        Close Camera Guide
+      </button>
+    </div>
+
+    <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1rem;">
+      <button
+        id="recxr-camera-reset"
+        type="button"
+        style="display: inline-block; padding: 0.8rem 1.1rem; border: 1px solid rgba(255,255,255,0.65); color: #171227; background: #fff; border-radius: 999px; cursor: pointer;"
+      >
+        Reset Panel Position
+      </button>
+      <button
+        id="recxr-camera-standard-video"
+        type="button"
+        style="display: inline-block; padding: 0.8rem 1.1rem; border: 1px solid rgba(255,255,255,0.5); color: #fff; background: transparent; border-radius: 999px; cursor: pointer;"
+      >
+        Watch Standard Video
+      </button>
+    </div>
+
+    <p id="recxr-camera-status" style="margin: 0; color: #d1d5db;">
+      Requesting camera access...
+    </p>
+  </div>
+
+  <div
+    id="recxr-camera-panel"
+    style="display: none; position: absolute; left: 50%; top: 58%; width: min(82vw, 28rem); transform: translate(-50%, -50%); z-index: 3; border-radius: 20px; overflow: hidden; border: 1px solid rgba(255,255,255,0.4); box-shadow: 0 24px 80px rgba(0,0,0,0.38); background: rgba(14, 18, 28, 0.86); backdrop-filter: blur(12px); touch-action: none;"
+  >
+    <div
+      id="recxr-camera-panel-handle"
+      style="padding: 0.8rem 1rem; cursor: grab; background: rgba(255,255,255,0.08); border-bottom: 1px solid rgba(255,255,255,0.12);"
+    >
+      <p style="margin: 0; font-size: 0.9rem; color: #f3f4f6;">Drag guide panel</p>
+    </div>
+    <video
+      id="recxr-camera-panel-video"
+      controls
+      playsinline
+      preload="metadata"
+      style="display: block; width: 100%; background: #000;"
+    >
+      <source id="recxr-camera-panel-source" src="" type="application/x-mpegURL" />
+      Your browser does not support HTML5 video playback.
+    </video>
+    <div style="padding: 1rem;">
+      <p id="recxr-camera-panel-prompt" style="margin: 0; line-height: 1.7; color: #f3f4f6;">
+        Prompt text will appear here when a stop is unlocked.
+      </p>
+    </div>
+  </div>
+</div>
+
 <script type="module">
   import * as THREE from 'three';
 
@@ -92,6 +185,7 @@
   const arLaunchCopy = document.getElementById('recxr-ar-launch-copy');
   const arCapability = document.getElementById('recxr-ar-capability');
   const arLaunchButton = document.getElementById('recxr-ar-launch-button');
+  const cameraLaunchButton = document.getElementById('recxr-camera-launch-button');
   const standardVideoButton = document.getElementById('recxr-standard-video-button');
   const arOverlay = document.getElementById('recxr-ar-overlay');
   const arOverlayTitle = document.getElementById('recxr-ar-overlay-title');
@@ -100,11 +194,26 @@
   const arCanvasMount = document.getElementById('recxr-ar-canvas');
   const arSessionStatus = document.getElementById('recxr-ar-session-status');
   const arResetGuideButton = document.getElementById('recxr-ar-reset-guide');
+  const cameraOverlay = document.getElementById('recxr-camera-overlay');
+  const cameraFeed = document.getElementById('recxr-camera-feed');
+  const cameraTitle = document.getElementById('recxr-camera-title');
+  const cameraCopy = document.getElementById('recxr-camera-copy');
+  const cameraStatus = document.getElementById('recxr-camera-status');
+  const cameraCloseButton = document.getElementById('recxr-camera-close');
+  const cameraResetButton = document.getElementById('recxr-camera-reset');
+  const cameraStandardVideoButton = document.getElementById('recxr-camera-standard-video');
+  const cameraPanel = document.getElementById('recxr-camera-panel');
+  const cameraPanelHandle = document.getElementById('recxr-camera-panel-handle');
+  const cameraPanelVideo = document.getElementById('recxr-camera-panel-video');
+  const cameraPanelSource = document.getElementById('recxr-camera-panel-source');
+  const cameraPanelPrompt = document.getElementById('recxr-camera-panel-prompt');
   const standardVideoContainer = document.getElementById('recxr-active-stop-video');
   const standardVideoPlayer = document.getElementById('recxr-active-stop-player');
 
   let currentActiveStop = null;
   let xrSupported = false;
+  let cameraGuideSupported = false;
+  let preferredMode = 'standard';
   let renderer = null;
   let scene = null;
   let camera = null;
@@ -119,6 +228,13 @@
   let videoElement = null;
   let videoTexture = null;
   let panelPlaced = false;
+  let cameraStream = null;
+  let panelDrag = null;
+
+  function isLikelyIphone() {
+    const ua = navigator.userAgent || '';
+    return /iPhone|iPad|iPod/i.test(ua) || (/Macintosh/i.test(ua) && 'ontouchend' in document);
+  }
 
   function setButtonState(button, enabled) {
     if (!button) return;
@@ -130,23 +246,40 @@
   async function updateArCapabilityMessage() {
     if (!arCapability) return;
 
+    cameraGuideSupported = Boolean(navigator.mediaDevices?.getUserMedia);
+
     if (!('xr' in navigator) || !navigator.xr?.isSessionSupported) {
       xrSupported = false;
-      arCapability.textContent = 'WebXR immersive AR is not available in this browser.';
+      preferredMode = cameraGuideSupported ? 'camera' : 'standard';
+      arCapability.textContent = cameraGuideSupported
+        ? 'This phone does not expose WebXR immersive AR here, so RecXR will offer Camera Guide mode with your unlocked stop video.'
+        : 'This browser does not support WebXR or camera guide mode. Use the standard video fallback.';
       return;
     }
 
     try {
       xrSupported = await navigator.xr.isSessionSupported('immersive-ar');
-      arCapability.textContent = xrSupported
-        ? 'WebXR immersive AR is available. When your nearest stop is unlocked, you can place a video panel on a detected surface.'
-        : 'This browser does not currently support immersive-ar. Use the standard video fallback.';
+      if (xrSupported) {
+        preferredMode = 'webxr';
+        arCapability.textContent = isLikelyIphone()
+          ? 'This device exposes WebXR immersive AR, and Camera Guide is also available if you prefer the lighter fallback.'
+          : 'WebXR immersive AR is available. Launch AR Guide to place a video panel on a detected surface, or use the other fallback modes.';
+      } else {
+        preferredMode = cameraGuideSupported ? 'camera' : 'standard';
+        arCapability.textContent = cameraGuideSupported
+          ? 'WebXR immersive AR is not available on this phone, so RecXR will offer Camera Guide mode with your unlocked stop video.'
+          : 'This browser does not currently support immersive-ar. Use the standard video fallback.';
+      }
     } catch (_error) {
       xrSupported = false;
-      arCapability.textContent = 'AR capability could not be confirmed. Use the standard video fallback.';
+      preferredMode = cameraGuideSupported ? 'camera' : 'standard';
+      arCapability.textContent = cameraGuideSupported
+        ? 'AR capability could not be confirmed, so Camera Guide mode will be used instead.'
+        : 'AR capability could not be confirmed. Use the standard video fallback.';
     }
   }
 
+  // WebXR path: keep this renderer lightweight and focused on hit-testing plus a simple video plane.
   function ensureThreeScene() {
     if (renderer) return;
 
@@ -258,6 +391,95 @@
     }
   }
 
+  function resetCameraPanelPosition() {
+    if (!cameraPanel) return;
+    cameraPanel.style.left = '50%';
+    cameraPanel.style.top = '58%';
+    cameraPanel.style.transform = 'translate(-50%, -50%)';
+  }
+
+  function stopCameraGuide() {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach((track) => track.stop());
+      cameraStream = null;
+    }
+
+    if (cameraFeed) {
+      cameraFeed.srcObject = null;
+    }
+
+    if (cameraPanelVideo && cameraPanelSource) {
+      cameraPanelVideo.pause();
+      cameraPanelSource.src = '';
+      cameraPanelVideo.load();
+    }
+
+    if (cameraPanel) {
+      cameraPanel.style.display = 'none';
+    }
+
+    if (cameraOverlay) {
+      cameraOverlay.style.display = 'none';
+    }
+
+    if (cameraStatus) {
+      cameraStatus.textContent = 'Camera guide closed.';
+    }
+  }
+
+  // Camera Guide path: for iPhone and unsupported browsers, use live camera plus a draggable guide panel.
+  async function startCameraGuide(stop) {
+    if (!stop?.hlsUrl || !cameraGuideSupported || !cameraOverlay || !cameraFeed) return;
+
+    await endArSession().catch(() => {});
+    stopCameraGuide();
+
+    if (cameraTitle) {
+      cameraTitle.textContent = stop.title || 'RecXR Camera Guide';
+    }
+    if (cameraCopy) {
+      cameraCopy.textContent = stop.promptText || 'Use the live camera as context and drag the guide panel until it sits naturally in your view.';
+    }
+    if (cameraPanelPrompt) {
+      cameraPanelPrompt.textContent = stop.promptText || 'Move the guide panel around the screen to simulate on-site placement while we prepare full AR support.';
+    }
+    if (cameraPanelSource && cameraPanelVideo) {
+      cameraPanelSource.src = stop.hlsUrl;
+      cameraPanelVideo.load();
+    }
+    if (cameraPanel) {
+      cameraPanel.style.display = 'block';
+      resetCameraPanelPosition();
+    }
+    if (cameraOverlay) {
+      cameraOverlay.style.display = 'block';
+    }
+    if (cameraStatus) {
+      cameraStatus.textContent = 'Requesting rear camera access...';
+    }
+
+    try {
+      cameraStream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: {
+          facingMode: { ideal: 'environment' },
+        },
+      });
+
+      cameraFeed.srcObject = cameraStream;
+      await cameraFeed.play();
+      await cameraPanelVideo?.play?.().catch(() => {});
+
+      if (cameraStatus) {
+        cameraStatus.textContent = 'Camera Guide is live. Drag the panel to line it up with your surroundings.';
+      }
+    } catch (error) {
+      if (cameraStatus) {
+        cameraStatus.textContent = `Unable to start camera guide: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      }
+    }
+  }
+
   function resetPlacement() {
     panelPlaced = false;
     if (videoMesh) {
@@ -271,6 +493,7 @@
   async function startArSession(stop) {
     if (!xrSupported || !stop?.hlsUrl || !navigator.xr) return;
 
+    stopCameraGuide();
     ensureThreeScene();
     createVideoPanel(stop);
 
@@ -374,24 +597,47 @@
     if (!arLaunchSection || !arLaunchCopy) return;
 
     const hasVideo = Boolean(stop?.hlsUrl);
-    const canLaunch = Boolean(stop?.isUnlocked && hasVideo && xrSupported);
+    const isUnlocked = Boolean(stop?.isUnlocked);
+    const canLaunchAr = Boolean(isUnlocked && hasVideo && xrSupported);
+    const canLaunchCamera = Boolean(isUnlocked && hasVideo && cameraGuideSupported);
 
-    if (stop?.isUnlocked) {
+    if (isUnlocked) {
       arLaunchSection.style.display = 'block';
-      arLaunchCopy.textContent = hasVideo
-        ? `The nearest stop, ${stop.title || 'this stop'}, is unlocked. Launch the AR guide to place the video on a detected surface, or use the standard video player.`
-        : `The nearest stop, ${stop.title || 'this stop'}, is unlocked, but it does not have a Mux video yet.`;
+      if (hasVideo) {
+        if (canLaunchAr && canLaunchCamera) {
+          arLaunchCopy.textContent = `The nearest stop, ${stop.title || 'this stop'}, is unlocked. On WebXR-capable phones you can place the guide on a detected surface, and on other phones you can use Camera Guide mode with the same stop video.`;
+        } else if (canLaunchCamera) {
+          arLaunchCopy.textContent = `The nearest stop, ${stop.title || 'this stop'}, is unlocked. Camera Guide mode is ready for this phone, and the standard video player is still available below.`;
+        } else if (canLaunchAr) {
+          arLaunchCopy.textContent = `The nearest stop, ${stop.title || 'this stop'}, is unlocked. Launch the AR guide to place the video on a detected surface, or use the standard video player.`;
+        } else {
+          arLaunchCopy.textContent = `The nearest stop, ${stop.title || 'this stop'}, is unlocked. Use the standard video player while this browser's camera and AR capabilities are limited.`;
+        }
+      } else {
+        arLaunchCopy.textContent = `The nearest stop, ${stop.title || 'this stop'}, is unlocked, but it does not have a Mux video yet.`;
+      }
     } else {
       arLaunchSection.style.display = 'none';
     }
 
-    setButtonState(arLaunchButton, canLaunch);
-    setButtonState(standardVideoButton, Boolean(stop?.isUnlocked && hasVideo));
+    if (cameraLaunchButton) {
+      cameraLaunchButton.style.display = preferredMode === 'camera' || canLaunchCamera ? 'inline-block' : 'none';
+    }
+
+    setButtonState(arLaunchButton, canLaunchAr);
+    setButtonState(cameraLaunchButton, canLaunchCamera);
+    setButtonState(standardVideoButton, Boolean(isUnlocked && hasVideo));
   }
 
   arLaunchButton?.addEventListener('click', () => {
     if (currentActiveStop?.isUnlocked && currentActiveStop?.hlsUrl) {
       startArSession(currentActiveStop);
+    }
+  });
+
+  cameraLaunchButton?.addEventListener('click', () => {
+    if (currentActiveStop?.isUnlocked && currentActiveStop?.hlsUrl) {
+      startCameraGuide(currentActiveStop);
     }
   });
 
@@ -408,9 +654,65 @@
     resetPlacement();
   });
 
+  cameraCloseButton?.addEventListener('click', () => {
+    stopCameraGuide();
+  });
+
+  cameraResetButton?.addEventListener('click', () => {
+    resetCameraPanelPosition();
+  });
+
+  cameraStandardVideoButton?.addEventListener('click', () => {
+    stopCameraGuide();
+    standardVideoContainer?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    standardVideoPlayer?.play?.().catch(() => {});
+  });
+
+  cameraPanelHandle?.addEventListener('pointerdown', (event) => {
+    if (!cameraPanel) return;
+
+    cameraPanelHandle.setPointerCapture(event.pointerId);
+    const rect = cameraPanel.getBoundingClientRect();
+    panelDrag = {
+      pointerId: event.pointerId,
+      offsetX: event.clientX - rect.left,
+      offsetY: event.clientY - rect.top,
+    };
+    cameraPanelHandle.style.cursor = 'grabbing';
+    cameraPanel.style.transform = 'none';
+  });
+
+  cameraPanelHandle?.addEventListener('pointermove', (event) => {
+    if (!cameraPanel || !panelDrag || panelDrag.pointerId !== event.pointerId) return;
+
+    const nextLeft = event.clientX - panelDrag.offsetX;
+    const nextTop = event.clientY - panelDrag.offsetY;
+    cameraPanel.style.left = `${Math.max(12, Math.min(window.innerWidth - cameraPanel.offsetWidth - 12, nextLeft))}px`;
+    cameraPanel.style.top = `${Math.max(100, Math.min(window.innerHeight - cameraPanel.offsetHeight - 12, nextTop))}px`;
+  });
+
+  cameraPanelHandle?.addEventListener('pointerup', (event) => {
+    if (panelDrag?.pointerId === event.pointerId) {
+      panelDrag = null;
+      cameraPanelHandle.releasePointerCapture(event.pointerId);
+      cameraPanelHandle.style.cursor = 'grab';
+    }
+  });
+
+  cameraPanelHandle?.addEventListener('pointercancel', (event) => {
+    if (panelDrag?.pointerId === event.pointerId) {
+      panelDrag = null;
+      cameraPanelHandle.style.cursor = 'grab';
+    }
+  });
+
   window.addEventListener('recxr:active-stop', (event) => {
     const stop = event.detail?.stop || null;
     updateLaunchUi(stop);
+  });
+
+  window.addEventListener('beforeunload', () => {
+    stopCameraGuide();
   });
 
   updateArCapabilityMessage().then(() => {
