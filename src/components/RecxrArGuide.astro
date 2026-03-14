@@ -10,6 +10,20 @@
     <p id="recxr-ar-capability" style="margin: 0 0 1rem 0; color: #555;">
       Checking AR browser capability...
     </p>
+    <div
+      id="recxr-ar-debug"
+      style="margin: 0 0 1rem 0; padding: 1rem; border: 1px dashed #999; border-radius: 12px; background: #fff;"
+    >
+      <p style="margin: 0 0 0.5rem 0; font-size: 0.85rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #666;">
+        Temporary Debug Panel
+      </p>
+      <p id="recxr-debug-stop-title" style="margin: 0 0 0.35rem 0; color: #222;">Active stop title: none</p>
+      <p id="recxr-debug-stop-unlocked" style="margin: 0 0 0.35rem 0; color: #222;">Active stop unlocked: no</p>
+      <p id="recxr-debug-webxr" style="margin: 0 0 0.35rem 0; color: #222;">WebXR immersive-ar supported: checking</p>
+      <p id="recxr-debug-camera" style="margin: 0 0 0.35rem 0; color: #222;">Camera guide supported: checking</p>
+      <p id="recxr-debug-video" style="margin: 0 0 0.35rem 0; color: #222;">Active stop has usable video: no</p>
+      <p id="recxr-debug-branch" style="margin: 0; color: #222;">Selected launch branch: standard</p>
+    </div>
     <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
       <button
         id="recxr-ar-launch-button"
@@ -209,6 +223,12 @@
   const cameraPanelPrompt = document.getElementById('recxr-camera-panel-prompt');
   const standardVideoContainer = document.getElementById('recxr-active-stop-video');
   const standardVideoPlayer = document.getElementById('recxr-active-stop-player');
+  const debugStopTitle = document.getElementById('recxr-debug-stop-title');
+  const debugStopUnlocked = document.getElementById('recxr-debug-stop-unlocked');
+  const debugWebxr = document.getElementById('recxr-debug-webxr');
+  const debugCamera = document.getElementById('recxr-debug-camera');
+  const debugVideo = document.getElementById('recxr-debug-video');
+  const debugBranch = document.getElementById('recxr-debug-branch');
 
   let currentActiveStop = null;
   let xrSupported = false;
@@ -243,6 +263,43 @@
     button.style.cursor = enabled ? 'pointer' : 'not-allowed';
   }
 
+  function updateDebugPanel(stop) {
+    const hasVideo = Boolean(stop?.hlsUrl);
+    const isUnlocked = Boolean(stop?.isUnlocked);
+    let selectedBranch = 'standard';
+
+    if (isUnlocked && hasVideo && xrSupported) {
+      selectedBranch = 'webxr';
+    } else if (isUnlocked && hasVideo && cameraGuideSupported) {
+      selectedBranch = 'camera';
+    } else if (isUnlocked && hasVideo) {
+      selectedBranch = 'standard-video-only';
+    } else if (isUnlocked) {
+      selectedBranch = 'unlocked-no-video';
+    } else {
+      selectedBranch = preferredMode;
+    }
+
+    if (debugStopTitle) {
+      debugStopTitle.textContent = `Active stop title: ${stop?.title || 'none'}`;
+    }
+    if (debugStopUnlocked) {
+      debugStopUnlocked.textContent = `Active stop unlocked: ${isUnlocked ? 'yes' : 'no'}`;
+    }
+    if (debugWebxr) {
+      debugWebxr.textContent = `WebXR immersive-ar supported: ${xrSupported ? 'yes' : 'no'}`;
+    }
+    if (debugCamera) {
+      debugCamera.textContent = `Camera guide supported: ${cameraGuideSupported ? 'yes' : 'no'}`;
+    }
+    if (debugVideo) {
+      debugVideo.textContent = `Active stop has usable video: ${hasVideo ? 'yes' : 'no'}`;
+    }
+    if (debugBranch) {
+      debugBranch.textContent = `Selected launch branch: ${selectedBranch}`;
+    }
+  }
+
   async function updateArCapabilityMessage() {
     if (!arCapability) return;
 
@@ -254,6 +311,7 @@
       arCapability.textContent = cameraGuideSupported
         ? 'This phone does not expose WebXR immersive AR here, so RecXR will offer Camera Guide mode with your unlocked stop video.'
         : 'This browser does not support WebXR or camera guide mode. Use the standard video fallback.';
+      updateDebugPanel(currentActiveStop);
       return;
     }
 
@@ -277,6 +335,8 @@
         ? 'AR capability could not be confirmed, so Camera Guide mode will be used instead.'
         : 'AR capability could not be confirmed. Use the standard video fallback.';
     }
+
+    updateDebugPanel(currentActiveStop);
   }
 
   // WebXR path: keep this renderer lightweight and focused on hit-testing plus a simple video plane.
@@ -627,6 +687,7 @@
     setButtonState(arLaunchButton, canLaunchAr);
     setButtonState(cameraLaunchButton, canLaunchCamera);
     setButtonState(standardVideoButton, Boolean(isUnlocked && hasVideo));
+    updateDebugPanel(stop);
   }
 
   arLaunchButton?.addEventListener('click', () => {
