@@ -17,6 +17,17 @@
       <p id="recxr-debug-camera" style="margin: 0 0 0.35rem 0; color: #222;">Camera guide supported: checking</p>
       <p id="recxr-debug-device-branch" style="margin: 0; color: #222;">Detected device branch: standard</p>
     </div>
+    <div
+      style="margin: 0 0 1rem 0; padding: 1rem; border: 2px solid #1d4ed8; border-radius: 12px; background: #eff6ff;"
+    >
+      <p style="margin: 0 0 0.5rem 0; font-size: 0.85rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #1d4ed8;">
+        Temporary Runtime Status
+      </p>
+      <p id="recxr-runtime-started" style="margin: 0 0 0.35rem 0; color: #1e3a8a;">Script started: no</p>
+      <p id="recxr-runtime-completed" style="margin: 0 0 0.35rem 0; color: #1e3a8a;">Script completed: no</p>
+      <p id="recxr-runtime-step" style="margin: 0 0 0.35rem 0; color: #1e3a8a;">Last successful init step: not started</p>
+      <p id="recxr-runtime-error" style="margin: 0; color: #991b1b;">Caught error: none</p>
+    </div>
     <h2 style="font-size: 1.25rem; margin: 0 0 0.75rem 0;">AR Launch</h2>
     <p id="recxr-ar-launch-copy" style="margin: 0 0 1rem 0;">
       Your nearest stop is unlocked. You can launch the AR guide for this stop or use the standard video player.
@@ -228,6 +239,10 @@
   const debugWebxr = document.getElementById('recxr-debug-webxr');
   const debugCamera = document.getElementById('recxr-debug-camera');
   const debugDeviceBranch = document.getElementById('recxr-debug-device-branch');
+  const runtimeStarted = document.getElementById('recxr-runtime-started');
+  const runtimeCompleted = document.getElementById('recxr-runtime-completed');
+  const runtimeStep = document.getElementById('recxr-runtime-step');
+  const runtimeError = document.getElementById('recxr-runtime-error');
 
   let currentActiveStop = null;
   let xrSupported = false;
@@ -250,6 +265,18 @@
   let panelPlaced = false;
   let cameraStream = null;
   let panelDrag = null;
+
+  function setRuntimeStep(step) {
+    if (runtimeStep) {
+      runtimeStep.textContent = `Last successful init step: ${step}`;
+    }
+  }
+
+  function setRuntimeError(message) {
+    if (runtimeError) {
+      runtimeError.textContent = `Caught error: ${message || 'none'}`;
+    }
+  }
 
   function isLikelyIphone() {
     const ua = navigator.userAgent || '';
@@ -721,96 +748,125 @@
     updateLaunchUi(stop);
   }
 
-  arLaunchButton?.addEventListener('click', () => {
-    if (currentActiveStop?.isUnlocked && currentActiveStop?.hlsUrl) {
-      startArSession(currentActiveStop);
-    }
-  });
+  if (debugMounted) {
+    debugMounted.textContent = 'Section mounted: yes';
+  }
+  if (runtimeStarted) {
+    runtimeStarted.textContent = 'Script started: yes';
+  }
+  setRuntimeStep('script top reached');
+  setRuntimeError('none');
 
-  cameraLaunchButton?.addEventListener('click', () => {
-    if (currentActiveStop?.isUnlocked && currentActiveStop?.hlsUrl) {
-      startCameraGuide(currentActiveStop);
-    }
-  });
+  try {
+    setRuntimeStep('binding launch buttons');
+    arLaunchButton?.addEventListener('click', () => {
+      if (currentActiveStop?.isUnlocked && currentActiveStop?.hlsUrl) {
+        startArSession(currentActiveStop);
+      }
+    });
 
-  standardVideoButton?.addEventListener('click', () => {
-    standardVideoContainer?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    standardVideoPlayer?.play?.().catch(() => {});
-  });
+    cameraLaunchButton?.addEventListener('click', () => {
+      if (currentActiveStop?.isUnlocked && currentActiveStop?.hlsUrl) {
+        startCameraGuide(currentActiveStop);
+      }
+    });
 
-  arCloseButton?.addEventListener('click', () => {
-    endArSession();
-  });
+    standardVideoButton?.addEventListener('click', () => {
+      standardVideoContainer?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      standardVideoPlayer?.play?.().catch(() => {});
+    });
 
-  arResetGuideButton?.addEventListener('click', () => {
-    resetPlacement();
-  });
+    arCloseButton?.addEventListener('click', () => {
+      endArSession();
+    });
 
-  cameraCloseButton?.addEventListener('click', () => {
-    stopCameraGuide();
-  });
+    arResetGuideButton?.addEventListener('click', () => {
+      resetPlacement();
+    });
 
-  cameraResetButton?.addEventListener('click', () => {
-    resetCameraPanelPosition();
-  });
+    cameraCloseButton?.addEventListener('click', () => {
+      stopCameraGuide();
+    });
 
-  cameraStandardVideoButton?.addEventListener('click', () => {
-    stopCameraGuide();
-    standardVideoContainer?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    standardVideoPlayer?.play?.().catch(() => {});
-  });
+    cameraResetButton?.addEventListener('click', () => {
+      resetCameraPanelPosition();
+    });
 
-  cameraPanelHandle?.addEventListener('pointerdown', (event) => {
-    if (!cameraPanel) return;
+    cameraStandardVideoButton?.addEventListener('click', () => {
+      stopCameraGuide();
+      standardVideoContainer?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      standardVideoPlayer?.play?.().catch(() => {});
+    });
 
-    cameraPanelHandle.setPointerCapture(event.pointerId);
-    const rect = cameraPanel.getBoundingClientRect();
-    panelDrag = {
-      pointerId: event.pointerId,
-      offsetX: event.clientX - rect.left,
-      offsetY: event.clientY - rect.top,
-    };
-    cameraPanelHandle.style.cursor = 'grabbing';
-    cameraPanel.style.transform = 'none';
-  });
+    setRuntimeStep('binding drag handlers');
+    cameraPanelHandle?.addEventListener('pointerdown', (event) => {
+      if (!cameraPanel || !cameraPanelHandle) return;
 
-  cameraPanelHandle?.addEventListener('pointermove', (event) => {
-    if (!cameraPanel || !panelDrag || panelDrag.pointerId !== event.pointerId) return;
+      cameraPanelHandle.setPointerCapture(event.pointerId);
+      const rect = cameraPanel.getBoundingClientRect();
+      panelDrag = {
+        pointerId: event.pointerId,
+        offsetX: event.clientX - rect.left,
+        offsetY: event.clientY - rect.top,
+      };
+      cameraPanelHandle.style.cursor = 'grabbing';
+      cameraPanel.style.transform = 'none';
+    });
 
-    const nextLeft = event.clientX - panelDrag.offsetX;
-    const nextTop = event.clientY - panelDrag.offsetY;
-    cameraPanel.style.left = `${Math.max(12, Math.min(window.innerWidth - cameraPanel.offsetWidth - 12, nextLeft))}px`;
-    cameraPanel.style.top = `${Math.max(100, Math.min(window.innerHeight - cameraPanel.offsetHeight - 12, nextTop))}px`;
-  });
+    cameraPanelHandle?.addEventListener('pointermove', (event) => {
+      if (!cameraPanel || !panelDrag || panelDrag.pointerId !== event.pointerId) return;
 
-  cameraPanelHandle?.addEventListener('pointerup', (event) => {
-    if (panelDrag?.pointerId === event.pointerId) {
-      panelDrag = null;
-      cameraPanelHandle.releasePointerCapture(event.pointerId);
-      cameraPanelHandle.style.cursor = 'grab';
-    }
-  });
+      const nextLeft = event.clientX - panelDrag.offsetX;
+      const nextTop = event.clientY - panelDrag.offsetY;
+      cameraPanel.style.left = `${Math.max(12, Math.min(window.innerWidth - cameraPanel.offsetWidth - 12, nextLeft))}px`;
+      cameraPanel.style.top = `${Math.max(100, Math.min(window.innerHeight - cameraPanel.offsetHeight - 12, nextTop))}px`;
+    });
 
-  cameraPanelHandle?.addEventListener('pointercancel', (event) => {
-    if (panelDrag?.pointerId === event.pointerId) {
-      panelDrag = null;
-      cameraPanelHandle.style.cursor = 'grab';
-    }
-  });
+    cameraPanelHandle?.addEventListener('pointerup', (event) => {
+      if (!cameraPanelHandle) return;
+      if (panelDrag?.pointerId === event.pointerId) {
+        panelDrag = null;
+        cameraPanelHandle.releasePointerCapture(event.pointerId);
+        cameraPanelHandle.style.cursor = 'grab';
+      }
+    });
 
-  // This listener handles the client-side geolocation result once the page determines the active stop.
-  window.addEventListener('recxr-active-stop', (event) => {
-    const stop = event.detail || null;
-    currentActiveStop = stop;
-    updateLaunchState(stop);
-  });
+    cameraPanelHandle?.addEventListener('pointercancel', (event) => {
+      if (!cameraPanelHandle) return;
+      if (panelDrag?.pointerId === event.pointerId) {
+        panelDrag = null;
+        cameraPanelHandle.style.cursor = 'grab';
+      }
+    });
 
-  window.addEventListener('beforeunload', () => {
-    stopCameraGuide();
-  });
+    setRuntimeStep('binding active stop listener');
+    // This listener handles the client-side geolocation result once the page determines the active stop.
+    window.addEventListener('recxr-active-stop', (event) => {
+      const stop = event.detail || null;
+      currentActiveStop = stop;
+      updateLaunchState(stop);
+      setRuntimeStep('received recxr-active-stop event');
+    });
 
-  updateArCapabilityMessage().then(() => {
-    updateDebugPanel(currentActiveStop);
-    updateLaunchState(currentActiveStop);
-  });
+    setRuntimeStep('binding unload cleanup');
+    window.addEventListener('beforeunload', () => {
+      stopCameraGuide();
+    });
+
+    setRuntimeStep('running capability detection');
+    updateArCapabilityMessage()
+      .then(() => {
+        setRuntimeStep('capability detection complete');
+        updateDebugPanel(currentActiveStop);
+        updateLaunchState(currentActiveStop);
+        if (runtimeCompleted) {
+          runtimeCompleted.textContent = 'Script completed: yes';
+        }
+      })
+      .catch((error) => {
+        setRuntimeError(error instanceof Error ? error.message : 'Unknown async initialization error');
+      });
+  } catch (error) {
+    setRuntimeError(error instanceof Error ? error.message : 'Unknown initialization error');
+  }
 </script>
