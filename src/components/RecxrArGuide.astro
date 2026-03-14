@@ -791,6 +791,11 @@
     updateLaunchUi(stop);
   });
 
+  // Read the last-known active stop on mount so we do not miss the initial event race.
+  if (window.recxrActiveStop) {
+    updateLaunchUi(window.recxrActiveStop);
+  }
+
   window.addEventListener('beforeunload', () => {
     stopCameraGuide();
   });

@@ -365,6 +365,7 @@ const experienceStops = [...(recxrSite?.experienceStops ?? [])]
       activeStopPlayer.load();
     }
 
+    window.recxrActiveStop = nearestStop.isUnlocked ? nearestStop : null;
     window.dispatchEvent(
       new CustomEvent('recxr:active-stop', {
         detail: {
@@ -404,6 +405,7 @@ const experienceStops = [...(recxrSite?.experienceStops ?? [])]
       }
     );
   });
+  window.recxrActiveStop = null;
   window.dispatchEvent(new CustomEvent('recxr:active-stop', { detail: { stop: null } }));
   updateStopCards();
 </script>
