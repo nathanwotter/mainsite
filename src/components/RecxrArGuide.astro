@@ -1,4 +1,5 @@
 ---
+const { activeStop = null } = Astro.props;
 ---
 
 <section id="recxr-ar-launch" style="display: block; padding: 0 0 2rem 0;">
@@ -10,7 +11,7 @@
         Temporary Debug Override
       </p>
       <p id="recxr-debug-mounted" style="margin: 0 0 0.35rem 0; color: #222;">Section mounted: no</p>
-      <p id="recxr-debug-global-stop" style="margin: 0 0 0.35rem 0; color: #222;">window.recxrActiveStop exists: no</p>
+      <p id="recxr-debug-store-stop" style="margin: 0 0 0.35rem 0; color: #222;">Active stop store exists: no</p>
       <p id="recxr-debug-stop-title" style="margin: 0 0 0.35rem 0; color: #222;">Active stop title: none</p>
       <p id="recxr-debug-stop-unlocked" style="margin: 0 0 0.35rem 0; color: #222;">Active stop unlocked: no</p>
       <p id="recxr-debug-video" style="margin: 0 0 0.35rem 0; color: #222;">Active stop has usable video: no</p>
@@ -25,19 +26,6 @@
     <p id="recxr-ar-capability" style="margin: 0 0 1rem 0; color: #555;">
       Checking AR browser capability...
     </p>
-    <div
-      id="recxr-ar-debug"
-      style="margin: 0 0 1rem 0; padding: 1rem; border: 1px dashed #999; border-radius: 12px; background: #fff;"
-    >
-      <p style="margin: 0 0 0.5rem 0; font-size: 0.85rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #666;">
-        Temporary Debug Panel
-      </p>
-      <p id="recxr-debug-stop-unlocked" style="margin: 0 0 0.35rem 0; color: #222;">Active stop unlocked: no</p>
-      <p id="recxr-debug-video" style="margin: 0 0 0.35rem 0; color: #222;">Active stop has usable video: no</p>
-      <p id="recxr-debug-webxr" style="margin: 0 0 0.35rem 0; color: #222;">WebXR immersive-ar supported: checking</p>
-      <p id="recxr-debug-camera" style="margin: 0 0 0.35rem 0; color: #222;">Camera guide supported: checking</p>
-      <p id="recxr-debug-device-branch" style="margin: 0; color: #222;">Detected device branch: standard</p>
-    </div>
     <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
       <button
         id="recxr-ar-launch-button"
@@ -237,8 +225,9 @@
   const cameraPanelPrompt = document.getElementById('recxr-camera-panel-prompt');
   const standardVideoContainer = document.getElementById('recxr-active-stop-video');
   const standardVideoPlayer = document.getElementById('recxr-active-stop-player');
+  const activeStopStore = document.getElementById('recxr-active-stop-store');
   const debugMounted = document.getElementById('recxr-debug-mounted');
-  const debugGlobalStop = document.getElementById('recxr-debug-global-stop');
+  const debugStoreStop = document.getElementById('recxr-debug-store-stop');
   const debugStopTitle = document.getElementById('recxr-debug-stop-title');
   const debugStopUnlocked = document.getElementById('recxr-debug-stop-unlocked');
   const debugVideo = document.getElementById('recxr-debug-video');
@@ -267,6 +256,7 @@
   let panelPlaced = false;
   let cameraStream = null;
   let panelDrag = null;
+  let initialActiveStop = activeStop;
 
   function isLikelyIphone() {
     const ua = navigator.userAgent || '';
@@ -285,14 +275,24 @@
     button.style.cursor = enabled ? 'pointer' : 'not-allowed';
   }
 
+  function readStoredActiveStop() {
+    if (!activeStopStore?.textContent) return null;
+
+    try {
+      return JSON.parse(activeStopStore.textContent);
+    } catch (_error) {
+      return null;
+    }
+  }
+
   function updateDebugPanel(stop) {
     const hasVideo = Boolean(stop?.hlsUrl);
     const isUnlocked = Boolean(stop?.isUnlocked);
     if (debugMounted) {
       debugMounted.textContent = 'Section mounted: yes';
     }
-    if (debugGlobalStop) {
-      debugGlobalStop.textContent = `window.recxrActiveStop exists: ${window.recxrActiveStop ? 'yes' : 'no'}`;
+    if (debugStoreStop) {
+      debugStoreStop.textContent = `Active stop store exists: ${readStoredActiveStop() ? 'yes' : 'no'}`;
     }
     if (debugStopTitle) {
       debugStopTitle.textContent = `Active stop title: ${stop?.title || 'none'}`;
@@ -819,9 +819,12 @@
     updateLaunchUi(stop);
   });
 
-  // Read the last-known active stop on mount so we do not miss the initial event race.
-  if (window.recxrActiveStop) {
-    updateLaunchUi(window.recxrActiveStop);
+  // Read the last-known client-side active stop from the shared DOM store so we do not miss the initial event race.
+  const storedActiveStop = readStoredActiveStop();
+  if (storedActiveStop) {
+    updateLaunchUi(storedActiveStop);
+  } else if (initialActiveStop) {
+    updateLaunchUi(initialActiveStop);
   }
 
   window.addEventListener('beforeunload', () => {
@@ -829,7 +832,8 @@
   });
 
   updateArCapabilityMessage().then(() => {
-    updateDebugPanel(window.recxrActiveStop || null);
-    updateLaunchUi(null);
+    const initialStop = readStoredActiveStop() || initialActiveStop || null;
+    updateDebugPanel(initialStop);
+    updateLaunchUi(initialStop);
   });
 </script>
