@@ -17,12 +17,11 @@
       <p style="margin: 0 0 0.5rem 0; font-size: 0.85rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #666;">
         Temporary Debug Panel
       </p>
-      <p id="recxr-debug-stop-title" style="margin: 0 0 0.35rem 0; color: #222;">Active stop title: none</p>
       <p id="recxr-debug-stop-unlocked" style="margin: 0 0 0.35rem 0; color: #222;">Active stop unlocked: no</p>
+      <p id="recxr-debug-video" style="margin: 0 0 0.35rem 0; color: #222;">Active stop has usable video: no</p>
       <p id="recxr-debug-webxr" style="margin: 0 0 0.35rem 0; color: #222;">WebXR immersive-ar supported: checking</p>
       <p id="recxr-debug-camera" style="margin: 0 0 0.35rem 0; color: #222;">Camera guide supported: checking</p>
-      <p id="recxr-debug-video" style="margin: 0 0 0.35rem 0; color: #222;">Active stop has usable video: no</p>
-      <p id="recxr-debug-branch" style="margin: 0; color: #222;">Selected launch branch: standard</p>
+      <p id="recxr-debug-device-branch" style="margin: 0; color: #222;">Detected device branch: standard</p>
     </div>
     <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
       <button
@@ -223,17 +222,17 @@
   const cameraPanelPrompt = document.getElementById('recxr-camera-panel-prompt');
   const standardVideoContainer = document.getElementById('recxr-active-stop-video');
   const standardVideoPlayer = document.getElementById('recxr-active-stop-player');
-  const debugStopTitle = document.getElementById('recxr-debug-stop-title');
   const debugStopUnlocked = document.getElementById('recxr-debug-stop-unlocked');
+  const debugVideo = document.getElementById('recxr-debug-video');
   const debugWebxr = document.getElementById('recxr-debug-webxr');
   const debugCamera = document.getElementById('recxr-debug-camera');
-  const debugVideo = document.getElementById('recxr-debug-video');
-  const debugBranch = document.getElementById('recxr-debug-branch');
+  const debugDeviceBranch = document.getElementById('recxr-debug-device-branch');
 
   let currentActiveStop = null;
   let xrSupported = false;
   let cameraGuideSupported = false;
   let preferredMode = 'standard';
+  let deviceBranch = 'standard';
   let renderer = null;
   let scene = null;
   let camera = null;
@@ -256,6 +255,11 @@
     return /iPhone|iPad|iPod/i.test(ua) || (/Macintosh/i.test(ua) && 'ontouchend' in document);
   }
 
+  function isIphoneChrome() {
+    const ua = navigator.userAgent || '';
+    return /CriOS/i.test(ua) && isLikelyIphone();
+  }
+
   function setButtonState(button, enabled) {
     if (!button) return;
     button.disabled = !enabled;
@@ -266,25 +270,11 @@
   function updateDebugPanel(stop) {
     const hasVideo = Boolean(stop?.hlsUrl);
     const isUnlocked = Boolean(stop?.isUnlocked);
-    let selectedBranch = 'standard';
-
-    if (isUnlocked && hasVideo && xrSupported) {
-      selectedBranch = 'webxr';
-    } else if (isUnlocked && hasVideo && cameraGuideSupported) {
-      selectedBranch = 'camera';
-    } else if (isUnlocked && hasVideo) {
-      selectedBranch = 'standard-video-only';
-    } else if (isUnlocked) {
-      selectedBranch = 'unlocked-no-video';
-    } else {
-      selectedBranch = preferredMode;
-    }
-
-    if (debugStopTitle) {
-      debugStopTitle.textContent = `Active stop title: ${stop?.title || 'none'}`;
-    }
     if (debugStopUnlocked) {
       debugStopUnlocked.textContent = `Active stop unlocked: ${isUnlocked ? 'yes' : 'no'}`;
+    }
+    if (debugVideo) {
+      debugVideo.textContent = `Active stop has usable video: ${hasVideo ? 'yes' : 'no'}`;
     }
     if (debugWebxr) {
       debugWebxr.textContent = `WebXR immersive-ar supported: ${xrSupported ? 'yes' : 'no'}`;
@@ -292,21 +282,27 @@
     if (debugCamera) {
       debugCamera.textContent = `Camera guide supported: ${cameraGuideSupported ? 'yes' : 'no'}`;
     }
-    if (debugVideo) {
-      debugVideo.textContent = `Active stop has usable video: ${hasVideo ? 'yes' : 'no'}`;
-    }
-    if (debugBranch) {
-      debugBranch.textContent = `Selected launch branch: ${selectedBranch}`;
+    if (debugDeviceBranch) {
+      debugDeviceBranch.textContent = `Detected device branch: ${deviceBranch}`;
     }
   }
 
   async function updateArCapabilityMessage() {
     if (!arCapability) return;
 
-    cameraGuideSupported = Boolean(navigator.mediaDevices?.getUserMedia);
+    const isIphone = isLikelyIphone();
+    const iphoneChrome = isIphoneChrome();
+    cameraGuideSupported = Boolean(navigator.mediaDevices?.getUserMedia) || isIphone;
 
     if (!('xr' in navigator) || !navigator.xr?.isSessionSupported) {
       xrSupported = false;
+      deviceBranch = iphoneChrome
+        ? 'iphone-chrome-camera'
+        : isIphone
+          ? 'iphone-safari-camera'
+          : cameraGuideSupported
+            ? 'camera-fallback'
+            : 'standard-fallback';
       preferredMode = cameraGuideSupported ? 'camera' : 'standard';
       arCapability.textContent = cameraGuideSupported
         ? 'This phone does not expose WebXR immersive AR here, so RecXR will offer Camera Guide mode with your unlocked stop video.'
@@ -316,13 +312,21 @@
     }
 
     try {
-      xrSupported = await navigator.xr.isSessionSupported('immersive-ar');
+      xrSupported = isIphone ? false : await navigator.xr.isSessionSupported('immersive-ar');
       if (xrSupported) {
+        deviceBranch = 'webxr-ar';
         preferredMode = 'webxr';
         arCapability.textContent = isLikelyIphone()
           ? 'This device exposes WebXR immersive AR, and Camera Guide is also available if you prefer the lighter fallback.'
           : 'WebXR immersive AR is available. Launch AR Guide to place a video panel on a detected surface, or use the other fallback modes.';
       } else {
+        deviceBranch = iphoneChrome
+          ? 'iphone-chrome-camera'
+          : isIphone
+            ? 'iphone-safari-camera'
+            : cameraGuideSupported
+              ? 'camera-fallback'
+              : 'standard-fallback';
         preferredMode = cameraGuideSupported ? 'camera' : 'standard';
         arCapability.textContent = cameraGuideSupported
           ? 'WebXR immersive AR is not available on this phone, so RecXR will offer Camera Guide mode with your unlocked stop video.'
@@ -330,6 +334,13 @@
       }
     } catch (_error) {
       xrSupported = false;
+      deviceBranch = iphoneChrome
+        ? 'iphone-chrome-camera'
+        : isIphone
+          ? 'iphone-safari-camera'
+          : cameraGuideSupported
+            ? 'camera-fallback'
+            : 'standard-fallback';
       preferredMode = cameraGuideSupported ? 'camera' : 'standard';
       arCapability.textContent = cameraGuideSupported
         ? 'AR capability could not be confirmed, so Camera Guide mode will be used instead.'
@@ -519,23 +530,31 @@
     }
 
     try {
-      cameraStream = await navigator.mediaDevices.getUserMedia({
-        audio: false,
-        video: {
-          facingMode: { ideal: 'environment' },
-        },
-      });
+      if (navigator.mediaDevices?.getUserMedia) {
+        cameraStream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: {
+            facingMode: { ideal: 'environment' },
+          },
+        });
 
-      cameraFeed.srcObject = cameraStream;
-      await cameraFeed.play();
-      await cameraPanelVideo?.play?.().catch(() => {});
+        cameraFeed.srcObject = cameraStream;
+        await cameraFeed.play();
+        await cameraPanelVideo?.play?.().catch(() => {});
 
-      if (cameraStatus) {
-        cameraStatus.textContent = 'Camera Guide is live. Drag the panel to line it up with your surroundings.';
+        if (cameraStatus) {
+          cameraStatus.textContent = 'Camera Guide is live. Drag the panel to line it up with your surroundings.';
+        }
+      } else {
+        await cameraPanelVideo?.play?.().catch(() => {});
+        if (cameraStatus) {
+          cameraStatus.textContent = 'Camera access is limited here, but the guide panel is still available as a fullscreen fallback for iPhone testing.';
+        }
       }
     } catch (error) {
+      await cameraPanelVideo?.play?.().catch(() => {});
       if (cameraStatus) {
-        cameraStatus.textContent = `Unable to start camera guide: ${error instanceof Error ? error.message : 'Unknown error'}`;
+        cameraStatus.textContent = `Camera access failed, so RecXR is showing the fullscreen guide panel instead: ${error instanceof Error ? error.message : 'Unknown error'}`;
       }
     }
   }
@@ -681,11 +700,11 @@
     }
 
     if (cameraLaunchButton) {
-      cameraLaunchButton.style.display = preferredMode === 'camera' || canLaunchCamera ? 'inline-block' : 'none';
+      cameraLaunchButton.style.display = hasVideo && isUnlocked ? 'inline-block' : 'none';
     }
 
     setButtonState(arLaunchButton, canLaunchAr);
-    setButtonState(cameraLaunchButton, canLaunchCamera);
+    setButtonState(cameraLaunchButton, Boolean(isUnlocked && hasVideo && cameraGuideSupported));
     setButtonState(standardVideoButton, Boolean(isUnlocked && hasVideo));
     updateDebugPanel(stop);
   }
