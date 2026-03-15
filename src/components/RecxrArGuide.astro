@@ -4,6 +4,7 @@
 <section id="recxr-ar-launch" style="display: block; padding: 0 0 2rem 0;">
   <div style="max-width: 900px; padding: 1.25rem; border: 1px solid #171227; border-radius: 16px; background: #f8f7fb;">
     <div
+      id="recxr-debug-panel"
       style="margin: 0 0 1rem 0; padding: 1rem; border: 2px solid #b91c1c; border-radius: 12px; background: #fef2f2;"
     >
       <p style="margin: 0 0 0.5rem 0; font-size: 0.85rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #991b1b;">
@@ -18,6 +19,7 @@
       <p id="recxr-debug-device-branch" style="margin: 0; color: #222;">Detected device branch: standard</p>
     </div>
     <div
+      id="recxr-runtime-panel"
       style="margin: 0 0 1rem 0; padding: 1rem; border: 2px solid #1d4ed8; border-radius: 12px; background: #eff6ff;"
     >
       <p style="margin: 0 0 0.5rem 0; font-size: 0.85rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #1d4ed8;">
@@ -222,6 +224,11 @@
 </div>
 
 <div
+  id="recxr-camera-floating-shadow"
+  style="display: none; position: absolute; left: 50%; top: 72%; width: min(30vw, 9rem); height: 1.1rem; transform: translate(-50%, -50%); z-index: 3; pointer-events: none; border-radius: 999px; background: radial-gradient(circle, rgba(0,0,0,0.28) 0%, rgba(0,0,0,0.14) 45%, rgba(0,0,0,0) 75%); filter: blur(8px); opacity: 0.7;"
+></div>
+
+<div
   id="recxr-camera-panel-shadow"
   style="display: none; position: absolute; left: 50%; top: 72%; width: min(52vw, 16rem); height: 1.75rem; transform: translate(-50%, -50%); z-index: 2; pointer-events: none; border-radius: 999px; background: radial-gradient(circle, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.18) 45%, rgba(0,0,0,0) 75%); filter: blur(10px); opacity: 0.8;"
 ></div>
@@ -305,6 +312,7 @@
   const cameraPosLeftButton = document.getElementById('recxr-camera-pos-left');
   const cameraPosRightButton = document.getElementById('recxr-camera-pos-right');
   const cameraFloatingCanvas = document.getElementById('recxr-camera-floating-canvas');
+  const cameraFloatingShadow = document.getElementById('recxr-camera-floating-shadow');
   const cameraPanelShadow = document.getElementById('recxr-camera-panel-shadow');
   const cameraPanel = document.getElementById('recxr-camera-panel');
   const cameraPanelHandle = document.getElementById('recxr-camera-panel-handle');
@@ -331,6 +339,7 @@
   const cameraDebugClear = document.getElementById('recxr-camera-debug-clear');
   const standardVideoContainer = document.getElementById('recxr-active-stop-video');
   const standardVideoPlayer = document.getElementById('recxr-active-stop-player');
+  const debugPanel = document.getElementById('recxr-debug-panel');
   const debugMounted = document.getElementById('recxr-debug-mounted');
   const debugStopTitle = document.getElementById('recxr-debug-stop-title');
   const debugStopUnlocked = document.getElementById('recxr-debug-stop-unlocked');
@@ -338,10 +347,13 @@
   const debugWebxr = document.getElementById('recxr-debug-webxr');
   const debugCamera = document.getElementById('recxr-debug-camera');
   const debugDeviceBranch = document.getElementById('recxr-debug-device-branch');
+  const runtimePanel = document.getElementById('recxr-runtime-panel');
   const runtimeStarted = document.getElementById('recxr-runtime-started');
   const runtimeCompleted = document.getElementById('recxr-runtime-completed');
   const runtimeStep = document.getElementById('recxr-runtime-step');
   const runtimeError = document.getElementById('recxr-runtime-error');
+
+  const debugEnabled = false;
 
   let currentActiveStop = null;
   let xrSupported = false;
@@ -375,6 +387,7 @@
   let cameraGuideFallbackReason = 'none';
   let packedAlphaClearRectEachFrame = false;
   let currentCameraSurfaceMode = 'standard';
+  let floatingGuideScale = 1;
   const alphaPackedVideoVertexShader = `
     varying vec2 vUv;
 
@@ -403,12 +416,14 @@
   `;
 
   function setRuntimeStep(step) {
+    if (!debugEnabled) return;
     if (runtimeStep) {
       runtimeStep.textContent = `Last successful init step: ${step}`;
     }
   }
 
   function setRuntimeError(message) {
+    if (!debugEnabled) return;
     if (runtimeError) {
       runtimeError.textContent = `Caught error: ${message || 'none'}`;
     }
@@ -452,6 +467,7 @@
   }
 
   function logGuideVideoResolution(context, stop) {
+    if (!debugEnabled) return;
     console.log(`[RecXR] ${context}`, {
       title: stop?.title || null,
       videoMode: stop?.videoMode ?? null,
@@ -485,6 +501,7 @@
   }
 
   function setVisibleSurfaceDebugLabel(surface) {
+    if (!debugEnabled) return;
     if (cameraVisibleSurface) {
       cameraVisibleSurface.textContent = `Visible surface: ${surface}`;
     }
@@ -497,7 +514,85 @@
     return currentCameraSurfaceMode === 'packedAlpha' ? cameraFloatingCanvas : cameraPanel;
   }
 
+  function resolveScreenAxisValue(value, axis) {
+    if (typeof value === 'number') return value;
+    if (typeof value !== 'string') return axis === 'x' ? window.innerWidth / 2 : window.innerHeight * 0.76;
+    if (value.endsWith('%')) {
+      const numericValue = Number.parseFloat(value);
+      const size = axis === 'x' ? window.innerWidth : window.innerHeight;
+      return Number.isFinite(numericValue) ? (numericValue / 100) * size : axis === 'x' ? window.innerWidth / 2 : window.innerHeight * 0.76;
+    }
+    const parsed = Number.parseFloat(value);
+    return Number.isFinite(parsed) ? parsed : axis === 'x' ? window.innerWidth / 2 : window.innerHeight * 0.76;
+  }
+
+  function getPackedAlphaFloorBand() {
+    return {
+      minY: window.innerHeight * 0.62,
+      maxY: window.innerHeight * 0.94,
+    };
+  }
+
+  function getFloatingGuideScale(anchorTop) {
+    const { minY, maxY } = getPackedAlphaFloorBand();
+    const normalized = Math.max(0, Math.min(1, (anchorTop - minY) / Math.max(1, maxY - minY)));
+    return 0.88 + (normalized * 0.38);
+  }
+
+  function clampFloatingGuideAnchor(anchorLeft, anchorTop) {
+    if (!cameraFloatingCanvas) {
+      return { anchorLeft, anchorTop };
+    }
+
+    const { minY, maxY } = getPackedAlphaFloorBand();
+    const nextAnchorTop = Math.max(minY, Math.min(maxY, anchorTop));
+    const nextScale = getFloatingGuideScale(nextAnchorTop);
+    const halfWidth = (cameraFloatingCanvas.offsetWidth * nextScale) / 2;
+    const clampedLeft = Math.max(halfWidth + 12, Math.min(window.innerWidth - halfWidth - 12, anchorLeft));
+
+    return {
+      anchorLeft: clampedLeft,
+      anchorTop: nextAnchorTop,
+      scale: nextScale,
+    };
+  }
+
+  function syncFloatingGuideShadow() {
+    if (!cameraFloatingCanvas || !cameraFloatingShadow) return;
+    if (currentCameraSurfaceMode !== 'packedAlpha' || cameraFloatingCanvas.style.display === 'none') {
+      cameraFloatingShadow.style.display = 'none';
+      return;
+    }
+
+    const rect = cameraFloatingCanvas.getBoundingClientRect();
+    const anchorLeft = rect.left + (rect.width / 2);
+    const anchorTop = rect.top + rect.height;
+    const shadowWidth = Math.max(68, Math.min(rect.width * (0.26 + (floatingGuideScale * 0.12)), 190));
+
+    cameraFloatingShadow.style.left = `${anchorLeft}px`;
+    cameraFloatingShadow.style.top = `${anchorTop + 6}px`;
+    cameraFloatingShadow.style.width = `${shadowWidth}px`;
+    cameraFloatingShadow.style.opacity = `${0.42 + (floatingGuideScale * 0.22)}`;
+    cameraFloatingShadow.style.display = 'block';
+  }
+
+  function setFloatingGuideAnchor(left, top, { smooth = true } = {}) {
+    if (!cameraFloatingCanvas) return;
+
+    const rawLeft = resolveScreenAxisValue(left, 'x');
+    const rawTop = resolveScreenAxisValue(top, 'y');
+    const { anchorLeft, anchorTop, scale } = clampFloatingGuideAnchor(rawLeft, rawTop);
+    floatingGuideScale = scale;
+
+    cameraFloatingCanvas.style.transition = smooth ? 'left 180ms ease, top 180ms ease, transform 180ms ease' : 'none';
+    cameraFloatingCanvas.style.left = `${anchorLeft}px`;
+    cameraFloatingCanvas.style.top = `${anchorTop}px`;
+    cameraFloatingCanvas.style.transform = `translate(-50%, -100%) scale(${floatingGuideScale})`;
+    syncFloatingGuideShadow();
+  }
+
   function updateCameraGuideDebug(stop) {
+    if (!debugEnabled) return;
     if (cameraDebugVideoMode) {
       cameraDebugVideoMode.textContent = `stop.videoMode: ${stop?.videoMode ?? 'unknown'}`;
     }
@@ -574,6 +669,13 @@
       cameraFloatingCanvas.style.backdropFilter = 'none';
       cameraFloatingCanvas.style.border = '0';
       cameraFloatingCanvas.style.cursor = mode === 'packedAlpha' ? 'move' : 'default';
+      cameraFloatingCanvas.style.transform =
+        mode === 'packedAlpha'
+          ? `translate(-50%, -100%) scale(${floatingGuideScale})`
+          : 'translate(-50%, -50%)';
+    }
+    if (cameraFloatingShadow) {
+      cameraFloatingShadow.style.display = mode === 'packedAlpha' ? 'block' : 'none';
     }
     if (cameraPanelDebug) {
       cameraPanelDebug.style.background =
@@ -618,6 +720,7 @@
     }
 
     setVisibleSurfaceDebugLabel(mode === 'packedAlpha' ? 'canvas' : 'video');
+    syncFloatingGuideShadow();
     updateCameraGuideDebug(currentActiveStop);
   }
 
@@ -638,6 +741,9 @@
       if (cameraGuideCanvasContext) {
         cameraGuideCanvasContext.clearRect(0, 0, cameraPanelCanvas.width, cameraPanelCanvas.height);
       }
+    }
+    if (cameraFloatingShadow) {
+      cameraFloatingShadow.style.display = 'none';
     }
     packedAlphaClearRectEachFrame = false;
   }
@@ -697,10 +803,13 @@
     packedAlphaClearRectEachFrame = true;
     cameraGuideCanvasContext.clearRect(0, 0, frameWidth, frameHeight);
     cameraGuideCanvasContext.putImageData(colorFrame, 0, 0);
-    cameraGuideCanvasContext.fillStyle = 'rgba(255, 255, 255, 0.92)';
-    cameraGuideCanvasContext.font = 'bold 16px sans-serif';
-    cameraGuideCanvasContext.textBaseline = 'top';
-    cameraGuideCanvasContext.fillText('PACKED CANVAS MODE', 12, 10);
+    if (debugEnabled) {
+      cameraGuideCanvasContext.fillStyle = 'rgba(255, 255, 255, 0.92)';
+      cameraGuideCanvasContext.font = 'bold 16px sans-serif';
+      cameraGuideCanvasContext.textBaseline = 'top';
+      cameraGuideCanvasContext.fillText('PACKED CANVAS MODE', 12, 10);
+    }
+    syncFloatingGuideShadow();
     updateCameraGuideDebug(currentActiveStop);
     cameraGuideAnimationFrame = window.requestAnimationFrame(renderPackedAlphaFrame);
   }
@@ -780,6 +889,7 @@
     if (!cameraPanel || !cameraPanelShadow) return;
     if (currentCameraSurfaceMode === 'packedAlpha') {
       cameraPanelShadow.style.display = 'none';
+      syncFloatingGuideShadow();
       return;
     }
 
@@ -798,11 +908,19 @@
       cameraPlaceHereButton.style.color = enabled ? '#171227' : '#fff';
     }
     if (cameraStatus && enabled) {
-      cameraStatus.textContent = 'Tap anywhere on the camera view to place the guide panel.';
+      cameraStatus.textContent =
+        currentCameraSurfaceMode === 'packedAlpha'
+          ? 'Tap anywhere on the camera view to place Nathan by his feet.'
+          : 'Tap anywhere on the camera view to place the guide panel.';
     }
   }
 
   function setCameraPanelPosition(left, top, { center = false, smooth = true } = {}) {
+    if (currentCameraSurfaceMode === 'packedAlpha') {
+      setFloatingGuideAnchor(left, top, { smooth });
+      return;
+    }
+
     const viewport = getCameraGuideViewport();
     if (!viewport) return;
 
@@ -816,14 +934,25 @@
   }
 
   function applyPresetPlacement(position) {
-    if (!cameraPanel) return;
+    const viewport = getCameraGuideViewport();
+    if (!viewport) return;
 
-    if (position === 'left') {
-      setCameraPanelPosition('22%', '74%', { center: true });
-    } else if (position === 'right') {
-      setCameraPanelPosition('78%', '74%', { center: true });
+    if (currentCameraSurfaceMode === 'packedAlpha') {
+      if (position === 'left') {
+        setFloatingGuideAnchor('22%', '82%', { smooth: true });
+      } else if (position === 'right') {
+        setFloatingGuideAnchor('78%', '82%', { smooth: true });
+      } else {
+        setFloatingGuideAnchor('50%', '84%', { smooth: true });
+      }
     } else {
-      setCameraPanelPosition('50%', '72%', { center: true });
+      if (position === 'left') {
+        setCameraPanelPosition('22%', '74%', { center: true });
+      } else if (position === 'right') {
+        setCameraPanelPosition('78%', '74%', { center: true });
+      } else {
+        setCameraPanelPosition('50%', '72%', { center: true });
+      }
     }
 
     if (cameraStatus) {
@@ -832,6 +961,7 @@
   }
 
   function updateDebugPanel(stop) {
+    if (!debugEnabled) return;
     const hasVideo = Boolean(getStandardVideoUrl(stop) || getGuideVideoUrl(stop));
     const isUnlocked = Boolean(stop?.isUnlocked);
     if (debugMounted) {
@@ -1067,6 +1197,9 @@
     }
     if (cameraPanelShadow) {
       cameraPanelShadow.style.display = 'none';
+    }
+    if (cameraFloatingShadow) {
+      cameraFloatingShadow.style.display = 'none';
     }
 
     if (cameraOverlay) {
@@ -1318,10 +1451,16 @@
     updateLaunchUi(stop);
   }
 
-  if (debugMounted) {
+  if (!debugEnabled) {
+    debugPanel?.setAttribute('style', 'display: none;');
+    runtimePanel?.setAttribute('style', 'display: none;');
+    cameraPanelDebug?.setAttribute('style', 'display: none;');
+    cameraVisibleSurface?.setAttribute('style', 'display: none;');
+  }
+  if (debugMounted && debugEnabled) {
     debugMounted.textContent = 'Section mounted: yes';
   }
-  if (runtimeStarted) {
+  if (runtimeStarted && debugEnabled) {
     runtimeStarted.textContent = 'Script started: yes';
   }
   setRuntimeStep('script top reached');
@@ -1390,16 +1529,28 @@
 
       dragTarget.setPointerCapture(event.pointerId);
       const rect = viewport.getBoundingClientRect();
-      panelDrag = {
-        pointerId: event.pointerId,
-        element: viewport,
-        dragTarget,
-        offsetX: event.clientX - rect.left,
-        offsetY: event.clientY - rect.top,
-      };
+
+      if (currentCameraSurfaceMode === 'packedAlpha') {
+        panelDrag = {
+          pointerId: event.pointerId,
+          element: viewport,
+          dragTarget,
+          useAnchor: true,
+          anchorOffsetX: (rect.left + (rect.width / 2)) - event.clientX,
+          anchorOffsetY: (rect.top + rect.height) - event.clientY,
+        };
+      } else {
+        panelDrag = {
+          pointerId: event.pointerId,
+          element: viewport,
+          dragTarget,
+          offsetX: event.clientX - rect.left,
+          offsetY: event.clientY - rect.top,
+        };
+      }
       dragTarget.style.cursor = 'grabbing';
       viewport.style.transition = 'none';
-      viewport.style.transform = 'none';
+      viewport.style.transform = currentCameraSurfaceMode === 'packedAlpha' ? 'translate(-50%, -100%)' : 'none';
     }
 
     cameraPanelHandle?.addEventListener('pointerdown', (event) => {
@@ -1416,13 +1567,19 @@
       if (!panelDrag?.element || panelDrag.pointerId !== event.pointerId) return;
 
       const viewport = panelDrag.element;
+
+      if (panelDrag.useAnchor) {
+        const nextAnchorLeft = event.clientX + panelDrag.anchorOffsetX;
+        const nextAnchorTop = event.clientY + panelDrag.anchorOffsetY;
+        setFloatingGuideAnchor(`${nextAnchorLeft}px`, `${nextAnchorTop}px`, { smooth: false });
+        return;
+      }
+
       const nextLeft = event.clientX - panelDrag.offsetX;
       const nextTop = event.clientY - panelDrag.offsetY;
       viewport.style.left = `${Math.max(12, Math.min(window.innerWidth - viewport.offsetWidth - 12, nextLeft))}px`;
       viewport.style.top = `${Math.max(100, Math.min(window.innerHeight - viewport.offsetHeight - 12, nextTop))}px`;
-      if (currentCameraSurfaceMode === 'standard') {
-        syncCameraShadow();
-      }
+      syncCameraShadow();
     }
 
     cameraPanelHandle?.addEventListener('pointermove', moveCameraViewportDrag);
@@ -1441,6 +1598,8 @@
         }
         if (currentCameraSurfaceMode === 'standard') {
           syncCameraShadow();
+        } else {
+          syncFloatingGuideShadow();
         }
       }
     }
@@ -1460,6 +1619,8 @@
         }
         if (currentCameraSurfaceMode === 'standard') {
           syncCameraShadow();
+        } else {
+          syncFloatingGuideShadow();
         }
       }
     }
@@ -1488,12 +1649,18 @@
         return;
       }
 
-      const panelWidth = viewport.offsetWidth;
-      const panelHeight = viewport.offsetHeight;
-      const nextLeft = Math.max(12, Math.min(window.innerWidth - panelWidth - 12, event.clientX - panelWidth / 2));
-      const nextTop = Math.max(100, Math.min(window.innerHeight - panelHeight - 12, event.clientY - panelHeight / 2));
+      if (currentCameraSurfaceMode === 'packedAlpha') {
+        const nextAnchorLeft = event.clientX;
+        const nextAnchorTop = event.clientY;
+        setFloatingGuideAnchor(`${nextAnchorLeft}px`, `${nextAnchorTop}px`, { smooth: true });
+      } else {
+        const panelWidth = viewport.offsetWidth;
+        const panelHeight = viewport.offsetHeight;
+        const nextLeft = Math.max(12, Math.min(window.innerWidth - panelWidth - 12, event.clientX - panelWidth / 2));
+        const nextTop = Math.max(100, Math.min(window.innerHeight - panelHeight - 12, event.clientY - panelHeight / 2));
 
-      setCameraPanelPosition(`${nextLeft}px`, `${nextTop}px`, { center: false, smooth: true });
+        setCameraPanelPosition(`${nextLeft}px`, `${nextTop}px`, { center: false, smooth: true });
+      }
       setCameraPlacementMode(false);
 
       if (cameraStatus) {
