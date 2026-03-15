@@ -247,6 +247,20 @@
       <p id="recxr-camera-visible-surface" style="margin: 0.75rem 0 0 0; font-size: 0.85rem; font-weight: 700; color: #f9a8d4;">
         Visible surface: video
       </p>
+      <div style="margin-top: 0.85rem; padding: 0.85rem; border-radius: 12px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);">
+        <p style="margin: 0 0 0.45rem 0; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #f9a8d4;">
+          Temporary Surface Debug
+        </p>
+        <p id="recxr-camera-debug-video-mode" style="margin: 0 0 0.25rem 0; font-size: 0.85rem; color: #f3f4f6;">stop.videoMode: unknown</p>
+        <p id="recxr-camera-debug-standard" style="margin: 0 0 0.25rem 0; font-size: 0.85rem; color: #f3f4f6;">standardHlsUrl present: no</p>
+        <p id="recxr-camera-debug-guide" style="margin: 0 0 0.25rem 0; font-size: 0.85rem; color: #f3f4f6;">arGuideHlsUrl present: no</p>
+        <p id="recxr-camera-debug-resolved" style="margin: 0 0 0.25rem 0; font-size: 0.85rem; color: #f3f4f6;">resolvedGuideMode: unknown</p>
+        <p id="recxr-camera-debug-visible" style="margin: 0 0 0.25rem 0; font-size: 0.85rem; color: #f3f4f6;">visibleSurface: video</p>
+        <p id="recxr-camera-debug-started" style="margin: 0 0 0.25rem 0; font-size: 0.85rem; color: #f3f4f6;">packed-alpha decode started: no</p>
+        <p id="recxr-camera-debug-succeeded" style="margin: 0 0 0.25rem 0; font-size: 0.85rem; color: #f3f4f6;">packed-alpha decode succeeded: no</p>
+        <p id="recxr-camera-debug-fallback" style="margin: 0 0 0.25rem 0; font-size: 0.85rem; color: #f3f4f6;">fallback-to-video occurred: no</p>
+        <p id="recxr-camera-debug-reason" style="margin: 0; font-size: 0.85rem; color: #fca5a5;">fallback reason: none</p>
+      </div>
     </div>
   </div>
 </div>
@@ -288,6 +302,15 @@
   const cameraPanelGuideVideo = document.getElementById('recxr-camera-panel-guide-video');
   const cameraPanelPrompt = document.getElementById('recxr-camera-panel-prompt');
   const cameraVisibleSurface = document.getElementById('recxr-camera-visible-surface');
+  const cameraDebugVideoMode = document.getElementById('recxr-camera-debug-video-mode');
+  const cameraDebugStandard = document.getElementById('recxr-camera-debug-standard');
+  const cameraDebugGuide = document.getElementById('recxr-camera-debug-guide');
+  const cameraDebugResolved = document.getElementById('recxr-camera-debug-resolved');
+  const cameraDebugVisible = document.getElementById('recxr-camera-debug-visible');
+  const cameraDebugStarted = document.getElementById('recxr-camera-debug-started');
+  const cameraDebugSucceeded = document.getElementById('recxr-camera-debug-succeeded');
+  const cameraDebugFallback = document.getElementById('recxr-camera-debug-fallback');
+  const cameraDebugReason = document.getElementById('recxr-camera-debug-reason');
   const standardVideoContainer = document.getElementById('recxr-active-stop-video');
   const standardVideoPlayer = document.getElementById('recxr-active-stop-player');
   const debugMounted = document.getElementById('recxr-debug-mounted');
@@ -328,6 +351,10 @@
   let cameraGuideCanvasContext = null;
   let cameraGuideBufferCanvas = null;
   let cameraGuideBufferContext = null;
+  let packedAlphaDecodeStarted = false;
+  let packedAlphaDecodeSucceeded = false;
+  let cameraGuideFallbackToVideo = false;
+  let cameraGuideFallbackReason = 'none';
   const alphaPackedVideoVertexShader = `
     varying vec2 vUv;
 
@@ -441,6 +468,50 @@
     if (cameraVisibleSurface) {
       cameraVisibleSurface.textContent = `Visible surface: ${surface}`;
     }
+    if (cameraDebugVisible) {
+      cameraDebugVisible.textContent = `visibleSurface: ${surface}`;
+    }
+  }
+
+  function updateCameraGuideDebug(stop) {
+    if (cameraDebugVideoMode) {
+      cameraDebugVideoMode.textContent = `stop.videoMode: ${stop?.videoMode ?? 'unknown'}`;
+    }
+    if (cameraDebugStandard) {
+      cameraDebugStandard.textContent = `standardHlsUrl present: ${getStandardVideoUrl(stop) ? 'yes' : 'no'}`;
+    }
+    if (cameraDebugGuide) {
+      cameraDebugGuide.textContent = `arGuideHlsUrl present: ${stop?.arGuideHlsUrl ? 'yes' : 'no'}`;
+    }
+    if (cameraDebugResolved) {
+      cameraDebugResolved.textContent = `resolvedGuideMode: ${stop ? getResolvedGuideMode(stop) : 'unknown'}`;
+    }
+    if (cameraDebugStarted) {
+      cameraDebugStarted.textContent = `packed-alpha decode started: ${packedAlphaDecodeStarted ? 'yes' : 'no'}`;
+    }
+    if (cameraDebugSucceeded) {
+      cameraDebugSucceeded.textContent = `packed-alpha decode succeeded: ${packedAlphaDecodeSucceeded ? 'yes' : 'no'}`;
+    }
+    if (cameraDebugFallback) {
+      cameraDebugFallback.textContent = `fallback-to-video occurred: ${cameraGuideFallbackToVideo ? 'yes' : 'no'}`;
+    }
+    if (cameraDebugReason) {
+      cameraDebugReason.textContent = `fallback reason: ${cameraGuideFallbackReason}`;
+    }
+  }
+
+  function resetCameraGuideDebugState(stop) {
+    packedAlphaDecodeStarted = false;
+    packedAlphaDecodeSucceeded = false;
+    cameraGuideFallbackToVideo = false;
+    cameraGuideFallbackReason = 'none';
+    updateCameraGuideDebug(stop);
+  }
+
+  function setCameraGuideFallback(reason, stop) {
+    cameraGuideFallbackToVideo = true;
+    cameraGuideFallbackReason = reason;
+    updateCameraGuideDebug(stop);
   }
 
   function showCameraGuideSurface(mode) {
@@ -556,6 +627,11 @@
     const guideVideoUrl = getGuideVideoUrl(stop);
     if (!guideVideoUrl) return false;
     logGuideVideoResolution('startPackedAlphaCameraRender', stop);
+    packedAlphaDecodeStarted = true;
+    packedAlphaDecodeSucceeded = false;
+    cameraGuideFallbackToVideo = false;
+    cameraGuideFallbackReason = 'none';
+    updateCameraGuideDebug(stop);
 
     stopPackedAlphaCameraRender();
     showCameraGuideSurface('packedAlpha');
@@ -576,6 +652,8 @@
     cameraPanelGuideVideo.preload = 'auto';
 
     await cameraPanelGuideVideo.play();
+    packedAlphaDecodeSucceeded = true;
+    updateCameraGuideDebug(stop);
     renderPackedAlphaFrame();
     return true;
   }
@@ -583,13 +661,22 @@
   async function playCameraGuideMedia(stop) {
     const resolvedGuideMode = getResolvedGuideMode(stop);
     logGuideVideoResolution('playCameraGuideMedia', stop);
+    updateCameraGuideDebug(stop);
 
     if (resolvedGuideMode === 'packedAlpha') {
       try {
         const started = await startPackedAlphaCameraRender(stop);
         if (started) return;
       } catch (_error) {
-        // Fall through to the standard rectangular player when packed-alpha decode fails.
+        setCameraGuideFallback('packed-alpha decode threw an error', stop);
+      }
+
+      if (!getStandardVideoUrl(stop)) {
+        setVisibleSurfaceDebugLabel('canvas');
+        if (cameraStatus) {
+          cameraStatus.textContent = 'Packed-alpha decode failed and no standard fallback video is available.';
+        }
+        return;
       }
     }
 
@@ -597,6 +684,9 @@
       cameraPanelCanvas.style.display = 'none';
     }
     if (cameraPanelVideo) {
+      if (resolvedGuideMode === 'packedAlpha') {
+        setCameraGuideFallback('packed-alpha stop fell back to visible video', stop);
+      }
       showCameraGuideSurface('standard');
       await cameraPanelVideo.play().catch(() => {});
     }
@@ -900,6 +990,7 @@
     if (!guideVideoUrl || !cameraGuideSupported || !cameraOverlay || !cameraFeed) return;
     const resolvedGuideMode = getResolvedGuideMode(stop);
     logGuideVideoResolution('startCameraGuide', stop);
+    resetCameraGuideDebugState(stop);
 
     await endArSession().catch(() => {});
     stopCameraGuide();
@@ -926,6 +1017,7 @@
       cameraPanelVideo.load();
       showCameraGuideSurface('standard');
     }
+    updateCameraGuideDebug(stop);
     if (cameraPanel) {
       cameraPanel.style.display = 'block';
       resetCameraPanelPosition();
@@ -1278,6 +1370,7 @@
       const stop = event.detail || null;
       currentActiveStop = stop;
       logGuideVideoResolution('recxr-active-stop event', stop);
+      updateCameraGuideDebug(stop);
       updateLaunchState(stop);
       setRuntimeStep('received recxr-active-stop event');
     });
