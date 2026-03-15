@@ -219,7 +219,7 @@
     >
       <p style="margin: 0; font-size: 0.9rem; color: #f3f4f6;">Drag guide panel</p>
     </div>
-    <div style="padding: 0.7rem 0.85rem; border-bottom: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.04);">
+    <div id="recxr-camera-panel-debug" style="padding: 0.7rem 0.85rem; border-bottom: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.04);">
       <p style="margin: 0 0 0.35rem 0; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #f9a8d4;">
         Temp Surface Debug
       </p>
@@ -232,29 +232,34 @@
       <p id="recxr-camera-debug-succeeded" style="margin: 0 0 0.18rem 0; font-size: 0.72rem; line-height: 1.35; color: #f3f4f6;">packed-alpha decode succeeded: no</p>
       <p id="recxr-camera-debug-fallback" style="margin: 0 0 0.18rem 0; font-size: 0.72rem; line-height: 1.35; color: #f3f4f6;">fallback-to-video occurred: no</p>
       <p id="recxr-camera-debug-reason" style="margin: 0; font-size: 0.72rem; line-height: 1.35; color: #fca5a5;">fallback reason: none</p>
+      <p id="recxr-camera-debug-canvas-bg" style="margin: 0.18rem 0 0 0; font-size: 0.72rem; line-height: 1.35; color: #f3f4f6;">canvas css background: unknown</p>
+      <p id="recxr-camera-debug-parent-bg" style="margin: 0.18rem 0 0 0; font-size: 0.72rem; line-height: 1.35; color: #f3f4f6;">parent container background: unknown</p>
+      <p id="recxr-camera-debug-clear" style="margin: 0.18rem 0 0 0; font-size: 0.72rem; line-height: 1.35; color: #f3f4f6;">clearRect each frame: no</p>
     </div>
-    <canvas
-      id="recxr-camera-panel-canvas"
-      style="display: none; width: 100%; height: auto; background: transparent;"
-    ></canvas>
-    <video
-      id="recxr-camera-panel-video"
-      controls
-      playsinline
-      preload="metadata"
-      style="display: block; width: 100%; background: #000;"
-    >
-      <source id="recxr-camera-panel-source" src="" type="application/x-mpegURL" />
-      Your browser does not support HTML5 video playback.
-    </video>
-    <video
-      id="recxr-camera-panel-guide-video"
-      muted
-      playsinline
-      preload="metadata"
-      style="display: none;"
-    ></video>
-    <div style="padding: 1rem;">
+    <div id="recxr-camera-panel-media" style="position: relative; background: transparent;">
+      <canvas
+        id="recxr-camera-panel-canvas"
+        style="display: none; width: 100%; height: auto; background: transparent;"
+      ></canvas>
+      <video
+        id="recxr-camera-panel-video"
+        controls
+        playsinline
+        preload="metadata"
+        style="display: block; width: 100%; background: #000;"
+      >
+        <source id="recxr-camera-panel-source" src="" type="application/x-mpegURL" />
+        Your browser does not support HTML5 video playback.
+      </video>
+      <video
+        id="recxr-camera-panel-guide-video"
+        muted
+        playsinline
+        preload="metadata"
+        style="display: none;"
+      ></video>
+    </div>
+    <div id="recxr-camera-panel-body" style="padding: 1rem;">
       <p id="recxr-camera-panel-prompt" style="margin: 0; line-height: 1.7; color: #f3f4f6;">
         Prompt text will appear here when a stop is unlocked.
       </p>
@@ -296,6 +301,9 @@
   const cameraPanelShadow = document.getElementById('recxr-camera-panel-shadow');
   const cameraPanel = document.getElementById('recxr-camera-panel');
   const cameraPanelHandle = document.getElementById('recxr-camera-panel-handle');
+  const cameraPanelDebug = document.getElementById('recxr-camera-panel-debug');
+  const cameraPanelMedia = document.getElementById('recxr-camera-panel-media');
+  const cameraPanelBody = document.getElementById('recxr-camera-panel-body');
   const cameraPanelCanvas = document.getElementById('recxr-camera-panel-canvas');
   const cameraPanelVideo = document.getElementById('recxr-camera-panel-video');
   const cameraPanelSource = document.getElementById('recxr-camera-panel-source');
@@ -311,6 +319,9 @@
   const cameraDebugSucceeded = document.getElementById('recxr-camera-debug-succeeded');
   const cameraDebugFallback = document.getElementById('recxr-camera-debug-fallback');
   const cameraDebugReason = document.getElementById('recxr-camera-debug-reason');
+  const cameraDebugCanvasBg = document.getElementById('recxr-camera-debug-canvas-bg');
+  const cameraDebugParentBg = document.getElementById('recxr-camera-debug-parent-bg');
+  const cameraDebugClear = document.getElementById('recxr-camera-debug-clear');
   const standardVideoContainer = document.getElementById('recxr-active-stop-video');
   const standardVideoPlayer = document.getElementById('recxr-active-stop-player');
   const debugMounted = document.getElementById('recxr-debug-mounted');
@@ -355,6 +366,7 @@
   let packedAlphaDecodeSucceeded = false;
   let cameraGuideFallbackToVideo = false;
   let cameraGuideFallbackReason = 'none';
+  let packedAlphaClearRectEachFrame = false;
   const alphaPackedVideoVertexShader = `
     varying vec2 vUv;
 
@@ -498,6 +510,15 @@
     if (cameraDebugReason) {
       cameraDebugReason.textContent = `fallback reason: ${cameraGuideFallbackReason}`;
     }
+    if (cameraDebugCanvasBg) {
+      cameraDebugCanvasBg.textContent = `canvas css background: ${cameraPanelCanvas?.style.background || 'none'}`;
+    }
+    if (cameraDebugParentBg) {
+      cameraDebugParentBg.textContent = `parent container background: ${cameraPanelMedia?.style.background || cameraPanel?.style.background || 'none'}`;
+    }
+    if (cameraDebugClear) {
+      cameraDebugClear.textContent = `clearRect each frame: ${packedAlphaClearRectEachFrame ? 'yes' : 'no'}`;
+    }
   }
 
   function resetCameraGuideDebugState(stop) {
@@ -505,6 +526,7 @@
     packedAlphaDecodeSucceeded = false;
     cameraGuideFallbackToVideo = false;
     cameraGuideFallbackReason = 'none';
+    packedAlphaClearRectEachFrame = false;
     updateCameraGuideDebug(stop);
   }
 
@@ -515,9 +537,27 @@
   }
 
   function showCameraGuideSurface(mode) {
+    if (cameraPanel) {
+      cameraPanel.style.background =
+        mode === 'packedAlpha'
+          ? 'transparent'
+          : 'linear-gradient(180deg, rgba(23, 18, 39, 0.9), rgba(14, 18, 28, 0.82))';
+    }
+    if (cameraPanelDebug) {
+      cameraPanelDebug.style.background = 'rgba(255,255,255,0.04)';
+    }
+    if (cameraPanelBody) {
+      cameraPanelBody.style.background =
+        mode === 'packedAlpha'
+          ? 'linear-gradient(180deg, rgba(23, 18, 39, 0.9), rgba(14, 18, 28, 0.82))'
+          : 'transparent';
+    }
+    if (cameraPanelMedia) {
+      cameraPanelMedia.style.background = 'transparent';
+    }
     if (cameraPanelCanvas) {
       if (mode === 'packedAlpha') {
-        cameraPanelCanvas.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; width: 100%; height: auto; background: rgba(59, 130, 246, 0.3) !important; border: 4px solid #ff00ff !important; pointer-events: auto;';
+        cameraPanelCanvas.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; width: 100%; height: auto; background: transparent !important; border: 0 !important; pointer-events: auto;';
       } else {
         cameraPanelCanvas.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important; width: 100%; height: auto; background: transparent; border: 0; pointer-events: none !important;';
       }
@@ -536,6 +576,7 @@
     }
 
     setVisibleSurfaceDebugLabel(mode === 'packedAlpha' ? 'canvas' : 'video');
+    updateCameraGuideDebug(currentActiveStop);
   }
 
   function stopPackedAlphaCameraRender() {
@@ -556,6 +597,7 @@
         cameraGuideCanvasContext.clearRect(0, 0, cameraPanelCanvas.width, cameraPanelCanvas.height);
       }
     }
+    packedAlphaClearRectEachFrame = false;
   }
 
   function renderPackedAlphaFrame() {
@@ -610,14 +652,14 @@
       );
     }
 
+    packedAlphaClearRectEachFrame = true;
     cameraGuideCanvasContext.clearRect(0, 0, frameWidth, frameHeight);
-    cameraGuideCanvasContext.fillStyle = 'rgba(59, 130, 246, 0.3)';
-    cameraGuideCanvasContext.fillRect(0, 0, frameWidth, frameHeight);
     cameraGuideCanvasContext.putImageData(colorFrame, 0, 0);
-    cameraGuideCanvasContext.fillStyle = '#ff00ff';
-    cameraGuideCanvasContext.font = 'bold 22px sans-serif';
+    cameraGuideCanvasContext.fillStyle = 'rgba(255, 255, 255, 0.92)';
+    cameraGuideCanvasContext.font = 'bold 16px sans-serif';
     cameraGuideCanvasContext.textBaseline = 'top';
-    cameraGuideCanvasContext.fillText('PACKED CANVAS MODE', 16, 14);
+    cameraGuideCanvasContext.fillText('PACKED CANVAS MODE', 12, 10);
+    updateCameraGuideDebug(currentActiveStop);
     cameraGuideAnimationFrame = window.requestAnimationFrame(renderPackedAlphaFrame);
   }
 
