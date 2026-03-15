@@ -244,6 +244,9 @@
       <p id="recxr-camera-panel-prompt" style="margin: 0; line-height: 1.7; color: #f3f4f6;">
         Prompt text will appear here when a stop is unlocked.
       </p>
+      <p id="recxr-camera-visible-surface" style="margin: 0.75rem 0 0 0; font-size: 0.85rem; font-weight: 700; color: #f9a8d4;">
+        Visible surface: video
+      </p>
     </div>
   </div>
 </div>
@@ -284,6 +287,7 @@
   const cameraPanelSource = document.getElementById('recxr-camera-panel-source');
   const cameraPanelGuideVideo = document.getElementById('recxr-camera-panel-guide-video');
   const cameraPanelPrompt = document.getElementById('recxr-camera-panel-prompt');
+  const cameraVisibleSurface = document.getElementById('recxr-camera-visible-surface');
   const standardVideoContainer = document.getElementById('recxr-active-stop-video');
   const standardVideoPlayer = document.getElementById('recxr-active-stop-player');
   const debugMounted = document.getElementById('recxr-debug-mounted');
@@ -415,19 +419,34 @@
     });
   }
 
+  function setVisibleSurfaceDebugLabel(surface) {
+    if (cameraVisibleSurface) {
+      cameraVisibleSurface.textContent = `Visible surface: ${surface}`;
+    }
+  }
+
   function showCameraGuideSurface(mode) {
     if (cameraPanelCanvas) {
-      cameraPanelCanvas.style.display = mode === 'packedAlpha' ? 'block' : 'none';
-      cameraPanelCanvas.style.background = 'transparent';
+      if (mode === 'packedAlpha') {
+        cameraPanelCanvas.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; width: 100%; height: auto; background: rgba(59, 130, 246, 0.3) !important; border: 4px solid #ff00ff !important; pointer-events: auto;';
+      } else {
+        cameraPanelCanvas.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important; width: 100%; height: auto; background: transparent; border: 0; pointer-events: none !important;';
+      }
     }
 
     if (cameraPanelVideo) {
-      cameraPanelVideo.style.display = mode === 'standard' ? 'block' : 'none';
+      if (mode === 'standard') {
+        cameraPanelVideo.style.cssText = 'display: block; visibility: visible; opacity: 1; width: 100%; background: #000; pointer-events: auto;';
+      } else {
+        cameraPanelVideo.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important; width: 100%; background: #000; pointer-events: none !important;';
+      }
     }
 
     if (cameraPanelGuideVideo) {
       cameraPanelGuideVideo.style.display = 'none';
     }
+
+    setVisibleSurfaceDebugLabel(mode === 'packedAlpha' ? 'canvas' : 'video');
   }
 
   function stopPackedAlphaCameraRender() {
@@ -503,7 +522,13 @@
     }
 
     cameraGuideCanvasContext.clearRect(0, 0, frameWidth, frameHeight);
+    cameraGuideCanvasContext.fillStyle = 'rgba(59, 130, 246, 0.3)';
+    cameraGuideCanvasContext.fillRect(0, 0, frameWidth, frameHeight);
     cameraGuideCanvasContext.putImageData(colorFrame, 0, 0);
+    cameraGuideCanvasContext.fillStyle = '#ff00ff';
+    cameraGuideCanvasContext.font = 'bold 22px sans-serif';
+    cameraGuideCanvasContext.textBaseline = 'top';
+    cameraGuideCanvasContext.fillText('PACKED CANVAS MODE', 16, 14);
     cameraGuideAnimationFrame = window.requestAnimationFrame(renderPackedAlphaFrame);
   }
 
