@@ -236,7 +236,7 @@
       <p id="recxr-camera-debug-parent-bg" style="margin: 0.18rem 0 0 0; font-size: 0.72rem; line-height: 1.35; color: #f3f4f6;">parent container background: unknown</p>
       <p id="recxr-camera-debug-clear" style="margin: 0.18rem 0 0 0; font-size: 0.72rem; line-height: 1.35; color: #f3f4f6;">clearRect each frame: no</p>
     </div>
-    <div id="recxr-camera-panel-media" style="position: relative; background: transparent;">
+    <div id="recxr-camera-panel-media" style="position: relative; background: transparent; border-top: 0; border-bottom: 0;">
       <canvas
         id="recxr-camera-panel-canvas"
         style="display: none; width: 100%; height: auto; background: transparent;"
@@ -542,22 +542,39 @@
         mode === 'packedAlpha'
           ? 'transparent'
           : 'linear-gradient(180deg, rgba(23, 18, 39, 0.9), rgba(14, 18, 28, 0.82))';
+      cameraPanel.style.backdropFilter = mode === 'packedAlpha' ? 'none' : 'blur(12px)';
+      cameraPanel.style.boxShadow =
+        mode === 'packedAlpha'
+          ? '0 18px 48px rgba(0,0,0,0.24)'
+          : '0 24px 80px rgba(0,0,0,0.38), 0 0 0 1px rgba(255,255,255,0.06) inset';
+      cameraPanel.style.borderColor =
+        mode === 'packedAlpha' ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.4)';
     }
     if (cameraPanelDebug) {
-      cameraPanelDebug.style.background = 'rgba(255,255,255,0.04)';
+      cameraPanelDebug.style.background =
+        mode === 'packedAlpha' ? 'rgba(10,12,18,0.72)' : 'rgba(255,255,255,0.04)';
+      cameraPanelDebug.style.backdropFilter = mode === 'packedAlpha' ? 'blur(8px)' : 'none';
     }
     if (cameraPanelBody) {
       cameraPanelBody.style.background =
         mode === 'packedAlpha'
-          ? 'linear-gradient(180deg, rgba(23, 18, 39, 0.9), rgba(14, 18, 28, 0.82))'
+          ? 'rgba(10,12,18,0.78)'
           : 'transparent';
+      cameraPanelBody.style.backdropFilter = mode === 'packedAlpha' ? 'blur(8px)' : 'none';
+      cameraPanelBody.style.borderTop =
+        mode === 'packedAlpha' ? '1px solid rgba(255,255,255,0.1)' : '0';
     }
     if (cameraPanelMedia) {
       cameraPanelMedia.style.background = 'transparent';
+      cameraPanelMedia.style.backdropFilter = 'none';
+      cameraPanelMedia.style.borderTop =
+        mode === 'packedAlpha' ? '1px solid rgba(255,255,255,0.08)' : '0';
+      cameraPanelMedia.style.borderBottom =
+        mode === 'packedAlpha' ? '1px solid rgba(255,255,255,0.08)' : '0';
     }
     if (cameraPanelCanvas) {
       if (mode === 'packedAlpha') {
-        cameraPanelCanvas.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; width: 100%; height: auto; background: transparent !important; border: 0 !important; pointer-events: auto;';
+        cameraPanelCanvas.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; width: 100%; height: auto; background: transparent !important; border: 0 !important; pointer-events: auto; box-shadow: none !important;';
       } else {
         cameraPanelCanvas.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important; width: 100%; height: auto; background: transparent; border: 0; pointer-events: none !important;';
       }
