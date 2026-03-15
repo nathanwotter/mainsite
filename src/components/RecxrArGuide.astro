@@ -175,6 +175,20 @@
       >
         Place Guide Here
       </button>
+      <button
+        id="recxr-camera-lock-placement"
+        type="button"
+        style="display: inline-block; padding: 0.8rem 1.1rem; border: 1px solid rgba(255,255,255,0.5); color: #fff; background: rgba(255,255,255,0.08); border-radius: 999px; cursor: pointer;"
+      >
+        Lock Placement
+      </button>
+      <button
+        id="recxr-camera-reset-anchor"
+        type="button"
+        style="display: inline-block; padding: 0.8rem 1.1rem; border: 1px solid rgba(255,255,255,0.5); color: #fff; background: rgba(255,255,255,0.08); border-radius: 999px; cursor: pointer;"
+      >
+        Re-center Anchor
+      </button>
     </div>
 
     <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem;">
@@ -308,6 +322,8 @@
   const cameraResetButton = document.getElementById('recxr-camera-reset');
   const cameraStandardVideoButton = document.getElementById('recxr-camera-standard-video');
   const cameraPlaceHereButton = document.getElementById('recxr-camera-place-here');
+  const cameraLockPlacementButton = document.getElementById('recxr-camera-lock-placement');
+  const cameraResetAnchorButton = document.getElementById('recxr-camera-reset-anchor');
   const cameraPosCenterButton = document.getElementById('recxr-camera-pos-center');
   const cameraPosLeftButton = document.getElementById('recxr-camera-pos-left');
   const cameraPosRightButton = document.getElementById('recxr-camera-pos-right');
@@ -388,6 +404,11 @@
   let packedAlphaClearRectEachFrame = false;
   let currentCameraSurfaceMode = 'standard';
   let floatingGuideScale = 1;
+  let cameraPlacementLocked = false;
+  let floatingGuideAnchor = { left: 0, top: 0 };
+  let floatingGuideOrientationBaseline = null;
+  let floatingGuideOrientationCurrent = null;
+  let floatingGuidePseudoAnchorEnabled = false;
   const alphaPackedVideoVertexShader = `
     varying vec2 vUv;
 
@@ -533,6 +554,13 @@
     };
   }
 
+  function getPackedAlphaAnchorMargins() {
+    return {
+      left: 18,
+      right: 18,
+    };
+  }
+
   function getFloatingGuideScale(anchorTop) {
     const { minY, maxY } = getPackedAlphaFloorBand();
     const normalized = Math.max(0, Math.min(1, (anchorTop - minY) / Math.max(1, maxY - minY)));
@@ -545,16 +573,109 @@
     }
 
     const { minY, maxY } = getPackedAlphaFloorBand();
+    const { left: leftMargin, right: rightMargin } = getPackedAlphaAnchorMargins();
     const nextAnchorTop = Math.max(minY, Math.min(maxY, anchorTop));
     const nextScale = getFloatingGuideScale(nextAnchorTop);
-    const halfWidth = (cameraFloatingCanvas.offsetWidth * nextScale) / 2;
-    const clampedLeft = Math.max(halfWidth + 12, Math.min(window.innerWidth - halfWidth - 12, anchorLeft));
+    const clampedLeft = Math.max(leftMargin, Math.min(window.innerWidth - rightMargin, anchorLeft));
 
     return {
       anchorLeft: clampedLeft,
       anchorTop: nextAnchorTop,
       scale: nextScale,
     };
+  }
+
+  function normalizeOrientationAngle(angle) {
+    if (typeof angle !== 'number' || Number.isNaN(angle)) return 0;
+    let normalized = angle;
+    while (normalized > 180) normalized -= 360;
+    while (normalized < -180) normalized += 360;
+    return normalized;
+  }
+
+  function getOrientationDelta(current, baseline) {
+    return {
+      alpha: normalizeOrientationAngle((current?.alpha ?? 0) - (baseline?.alpha ?? 0)),
+      beta: normalizeOrientationAngle((current?.beta ?? 0) - (baseline?.beta ?? 0)),
+      gamma: normalizeOrientationAngle((current?.gamma ?? 0) - (baseline?.gamma ?? 0)),
+    };
+  }
+
+  function updateCameraPlacementLockUi() {
+    if (!cameraLockPlacementButton) return;
+
+    cameraLockPlacementButton.textContent = cameraPlacementLocked ? 'Unlock Placement' : 'Lock Placement';
+    cameraLockPlacementButton.style.background = cameraPlacementLocked ? '#fff' : 'rgba(255,255,255,0.08)';
+    cameraLockPlacementButton.style.color = cameraPlacementLocked ? '#171227' : '#fff';
+
+    if (cameraResetAnchorButton) {
+      cameraResetAnchorButton.style.opacity = currentCameraSurfaceMode === 'packedAlpha' ? '1' : '0.55';
+      cameraResetAnchorButton.style.cursor = currentCameraSurfaceMode === 'packedAlpha' ? 'pointer' : 'not-allowed';
+    }
+  }
+
+  function applyFloatingGuidePseudoAnchor() {
+    if (!cameraFloatingCanvas || currentCameraSurfaceMode !== 'packedAlpha') return;
+
+    const baseScale = floatingGuideScale;
+    let offsetX = 0;
+    let offsetY = 0;
+    let rotation = 0;
+
+    if (cameraPlacementLocked && floatingGuidePseudoAnchorEnabled && floatingGuideOrientationBaseline && floatingGuideOrientationCurrent) {
+      const delta = getOrientationDelta(floatingGuideOrientationCurrent, floatingGuideOrientationBaseline);
+      offsetX = Math.max(-18, Math.min(18, delta.gamma * -0.65));
+      offsetY = Math.max(-10, Math.min(10, delta.beta * 0.32));
+      rotation = Math.max(-2.4, Math.min(2.4, delta.gamma * -0.045));
+    }
+
+    cameraFloatingCanvas.style.transform = `translate(-50%, -100%) translate(${offsetX}px, ${offsetY}px) rotate(${rotation}deg) scale(${baseScale})`;
+    syncFloatingGuideShadow();
+  }
+
+  async function enablePlacementPseudoAnchor() {
+    if (typeof window === 'undefined' || typeof DeviceOrientationEvent === 'undefined') {
+      floatingGuidePseudoAnchorEnabled = false;
+      return false;
+    }
+
+    try {
+      if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+        const permission = await DeviceOrientationEvent.requestPermission();
+        if (permission !== 'granted') {
+          floatingGuidePseudoAnchorEnabled = false;
+          return false;
+        }
+      }
+    } catch (_error) {
+      floatingGuidePseudoAnchorEnabled = false;
+      return false;
+    }
+
+    floatingGuidePseudoAnchorEnabled = true;
+    return true;
+  }
+
+  function setCameraPlacementLocked(locked) {
+    cameraPlacementLocked = locked;
+    if (cameraPlacementLocked) {
+      floatingGuideOrientationBaseline = floatingGuideOrientationCurrent
+        ? { ...floatingGuideOrientationCurrent }
+        : { alpha: 0, beta: 0, gamma: 0 };
+    } else {
+      floatingGuideOrientationBaseline = null;
+    }
+    updateCameraPlacementLockUi();
+    applyFloatingGuidePseudoAnchor();
+  }
+
+  function resetFloatingGuideAnchorBaseline() {
+    if (currentCameraSurfaceMode !== 'packedAlpha') return;
+
+    floatingGuideOrientationBaseline = floatingGuideOrientationCurrent
+      ? { ...floatingGuideOrientationCurrent }
+      : { alpha: 0, beta: 0, gamma: 0 };
+    applyFloatingGuidePseudoAnchor();
   }
 
   function syncFloatingGuideShadow() {
@@ -564,10 +685,9 @@
       return;
     }
 
-    const rect = cameraFloatingCanvas.getBoundingClientRect();
-    const anchorLeft = rect.left + (rect.width / 2);
-    const anchorTop = rect.top + rect.height;
-    const shadowWidth = Math.max(68, Math.min(rect.width * (0.26 + (floatingGuideScale * 0.12)), 190));
+    const anchorLeft = floatingGuideAnchor.left || resolveScreenAxisValue(cameraFloatingCanvas.style.left, 'x');
+    const anchorTop = floatingGuideAnchor.top || resolveScreenAxisValue(cameraFloatingCanvas.style.top, 'y');
+    const shadowWidth = Math.max(68, Math.min(cameraFloatingCanvas.offsetWidth * (0.18 + (floatingGuideScale * 0.1)), 190));
 
     cameraFloatingShadow.style.left = `${anchorLeft}px`;
     cameraFloatingShadow.style.top = `${anchorTop + 6}px`;
@@ -583,12 +703,12 @@
     const rawTop = resolveScreenAxisValue(top, 'y');
     const { anchorLeft, anchorTop, scale } = clampFloatingGuideAnchor(rawLeft, rawTop);
     floatingGuideScale = scale;
+    floatingGuideAnchor = { left: anchorLeft, top: anchorTop };
 
     cameraFloatingCanvas.style.transition = smooth ? 'left 180ms ease, top 180ms ease, transform 180ms ease' : 'none';
     cameraFloatingCanvas.style.left = `${anchorLeft}px`;
     cameraFloatingCanvas.style.top = `${anchorTop}px`;
-    cameraFloatingCanvas.style.transform = `translate(-50%, -100%) scale(${floatingGuideScale})`;
-    syncFloatingGuideShadow();
+    applyFloatingGuidePseudoAnchor();
   }
 
   function updateCameraGuideDebug(stop) {
@@ -1167,11 +1287,15 @@
   }
 
   function resetCameraPanelPosition() {
+    if (currentCameraSurfaceMode === 'packedAlpha') {
+      setCameraPlacementLocked(false);
+    }
     applyPresetPlacement('center');
   }
 
   function stopCameraGuide() {
     stopPackedAlphaCameraRender();
+    setCameraPlacementLocked(false);
 
     if (cameraStream) {
       cameraStream.getTracks().forEach((track) => track.stop());
@@ -1264,6 +1388,7 @@
     if (cameraStatus) {
       cameraStatus.textContent = 'Requesting rear camera access...';
     }
+    updateCameraPlacementLockUi();
 
     try {
       if (navigator.mediaDevices?.getUserMedia) {
@@ -1279,7 +1404,10 @@
         await playCameraGuideMedia(stop);
 
         if (cameraStatus) {
-          cameraStatus.textContent = 'Camera Guide is live. Drag the panel to line it up with your surroundings.';
+          cameraStatus.textContent =
+            resolvedGuideMode === 'packedAlpha'
+              ? 'Camera Guide is live. Place Nathan by his feet, then lock placement for a steadier illusion.'
+              : 'Camera Guide is live. Drag the panel to line it up with your surroundings.';
         }
       } else {
         await playCameraGuideMedia(stop);
@@ -1523,9 +1651,52 @@
       setCameraPlacementMode(!cameraPlacementMode);
     });
 
+    cameraLockPlacementButton?.addEventListener('click', async () => {
+      if (currentCameraSurfaceMode !== 'packedAlpha') return;
+
+      if (cameraPlacementLocked) {
+        setCameraPlacementLocked(false);
+        if (cameraStatus) {
+          cameraStatus.textContent = 'Placement unlocked. Drag Nathan or place him again to reposition.';
+        }
+        return;
+      }
+
+      const enabled = await enablePlacementPseudoAnchor();
+      setCameraPlacementLocked(true);
+      resetFloatingGuideAnchorBaseline();
+      if (cameraStatus) {
+        cameraStatus.textContent = enabled
+          ? 'Placement locked. Device motion now adds a lightweight pseudo-anchor effect.'
+          : 'Placement locked. Orientation-based pseudo-anchor is unavailable on this device.';
+      }
+    });
+
+    cameraResetAnchorButton?.addEventListener('click', async () => {
+      if (currentCameraSurfaceMode !== 'packedAlpha') return;
+
+      if (!cameraPlacementLocked) {
+        const enabled = await enablePlacementPseudoAnchor();
+        setCameraPlacementLocked(true);
+        resetFloatingGuideAnchorBaseline();
+        if (cameraStatus) {
+          cameraStatus.textContent = enabled
+            ? 'Anchor re-centered and placement locked.'
+            : 'Anchor re-centered. Orientation-based pseudo-anchor is unavailable on this device.';
+        }
+        return;
+      }
+
+      resetFloatingGuideAnchorBaseline();
+      if (cameraStatus) {
+        cameraStatus.textContent = 'Anchor re-centered. Nathan should feel steadier from this view.';
+      }
+    });
+
     setRuntimeStep('binding drag handlers');
     function beginCameraViewportDrag(event, viewport, dragTarget) {
       if (!viewport || !dragTarget) return;
+      if (currentCameraSurfaceMode === 'packedAlpha' && cameraPlacementLocked) return;
 
       dragTarget.setPointerCapture(event.pointerId);
       const rect = viewport.getBoundingClientRect();
@@ -1640,6 +1811,8 @@
           target.closest('#recxr-camera-floating-canvas') ||
           target.closest('#recxr-camera-close') ||
           target.closest('#recxr-camera-reset') ||
+          target.closest('#recxr-camera-lock-placement') ||
+          target.closest('#recxr-camera-reset-anchor') ||
           target.closest('#recxr-camera-standard-video') ||
           target.closest('#recxr-camera-place-here') ||
           target.closest('#recxr-camera-pos-center') ||
@@ -1653,6 +1826,14 @@
         const nextAnchorLeft = event.clientX;
         const nextAnchorTop = event.clientY;
         setFloatingGuideAnchor(`${nextAnchorLeft}px`, `${nextAnchorTop}px`, { smooth: true });
+        enablePlacementPseudoAnchor().then((enabled) => {
+          setCameraPlacementLocked(true);
+          if (cameraStatus) {
+            cameraStatus.textContent = enabled
+              ? 'Nathan placed by his feet anchor. Placement is locked until you unlock it.'
+              : 'Nathan placed by his feet anchor. Placement is locked, without motion anchoring on this device.';
+          }
+        });
       } else {
         const panelWidth = viewport.offsetWidth;
         const panelHeight = viewport.offsetHeight;
@@ -1663,8 +1844,20 @@
       }
       setCameraPlacementMode(false);
 
-      if (cameraStatus) {
+      if (cameraStatus && currentCameraSurfaceMode !== 'packedAlpha') {
         cameraStatus.textContent = 'Guide panel placed. Drag it further if you want to refine the position.';
+      }
+    });
+
+    window.addEventListener('deviceorientation', (event) => {
+      floatingGuideOrientationCurrent = {
+        alpha: typeof event.alpha === 'number' ? event.alpha : 0,
+        beta: typeof event.beta === 'number' ? event.beta : 0,
+        gamma: typeof event.gamma === 'number' ? event.gamma : 0,
+      };
+
+      if (currentCameraSurfaceMode === 'packedAlpha' && cameraPlacementLocked) {
+        applyFloatingGuidePseudoAnchor();
       }
     });
 
