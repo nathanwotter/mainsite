@@ -221,7 +221,7 @@
     </div>
     <canvas
       id="recxr-camera-panel-canvas"
-      style="display: none; width: 100%; background: transparent;"
+      style="display: none; width: 100%; height: auto; background: transparent;"
     ></canvas>
     <video
       id="recxr-camera-panel-video"
@@ -415,6 +415,21 @@
     });
   }
 
+  function showCameraGuideSurface(mode) {
+    if (cameraPanelCanvas) {
+      cameraPanelCanvas.style.display = mode === 'packedAlpha' ? 'block' : 'none';
+      cameraPanelCanvas.style.background = 'transparent';
+    }
+
+    if (cameraPanelVideo) {
+      cameraPanelVideo.style.display = mode === 'standard' ? 'block' : 'none';
+    }
+
+    if (cameraPanelGuideVideo) {
+      cameraPanelGuideVideo.style.display = 'none';
+    }
+  }
+
   function stopPackedAlphaCameraRender() {
     if (cameraGuideAnimationFrame) {
       window.cancelAnimationFrame(cameraGuideAnimationFrame);
@@ -432,10 +447,6 @@
       if (cameraGuideCanvasContext) {
         cameraGuideCanvasContext.clearRect(0, 0, cameraPanelCanvas.width, cameraPanelCanvas.height);
       }
-    }
-
-    if (cameraPanelVideo) {
-      cameraPanelVideo.style.display = 'block';
     }
   }
 
@@ -503,13 +514,15 @@
     if (!guideVideoUrl) return false;
 
     stopPackedAlphaCameraRender();
-    if (cameraPanelVideo) {
+    showCameraGuideSurface('packedAlpha');
+
+    if (cameraPanelVideo && cameraPanelSource) {
       cameraPanelVideo.pause();
+      cameraPanelSource.src = '';
+      cameraPanelVideo.load();
       cameraPanelVideo.style.display = 'none';
     }
 
-    cameraPanelCanvas.style.display = 'block';
-    cameraPanelGuideVideo.style.display = 'none';
     cameraPanelGuideVideo.src = guideVideoUrl;
     cameraPanelGuideVideo.crossOrigin = 'anonymous';
     cameraPanelGuideVideo.loop = true;
@@ -537,7 +550,7 @@
       cameraPanelCanvas.style.display = 'none';
     }
     if (cameraPanelVideo) {
-      cameraPanelVideo.style.display = 'block';
+      showCameraGuideSurface('standard');
       await cameraPanelVideo.play().catch(() => {});
     }
   }
@@ -815,8 +828,8 @@
       cameraPanelVideo.pause();
       cameraPanelSource.src = '';
       cameraPanelVideo.load();
-      cameraPanelVideo.style.display = 'block';
     }
+    showCameraGuideSurface('standard');
 
     if (cameraPanel) {
       cameraPanel.style.display = 'none';
@@ -851,11 +864,18 @@
     if (cameraPanelPrompt) {
       cameraPanelPrompt.textContent = stop.promptText || 'Move the guide panel around the screen to simulate on-site placement while we prepare full AR support.';
     }
-    if (cameraPanelSource && cameraPanelVideo) {
+    if (isPackedAlphaStop(stop)) {
+      if (cameraPanelSource && cameraPanelVideo) {
+        cameraPanelVideo.pause();
+        cameraPanelSource.src = '';
+        cameraPanelVideo.load();
+      }
+      showCameraGuideSurface('packedAlpha');
+    } else if (cameraPanelSource && cameraPanelVideo) {
       const standardVideoUrl = getStandardVideoUrl(stop);
       cameraPanelSource.src = standardVideoUrl;
       cameraPanelVideo.load();
-      cameraPanelVideo.style.display = standardVideoUrl ? 'block' : 'none';
+      showCameraGuideSurface(standardVideoUrl ? 'standard' : 'packedAlpha');
     }
     if (cameraPanel) {
       cameraPanel.style.display = 'block';
