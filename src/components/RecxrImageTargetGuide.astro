@@ -352,9 +352,10 @@
     const mesh = new THREE.Mesh(geometry, material);
     mesh.position.set(
       Number.isFinite(stop?.anchorOffsetX) ? stop.anchorOffsetX : 0,
-      (planeHeight / 2) + (Number.isFinite(stop?.anchorOffsetY) ? stop.anchorOffsetY : 0),
-      Number.isFinite(stop?.anchorOffsetZ) ? stop.anchorOffsetZ : 0
+      Number.isFinite(stop?.anchorOffsetY) ? stop.anchorOffsetY : 0,
+      (planeHeight / 2) + (Number.isFinite(stop?.anchorOffsetZ) ? stop.anchorOffsetZ : 0)
     );
+    mesh.rotation.x = -Math.PI / 2;
     mesh.rotation.y = ((Number.isFinite(stop?.anchorYaw) ? stop.anchorYaw : 0) * Math.PI) / 180;
 
     imageTargetRuntime.videoElement = videoElement;
