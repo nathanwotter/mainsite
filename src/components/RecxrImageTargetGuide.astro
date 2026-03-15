@@ -1,0 +1,558 @@
+---
+---
+
+<script is:inline src="https://cdn.jsdelivr.net/npm/three@0.176.0/build/three.min.js"></script>
+<script is:inline src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"></script>
+
+<div
+  id="recxr-image-target-overlay"
+  style="display: none; position: fixed; inset: 0; z-index: 1001; background: rgba(8, 10, 16, 0.96); color: #fff; overflow: hidden;"
+>
+  <div style="position: relative; z-index: 2; max-width: 960px; margin: 0 auto; padding: 1.25rem 1rem 2rem 1rem; pointer-events: auto;">
+    <div style="display: flex; justify-content: space-between; gap: 1rem; align-items: start; flex-wrap: wrap; margin-bottom: 1rem;">
+      <div style="max-width: 42rem;">
+        <p style="margin: 0 0 0.35rem 0; font-size: 0.85rem; letter-spacing: 0.08em; text-transform: uppercase; color: #d1d5db;">
+          RecXR Image Target Mode
+        </p>
+        <h2 id="recxr-image-target-title" style="margin: 0 0 0.5rem 0;">Preparing image target guide...</h2>
+        <p id="recxr-image-target-copy" style="margin: 0; line-height: 1.7; color: #e5e7eb;">
+          Point your camera at the configured marker to place Nathan on the detected target.
+        </p>
+      </div>
+      <button
+        id="recxr-image-target-close"
+        type="button"
+        style="display: inline-block; padding: 0.8rem 1.1rem; border: 1px solid #fff; color: #fff; background: transparent; border-radius: 999px; cursor: pointer;"
+      >
+        Close Image Target Guide
+      </button>
+    </div>
+
+    <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1rem;">
+      <button
+        id="recxr-image-target-open-camera-fallback"
+        type="button"
+        style="display: inline-block; padding: 0.8rem 1.1rem; border: 1px solid rgba(255,255,255,0.45); color: #fff; background: rgba(255,255,255,0.06); border-radius: 999px; cursor: pointer;"
+      >
+        Use Camera Guide Fallback
+      </button>
+    </div>
+
+    <div
+      id="recxr-image-target-banner"
+      style="display: none; margin-bottom: 1rem; padding: 0.95rem 1rem; border-radius: 16px; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06);"
+    >
+      <p
+        id="recxr-image-target-banner-label"
+        style="margin: 0 0 0.3rem 0; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #bfdbfe;"
+      >
+        Status
+      </p>
+      <p id="recxr-image-target-banner-copy" style="margin: 0; color: #f8fafc; line-height: 1.6;">
+        Preparing image target test...
+      </p>
+    </div>
+
+    <div style="display: grid; gap: 0.85rem; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); margin-bottom: 1rem;">
+      <div style="padding: 1rem; border-radius: 16px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.05);">
+        <p style="margin: 0 0 0.4rem 0; font-size: 0.82rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #f9a8d4;">
+          Tracking Status
+        </p>
+        <p id="recxr-image-target-status" style="margin: 0; color: #f3f4f6; line-height: 1.7;">
+          Waiting for a configured image-target stop.
+        </p>
+      </div>
+
+      <div style="padding: 1rem; border-radius: 16px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.03);">
+        <p style="margin: 0 0 0.4rem 0; font-size: 0.82rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #93c5fd;">
+          Temp Image Target Debug
+        </p>
+        <p id="recxr-image-target-debug-name" style="margin: 0 0 0.2rem 0; color: #dbeafe;">current target name: none</p>
+        <p id="recxr-image-target-debug-loaded" style="margin: 0 0 0.2rem 0; color: #dbeafe;">target loaded: no</p>
+        <p id="recxr-image-target-debug-found" style="margin: 0 0 0.2rem 0; color: #dbeafe;">target found: no</p>
+        <p id="recxr-image-target-debug-lost" style="margin: 0; color: #dbeafe;">target lost: no</p>
+      </div>
+    </div>
+
+    <div style="padding: 0.9rem 1rem; border-radius: 16px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.03);">
+      <p style="margin: 0 0 0.45rem 0; font-size: 0.82rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #93c5fd;">
+        Runtime Config
+      </p>
+      <p id="recxr-image-target-config" style="margin: 0; color: #dbeafe; line-height: 1.7;">
+        No image-target stop is active yet.
+      </p>
+      <p id="recxr-image-target-config-debug" style="margin: 0.55rem 0 0 0; color: #bfdbfe; line-height: 1.7; font-size: 0.92rem;">
+        imageTargetName=unset | resolvedUrl=unset | imageTargetWidth=unset | anchorOffsetX=0 | anchorOffsetY=0 | anchorOffsetZ=0 | anchorYaw=0
+      </p>
+    </div>
+  </div>
+
+  <div
+    id="recxr-image-target-stage"
+    style="position: absolute; inset: 0; z-index: 1; overflow: hidden;"
+  ></div>
+</div>
+
+<script>
+  const imageTargetOverlay = document.getElementById('recxr-image-target-overlay');
+  const imageTargetStage = document.getElementById('recxr-image-target-stage');
+  const imageTargetTitle = document.getElementById('recxr-image-target-title');
+  const imageTargetCopy = document.getElementById('recxr-image-target-copy');
+  const imageTargetStatus = document.getElementById('recxr-image-target-status');
+  const imageTargetConfig = document.getElementById('recxr-image-target-config');
+  const imageTargetConfigDebug = document.getElementById('recxr-image-target-config-debug');
+  const imageTargetBanner = document.getElementById('recxr-image-target-banner');
+  const imageTargetBannerLabel = document.getElementById('recxr-image-target-banner-label');
+  const imageTargetBannerCopy = document.getElementById('recxr-image-target-banner-copy');
+  const imageTargetCloseButton = document.getElementById('recxr-image-target-close');
+  const imageTargetOpenCameraFallbackButton = document.getElementById('recxr-image-target-open-camera-fallback');
+  const imageTargetDebugName = document.getElementById('recxr-image-target-debug-name');
+  const imageTargetDebugLoaded = document.getElementById('recxr-image-target-debug-loaded');
+  const imageTargetDebugFound = document.getElementById('recxr-image-target-debug-found');
+  const imageTargetDebugLost = document.getElementById('recxr-image-target-debug-lost');
+
+  const alphaPackedVideoVertexShader = `
+    varying vec2 vUv;
+
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `;
+
+  const alphaPackedVideoFragmentShader = `
+    uniform sampler2D videoMap;
+    varying vec2 vUv;
+
+    float luma(vec3 color) {
+      return dot(color, vec3(0.299, 0.587, 0.114));
+    }
+
+    void main() {
+      vec2 colorUv = vec2(vUv.x, 0.5 + (vUv.y * 0.5));
+      vec2 alphaUv = vec2(vUv.x, vUv.y * 0.5);
+      vec4 colorSample = texture2D(videoMap, colorUv);
+      vec4 alphaSample = texture2D(videoMap, alphaUv);
+      float alpha = luma(alphaSample.rgb);
+      gl_FragColor = vec4(colorSample.rgb, alpha);
+    }
+  `;
+
+  let currentImageTargetStop = null;
+  let currentTargetLoaded = false;
+  let currentTargetFound = false;
+  let currentTargetLost = false;
+  let currentTargetLoading = false;
+  let currentTargetError = '';
+
+  const imageTargetRuntime = {
+    mindarThree: null,
+    renderer: null,
+    scene: null,
+    camera: null,
+    anchor: null,
+    videoElement: null,
+    videoTexture: null,
+    guideMesh: null,
+    light: null,
+    isRunning: false,
+  };
+
+  function isLikelyIphone() {
+    const ua = navigator.userAgent || '';
+    return /iPhone|iPad|iPod/i.test(ua) || (/Macintosh/i.test(ua) && 'ontouchend' in document);
+  }
+
+  function getGuideVideoUrl(stop) {
+    return stop?.arGuideHlsUrl || stop?.standardHlsUrl || stop?.hlsUrl || '';
+  }
+
+  function getResolvedGuideMode(stop) {
+    if (stop?.videoMode === 'packedAlpha' && stop?.arGuideHlsUrl) {
+      return 'packedAlpha';
+    }
+
+    return 'standard';
+  }
+
+  function getTargetAssetUrl(imageTargetName) {
+    const safeName = String(imageTargetName || '').trim().replace(/[^a-zA-Z0-9_-]/g, '');
+    return safeName ? `/recxr/image-targets/${safeName}.mind` : '';
+  }
+
+  function setDebugState() {
+    if (imageTargetDebugName) {
+      imageTargetDebugName.textContent = `current target name: ${currentImageTargetStop?.imageTargetName || 'none'}`;
+    }
+    if (imageTargetDebugLoaded) {
+      imageTargetDebugLoaded.textContent = `target loaded: ${currentTargetLoaded ? 'yes' : 'no'}`;
+    }
+    if (imageTargetDebugFound) {
+      imageTargetDebugFound.textContent = `target found: ${currentTargetFound ? 'yes' : 'no'}`;
+    }
+    if (imageTargetDebugLost) {
+      imageTargetDebugLost.textContent = `target lost: ${currentTargetLost ? 'yes' : 'no'}`;
+    }
+  }
+
+  function setStatusBanner(kind, message) {
+    if (!imageTargetBanner || !imageTargetBannerLabel || !imageTargetBannerCopy) return;
+
+    const bannerStyles = {
+      loading: {
+        label: 'Loading',
+        border: '1px solid rgba(147,197,253,0.35)',
+        background: 'rgba(30, 41, 59, 0.86)',
+        labelColor: '#93c5fd',
+      },
+      success: {
+        label: 'Target Found',
+        border: '1px solid rgba(74,222,128,0.35)',
+        background: 'rgba(20, 83, 45, 0.86)',
+        labelColor: '#86efac',
+      },
+      warning: {
+        label: 'Target Lost',
+        border: '1px solid rgba(250,204,21,0.35)',
+        background: 'rgba(113, 63, 18, 0.88)',
+        labelColor: '#fde047',
+      },
+      error: {
+        label: 'Target Error',
+        border: '1px solid rgba(248,113,113,0.35)',
+        background: 'rgba(127, 29, 29, 0.9)',
+        labelColor: '#fca5a5',
+      },
+      info: {
+        label: 'Status',
+        border: '1px solid rgba(255,255,255,0.18)',
+        background: 'rgba(255,255,255,0.06)',
+        labelColor: '#bfdbfe',
+      },
+    };
+
+    const style = bannerStyles[kind] || bannerStyles.info;
+    imageTargetBanner.style.display = 'block';
+    imageTargetBanner.style.border = style.border;
+    imageTargetBanner.style.background = style.background;
+    imageTargetBannerLabel.textContent = style.label;
+    imageTargetBannerLabel.style.color = style.labelColor;
+    imageTargetBannerCopy.textContent = message;
+  }
+
+  function updateImageTargetGuide(stop) {
+    currentImageTargetStop = stop || null;
+    currentTargetLoaded = false;
+    currentTargetFound = false;
+    currentTargetLost = false;
+    currentTargetLoading = false;
+    currentTargetError = '';
+    setDebugState();
+
+    if (imageTargetTitle) {
+      imageTargetTitle.textContent = stop?.title || 'RecXR Image Target Guide';
+    }
+    if (imageTargetCopy) {
+      imageTargetCopy.textContent =
+        stop?.promptText ||
+        'Point your camera at the configured marker to load Nathan relative to that image target.';
+    }
+    if (imageTargetStatus) {
+      imageTargetStatus.textContent = stop
+        ? 'Loading target data and starting camera tracking...'
+        : 'Waiting for a configured image-target stop.';
+    }
+    setStatusBanner(
+      'info',
+      stop
+        ? 'Image target mode is ready. The fallback Camera Guide button stays available during testing.'
+        : 'Waiting for a configured image-target stop.'
+    );
+    if (imageTargetConfig) {
+      imageTargetConfig.textContent = stop
+        ? `anchorMode=${stop.anchorMode || 'world'} | imageTargetName=${stop.imageTargetName || 'unset'} | imageTargetWidth=${typeof stop.imageTargetWidth === 'number' ? stop.imageTargetWidth : 'unset'} | offset=(${stop.anchorOffsetX ?? 0}, ${stop.anchorOffsetY ?? 0}, ${stop.anchorOffsetZ ?? 0}) | yaw=${stop.anchorYaw ?? 0}`
+        : 'No image-target stop is active yet.';
+    }
+    if (imageTargetConfigDebug) {
+      imageTargetConfigDebug.textContent = stop
+        ? `imageTargetName=${stop.imageTargetName || 'unset'} | resolvedUrl=${getTargetAssetUrl(stop.imageTargetName) || 'unset'} | imageTargetWidth=${typeof stop.imageTargetWidth === 'number' ? stop.imageTargetWidth : 'unset'} | anchorOffsetX=${stop.anchorOffsetX ?? 0} | anchorOffsetY=${stop.anchorOffsetY ?? 0} | anchorOffsetZ=${stop.anchorOffsetZ ?? 0} | anchorYaw=${stop.anchorYaw ?? 0}`
+        : 'imageTargetName=unset | resolvedUrl=unset | imageTargetWidth=unset | anchorOffsetX=0 | anchorOffsetY=0 | anchorOffsetZ=0 | anchorYaw=0';
+    }
+  }
+
+  function createGuideMaterial(stop, texture) {
+    const THREE = window.THREE;
+    if (!THREE) return null;
+
+    if (getResolvedGuideMode(stop) === 'packedAlpha') {
+      return new THREE.ShaderMaterial({
+        uniforms: {
+          videoMap: { value: texture },
+        },
+        vertexShader: alphaPackedVideoVertexShader,
+        fragmentShader: alphaPackedVideoFragmentShader,
+        transparent: true,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+        toneMapped: false,
+      });
+    }
+
+    return new THREE.MeshBasicMaterial({
+      map: texture,
+      transparent: true,
+      side: THREE.DoubleSide,
+      toneMapped: false,
+    });
+  }
+
+  async function createGuideMesh(stop) {
+    const THREE = window.THREE;
+    if (!THREE) return null;
+
+    const guideVideoUrl = getGuideVideoUrl(stop);
+    if (!guideVideoUrl) return null;
+
+    const videoElement = document.createElement('video');
+    videoElement.src = guideVideoUrl;
+    videoElement.crossOrigin = 'anonymous';
+    videoElement.loop = true;
+    videoElement.muted = true;
+    videoElement.playsInline = true;
+    videoElement.setAttribute('webkit-playsinline', 'true');
+    videoElement.preload = 'auto';
+
+    await new Promise((resolve) => {
+      const onReady = () => {
+        videoElement.removeEventListener('loadedmetadata', onReady);
+        resolve();
+      };
+      videoElement.addEventListener('loadedmetadata', onReady);
+      videoElement.load();
+      setTimeout(resolve, 1500);
+    });
+
+    const targetWidth = typeof stop?.imageTargetWidth === 'number' && stop.imageTargetWidth > 0
+      ? stop.imageTargetWidth
+      : 0.22;
+    const videoWidth = videoElement.videoWidth || 1080;
+    const videoHeight = videoElement.videoHeight || 1920;
+    const aspect = videoHeight > 0 ? videoWidth / videoHeight : 0.5625;
+    const planeWidth = targetWidth;
+    const planeHeight = planeWidth / Math.max(aspect, 0.01);
+
+    const texture = new THREE.VideoTexture(videoElement);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.minFilter = THREE.LinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    texture.generateMipmaps = false;
+
+    const material = createGuideMaterial(stop, texture);
+    const geometry = new THREE.PlaneGeometry(planeWidth, planeHeight);
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.position.set(
+      Number.isFinite(stop?.anchorOffsetX) ? stop.anchorOffsetX : 0,
+      (planeHeight / 2) + (Number.isFinite(stop?.anchorOffsetY) ? stop.anchorOffsetY : 0),
+      Number.isFinite(stop?.anchorOffsetZ) ? stop.anchorOffsetZ : 0
+    );
+    mesh.rotation.y = ((Number.isFinite(stop?.anchorYaw) ? stop.anchorYaw : 0) * Math.PI) / 180;
+
+    imageTargetRuntime.videoElement = videoElement;
+    imageTargetRuntime.videoTexture = texture;
+    imageTargetRuntime.guideMesh = mesh;
+
+    return mesh;
+  }
+
+  async function ensureTargetAsset(stop) {
+    const targetAssetUrl = getTargetAssetUrl(stop?.imageTargetName);
+    if (!targetAssetUrl) {
+      throw new Error('Missing imageTargetName on this stop.');
+    }
+
+    currentTargetLoading = true;
+    setStatusBanner('loading', `Loading target file for ${stop?.imageTargetName || 'this stop'}...`);
+
+    const response = await fetch(targetAssetUrl, { method: 'GET' });
+    currentTargetLoading = false;
+    if (!response.ok) {
+      throw new Error(
+        `Missing target file. Expected ${targetAssetUrl}. Add a compiled .mind file for imageTargetName="${stop?.imageTargetName || 'unset'}".`
+      );
+    }
+
+    currentTargetLoaded = true;
+    setDebugState();
+    setStatusBanner('loading', `Target file loaded. Starting camera tracking for ${stop?.imageTargetName || 'this stop'}...`);
+    return targetAssetUrl;
+  }
+
+  async function startImageTargetRuntime(stop) {
+    if (!imageTargetStage || !stop) return;
+
+    if (!isLikelyIphone()) {
+      throw new Error('Image target mode is currently limited to iPhone-style camera flow.');
+    }
+
+    if (!window.THREE) {
+      throw new Error('THREE runtime was not available.');
+    }
+
+    if (!window.MINDAR?.IMAGE?.MindARThree) {
+      throw new Error('MindAR image runtime was not available.');
+    }
+
+    const targetAssetUrl = await ensureTargetAsset(stop);
+    const { MindARThree } = window.MINDAR.IMAGE;
+    const THREE = window.THREE;
+
+    const mindarThree = new MindARThree({
+      container: imageTargetStage,
+      imageTargetSrc: targetAssetUrl,
+      maxTrack: 1,
+      uiLoading: false,
+      uiScanning: false,
+      uiError: false,
+      filterMinCF: 0.0001,
+      filterBeta: 0.001,
+      warmupTolerance: 5,
+      missTolerance: 5,
+    });
+
+    imageTargetRuntime.mindarThree = mindarThree;
+    imageTargetRuntime.renderer = mindarThree.renderer;
+    imageTargetRuntime.scene = mindarThree.scene;
+    imageTargetRuntime.camera = mindarThree.camera;
+
+    mindarThree.renderer.setClearColor(0x000000, 0);
+    const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1.5);
+    mindarThree.scene.add(light);
+    imageTargetRuntime.light = light;
+
+    const guideMesh = await createGuideMesh(stop);
+    if (!guideMesh) {
+      throw new Error('Guide media could not be prepared for this stop.');
+    }
+
+    const anchor = mindarThree.addAnchor(0);
+    anchor.group.add(guideMesh);
+    imageTargetRuntime.anchor = anchor;
+
+    anchor.onTargetFound = () => {
+      currentTargetFound = true;
+      currentTargetLost = false;
+      setDebugState();
+      setStatusBanner('success', `Target found: ${stop.imageTargetName || 'configured marker'}. Nathan is anchored and playing.`);
+      if (imageTargetStatus) {
+        imageTargetStatus.textContent = `Target recognized. Nathan is now anchored to ${stop.imageTargetName || 'this marker'}.`;
+      }
+      imageTargetRuntime.videoElement?.play?.().catch(() => {});
+    };
+
+    anchor.onTargetLost = () => {
+      currentTargetFound = false;
+      currentTargetLost = true;
+      setDebugState();
+      setStatusBanner('warning', `Target lost: ${stop.imageTargetName || 'configured marker'}. Keep the marker in view or use Camera Guide fallback.`);
+      if (imageTargetStatus) {
+        imageTargetStatus.textContent = 'Target lost. Keep the marker in view, or use Camera Guide fallback if tracking stays unstable.';
+      }
+    };
+
+    await mindarThree.start();
+    imageTargetRuntime.isRunning = true;
+    mindarThree.renderer.setAnimationLoop(() => {
+      mindarThree.renderer.render(mindarThree.scene, mindarThree.camera);
+    });
+
+    if (imageTargetStatus) {
+      imageTargetStatus.textContent = `Camera tracking is live. Point your phone at ${stop.imageTargetName || 'the configured marker'} to place Nathan.`;
+    }
+    setStatusBanner('loading', `Camera tracking is live. Point your phone at ${stop.imageTargetName || 'the configured marker'} to detect the target.`);
+  }
+
+  async function stopImageTargetRuntime() {
+    if (imageTargetRuntime.renderer) {
+      imageTargetRuntime.renderer.setAnimationLoop(null);
+    }
+
+    if (imageTargetRuntime.mindarThree?.stop) {
+      await imageTargetRuntime.mindarThree.stop();
+    }
+
+    if (imageTargetRuntime.videoElement) {
+      imageTargetRuntime.videoElement.pause();
+      imageTargetRuntime.videoElement.removeAttribute('src');
+      imageTargetRuntime.videoElement.load();
+    }
+
+    if (imageTargetRuntime.guideMesh) {
+      imageTargetRuntime.guideMesh.geometry?.dispose?.();
+      imageTargetRuntime.guideMesh.material?.dispose?.();
+    }
+
+    if (imageTargetRuntime.videoTexture) {
+      imageTargetRuntime.videoTexture.dispose?.();
+    }
+
+    if (imageTargetStage) {
+      imageTargetStage.innerHTML = '';
+    }
+
+    imageTargetRuntime.mindarThree = null;
+    imageTargetRuntime.renderer = null;
+    imageTargetRuntime.scene = null;
+    imageTargetRuntime.camera = null;
+    imageTargetRuntime.anchor = null;
+    imageTargetRuntime.videoElement = null;
+    imageTargetRuntime.videoTexture = null;
+    imageTargetRuntime.guideMesh = null;
+    imageTargetRuntime.light = null;
+    imageTargetRuntime.isRunning = false;
+  }
+
+  async function openImageTargetGuide(stop) {
+    updateImageTargetGuide(stop);
+    if (imageTargetOverlay) {
+      imageTargetOverlay.style.display = 'block';
+    }
+
+    try {
+      await stopImageTargetRuntime();
+      await startImageTargetRuntime(stop);
+    } catch (error) {
+      currentTargetLoaded = false;
+      currentTargetFound = false;
+      currentTargetLost = false;
+      currentTargetLoading = false;
+      currentTargetError = error instanceof Error ? error.message : 'Unknown error';
+      setDebugState();
+      if (imageTargetStatus) {
+        imageTargetStatus.textContent = `Image-target tracking could not start: ${currentTargetError}`;
+      }
+      setStatusBanner('error', currentTargetError);
+    }
+  }
+
+  async function closeImageTargetGuide() {
+    await stopImageTargetRuntime();
+    if (imageTargetOverlay) {
+      imageTargetOverlay.style.display = 'none';
+    }
+  }
+
+  imageTargetCloseButton?.addEventListener('click', () => {
+    closeImageTargetGuide();
+  });
+
+  imageTargetOpenCameraFallbackButton?.addEventListener('click', async () => {
+    if (!currentImageTargetStop) return;
+    await closeImageTargetGuide();
+    window.dispatchEvent(new CustomEvent('recxr-open-camera-guide-fallback', { detail: currentImageTargetStop }));
+  });
+
+  window.addEventListener('recxr-open-image-target-guide', (event) => {
+    const stop = event.detail || null;
+    openImageTargetGuide(stop);
+  });
+</script>

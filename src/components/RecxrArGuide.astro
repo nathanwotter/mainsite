@@ -475,6 +475,14 @@
     return stop?.arGuideHlsUrl || stop?.standardHlsUrl || stop?.hlsUrl || '';
   }
 
+  function getAnchorMode(stop) {
+    return stop?.anchorMode === 'imageTarget' ? 'imageTarget' : 'world';
+  }
+
+  function shouldUseImageTargetGuide(stop) {
+    return Boolean(isLikelyIphone() && getAnchorMode(stop) === 'imageTarget' && getGuideVideoUrl(stop));
+  }
+
   function getResolvedGuideMode(stop) {
     if (stop?.videoMode === 'packedAlpha' && stop?.arGuideHlsUrl) {
       return 'packedAlpha';
@@ -491,6 +499,7 @@
     if (!debugEnabled) return;
     console.log(`[RecXR] ${context}`, {
       title: stop?.title || null,
+      anchorMode: getAnchorMode(stop),
       videoMode: stop?.videoMode ?? null,
       arGuideHlsUrl: stop?.arGuideHlsUrl ?? null,
       standardHlsUrl: stop?.standardHlsUrl ?? stop?.hlsUrl ?? null,
@@ -1433,6 +1442,11 @@
     }
   }
 
+  function startImageTargetGuide(stop) {
+    stopCameraGuide();
+    window.dispatchEvent(new CustomEvent('recxr-open-image-target-guide', { detail: stop }));
+  }
+
   async function startArSession(stop) {
     if (!xrSupported || !getGuideVideoUrl(stop) || !navigator.xr) return;
 
@@ -1542,6 +1556,7 @@
     const hasStandardVideo = Boolean(getStandardVideoUrl(stop));
     const hasGuideVideo = Boolean(getGuideVideoUrl(stop));
     const isUnlocked = Boolean(stop?.isUnlocked);
+    const usesImageTargetGuide = Boolean(isUnlocked && shouldUseImageTargetGuide(stop));
     const canLaunchAr = Boolean(isUnlocked && hasGuideVideo && xrSupported);
     const canLaunchCamera = Boolean(isUnlocked && hasGuideVideo && cameraGuideSupported);
 
@@ -1550,9 +1565,13 @@
     if (isUnlocked) {
       if (hasGuideVideo || hasStandardVideo) {
         if (canLaunchAr && canLaunchCamera) {
-          arLaunchCopy.textContent = `The nearest stop, ${stop.title || 'this stop'}, is unlocked. On WebXR-capable phones you can place the guide on a detected surface, and on other phones you can use Camera Guide mode with the same stop video.`;
+          arLaunchCopy.textContent = usesImageTargetGuide
+            ? `The nearest stop, ${stop.title || 'this stop'}, is unlocked. Android can keep using world placement, and this iPhone stop is scaffolded for image-target anchoring once the target runtime is connected.`
+            : `The nearest stop, ${stop.title || 'this stop'}, is unlocked. On WebXR-capable phones you can place the guide on a detected surface, and on other phones you can use Camera Guide mode with the same stop video.`;
         } else if (canLaunchCamera) {
-          arLaunchCopy.textContent = `The nearest stop, ${stop.title || 'this stop'}, is unlocked. Camera Guide mode is ready for this phone, and the standard video player is still available below.`;
+          arLaunchCopy.textContent = usesImageTargetGuide
+            ? `The nearest stop, ${stop.title || 'this stop'}, is unlocked. This iPhone stop is configured for image-target anchoring, with Camera Guide still available as the fallback path.`
+            : `The nearest stop, ${stop.title || 'this stop'}, is unlocked. Camera Guide mode is ready for this phone, and the standard video player is still available below.`;
         } else if (canLaunchAr) {
           arLaunchCopy.textContent = `The nearest stop, ${stop.title || 'this stop'}, is unlocked. Launch the AR guide to place the video on a detected surface, or use the standard video player.`;
         } else {
@@ -1567,6 +1586,7 @@
 
     if (cameraLaunchButton) {
       cameraLaunchButton.style.display = hasGuideVideo && isUnlocked ? 'inline-block' : 'none';
+      cameraLaunchButton.textContent = usesImageTargetGuide ? 'Launch Image Target Guide' : 'Launch Camera Guide';
     }
 
     setButtonState(arLaunchButton, canLaunchAr);
@@ -1604,7 +1624,11 @@
 
     cameraLaunchButton?.addEventListener('click', () => {
       if (currentActiveStop?.isUnlocked && getGuideVideoUrl(currentActiveStop)) {
-        startCameraGuide(currentActiveStop);
+        if (shouldUseImageTargetGuide(currentActiveStop)) {
+          startImageTargetGuide(currentActiveStop);
+        } else {
+          startCameraGuide(currentActiveStop);
+        }
       }
     });
 
@@ -1870,6 +1894,15 @@
       updateCameraGuideDebug(stop);
       updateLaunchState(stop);
       setRuntimeStep('received recxr-active-stop event');
+    });
+
+    window.addEventListener('recxr-open-camera-guide-fallback', (event) => {
+      const stop = event.detail || null;
+      if (!stop?.isUnlocked || !getGuideVideoUrl(stop)) return;
+
+      currentActiveStop = stop;
+      startCameraGuide(stop);
+      setRuntimeStep('received camera guide fallback event');
     });
 
     setRuntimeStep('binding unload cleanup');

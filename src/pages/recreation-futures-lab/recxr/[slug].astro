@@ -3,6 +3,7 @@ import Layout from "../../../layouts/Layout.astro";
 import { client } from "../../../utils/sanity-client";
 import { PortableText } from "astro-portabletext";
 import RecxrArGuide from "../../../components/RecxrArGuide.astro";
+import RecxrImageTargetGuide from "../../../components/RecxrImageTargetGuide.astro";
 
 export async function getStaticPaths() {
   const slugs = await client.fetch(
@@ -41,6 +42,13 @@ const recxrSite = slug
           longitude,
           activationRadiusMeters,
           order,
+          anchorMode,
+          imageTargetName,
+          imageTargetWidth,
+          anchorOffsetX,
+          anchorOffsetY,
+          anchorOffsetZ,
+          anchorYaw,
           videoMode,
           promptText,
           standardVideo{
@@ -92,6 +100,13 @@ const experienceStops = [...(recxrSite?.experienceStops ?? [])]
     return {
       ...stop,
       index,
+      anchorMode: stop?.anchorMode ?? "world",
+      imageTargetName: stop?.imageTargetName ?? "",
+      imageTargetWidth: typeof stop?.imageTargetWidth === "number" ? stop.imageTargetWidth : null,
+      anchorOffsetX: typeof stop?.anchorOffsetX === "number" ? stop.anchorOffsetX : 0,
+      anchorOffsetY: typeof stop?.anchorOffsetY === "number" ? stop.anchorOffsetY : 0,
+      anchorOffsetZ: typeof stop?.anchorOffsetZ === "number" ? stop.anchorOffsetZ : 0,
+      anchorYaw: typeof stop?.anchorYaw === "number" ? stop.anchorYaw : 0,
       videoMode: stop?.videoMode ?? (arGuidePlaybackId ? "packedAlpha" : "standard"),
       playbackId: standardPlaybackId ?? legacyPlaybackId ?? "",
       standardPlaybackId: standardPlaybackId ?? "",
@@ -258,6 +273,7 @@ const experienceStops = [...(recxrSite?.experienceStops ?? [])]
   )}
 
   <RecxrArGuide client:load />
+  <RecxrImageTargetGuide client:load />
 
   {body.length > 0 && (
     <section style="padding: 0 0 2rem 0;">

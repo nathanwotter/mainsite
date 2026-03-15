@@ -154,6 +154,67 @@ export default defineType({
               type: 'number',
             }),
             defineField({
+              name: 'anchorMode',
+              title: 'Anchor Mode',
+              description: 'Choose whether this stop uses world placement or image-target anchoring on supported devices.',
+              type: 'string',
+              initialValue: 'world',
+              options: {
+                list: [
+                  {title: 'World Placement', value: 'world'},
+                  {title: 'Image Target', value: 'imageTarget'},
+                ],
+                layout: 'radio',
+              },
+              readOnly: false,
+            }),
+            defineField({
+              name: 'imageTargetName',
+              title: 'Image Target Name',
+              description: 'Stable identifier for the future 8th Wall image target asset.',
+              type: 'string',
+              readOnly: false,
+            }),
+            defineField({
+              name: 'imageTargetWidth',
+              title: 'Image Target Width (Meters)',
+              description: 'Real-world target width used when the image target is recognized.',
+              type: 'number',
+              readOnly: false,
+            }),
+            defineField({
+              name: 'anchorOffsetX',
+              title: 'Anchor Offset X',
+              description: 'Optional image-target anchor offset on the X axis.',
+              type: 'number',
+              initialValue: 0,
+              readOnly: false,
+            }),
+            defineField({
+              name: 'anchorOffsetY',
+              title: 'Anchor Offset Y',
+              description: 'Optional image-target anchor offset on the Y axis.',
+              type: 'number',
+              initialValue: 0,
+              readOnly: false,
+            }),
+            defineField({
+              name: 'anchorOffsetZ',
+              title: 'Anchor Offset Z',
+              description: 'Optional image-target anchor offset on the Z axis.',
+              type: 'number',
+              initialValue: 0,
+              readOnly: false,
+            }),
+            defineField({
+              name: 'anchorYaw',
+              title: 'Anchor Yaw',
+              description: 'Optional yaw rotation applied after the target anchor is resolved.',
+              type: 'number',
+              initialValue: 0,
+              readOnly: false,
+            }),
+            defineField({
               name: 'videoMode',
               title: 'Video Mode',
               description: 'Choose whether this stop uses a normal rectangular video or a packed-alpha AR guide asset.',
@@ -210,18 +271,20 @@ export default defineType({
               longitude: 'longitude',
               order: 'order',
               videoMode: 'videoMode',
+              anchorMode: 'anchorMode',
             },
-            prepare({title, latitude, longitude, order, videoMode}) {
+            prepare({title, latitude, longitude, order, videoMode, anchorMode}) {
               const locationLabel =
                 typeof latitude === 'number' && typeof longitude === 'number'
                   ? `${latitude}, ${longitude}`
                   : 'AR guide trigger location'
               const orderLabel = typeof order === 'number' ? `Order ${order}` : null
               const modeLabel = videoMode === 'packedAlpha' ? 'Packed alpha guide' : 'Standard video'
+              const anchorLabel = anchorMode === 'imageTarget' ? 'Image target' : 'World placement'
 
               return {
                 title: title || 'Untitled Experience Stop',
-                subtitle: [orderLabel, modeLabel, locationLabel].filter(Boolean).join(' | '),
+                subtitle: [orderLabel, modeLabel, anchorLabel, locationLabel].filter(Boolean).join(' | '),
               }
             },
           },
