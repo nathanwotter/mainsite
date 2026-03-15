@@ -392,8 +392,26 @@
     return stop?.arGuideHlsUrl || stop?.standardHlsUrl || stop?.hlsUrl || '';
   }
 
+  function getResolvedGuideMode(stop) {
+    if (stop?.videoMode === 'packedAlpha' && stop?.arGuideHlsUrl) {
+      return 'packedAlpha';
+    }
+
+    return 'standard';
+  }
+
   function isPackedAlphaStop(stop) {
-    return stop?.videoMode === 'packedAlpha' && Boolean(stop?.arGuideHlsUrl || stop?.hlsUrl);
+    return getResolvedGuideMode(stop) === 'packedAlpha';
+  }
+
+  function logGuideVideoResolution(context, stop) {
+    console.log(`[RecXR] ${context}`, {
+      title: stop?.title || null,
+      videoMode: stop?.videoMode ?? null,
+      arGuideHlsUrl: stop?.arGuideHlsUrl ?? null,
+      standardHlsUrl: stop?.standardHlsUrl ?? stop?.hlsUrl ?? null,
+      resolvedGuideMode: getResolvedGuideMode(stop),
+    });
   }
 
   function createVideoPanelMaterial(stop, texture) {
@@ -537,6 +555,7 @@
 
     const guideVideoUrl = getGuideVideoUrl(stop);
     if (!guideVideoUrl) return false;
+    logGuideVideoResolution('startPackedAlphaCameraRender', stop);
 
     stopPackedAlphaCameraRender();
     showCameraGuideSurface('packedAlpha');
@@ -562,7 +581,10 @@
   }
 
   async function playCameraGuideMedia(stop) {
-    if (isPackedAlphaStop(stop)) {
+    const resolvedGuideMode = getResolvedGuideMode(stop);
+    logGuideVideoResolution('playCameraGuideMedia', stop);
+
+    if (resolvedGuideMode === 'packedAlpha') {
       try {
         const started = await startPackedAlphaCameraRender(stop);
         if (started) return;
@@ -876,6 +898,8 @@
   async function startCameraGuide(stop) {
     const guideVideoUrl = getGuideVideoUrl(stop);
     if (!guideVideoUrl || !cameraGuideSupported || !cameraOverlay || !cameraFeed) return;
+    const resolvedGuideMode = getResolvedGuideMode(stop);
+    logGuideVideoResolution('startCameraGuide', stop);
 
     await endArSession().catch(() => {});
     stopCameraGuide();
@@ -889,7 +913,7 @@
     if (cameraPanelPrompt) {
       cameraPanelPrompt.textContent = stop.promptText || 'Move the guide panel around the screen to simulate on-site placement while we prepare full AR support.';
     }
-    if (isPackedAlphaStop(stop)) {
+    if (resolvedGuideMode === 'packedAlpha') {
       if (cameraPanelSource && cameraPanelVideo) {
         cameraPanelVideo.pause();
         cameraPanelSource.src = '';
@@ -900,7 +924,7 @@
       const standardVideoUrl = getStandardVideoUrl(stop);
       cameraPanelSource.src = standardVideoUrl;
       cameraPanelVideo.load();
-      showCameraGuideSurface(standardVideoUrl ? 'standard' : 'packedAlpha');
+      showCameraGuideSurface('standard');
     }
     if (cameraPanel) {
       cameraPanel.style.display = 'block';
@@ -1253,6 +1277,7 @@
     window.addEventListener('recxr-active-stop', (event) => {
       const stop = event.detail || null;
       currentActiveStop = stop;
+      logGuideVideoResolution('recxr-active-stop event', stop);
       updateLaunchState(stop);
       setRuntimeStep('received recxr-active-stop event');
     });
