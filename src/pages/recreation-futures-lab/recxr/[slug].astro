@@ -196,6 +196,26 @@ const experienceStops = [...(recxrSite?.experienceStops ?? [])]
                 Prompt text will appear here when an active stop is detected.
               </p>
             </div>
+            <div style="margin-top: 0.9rem; padding: 0.85rem 0.95rem; border-radius: 14px; background: #fff7ed; border: 1px solid #fed7aa;">
+              <p style="margin: 0 0 0.35rem 0; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #c2410c;">
+                Temp Stop Mapping Debug
+              </p>
+              <p id="recxr-active-stop-debug-video-mode" style="margin: 0 0 0.2rem 0; font-size: 0.8rem; line-height: 1.35; color: #7c2d12;">
+                raw videoMode: unknown
+              </p>
+              <p id="recxr-active-stop-debug-standard" style="margin: 0 0 0.2rem 0; font-size: 0.8rem; line-height: 1.35; color: #7c2d12;">
+                standardVideo playbackId exists: no
+              </p>
+              <p id="recxr-active-stop-debug-guide" style="margin: 0 0 0.2rem 0; font-size: 0.8rem; line-height: 1.35; color: #7c2d12;">
+                arGuideVideo playbackId exists: no
+              </p>
+              <p id="recxr-active-stop-debug-legacy" style="margin: 0 0 0.2rem 0; font-size: 0.8rem; line-height: 1.35; color: #7c2d12;">
+                legacy video playbackId exists: no
+              </p>
+              <p id="recxr-active-stop-debug-resolved" style="margin: 0; font-size: 0.8rem; line-height: 1.35; color: #7c2d12;">
+                resolved mapped mode: unknown
+              </p>
+            </div>
             <div id="recxr-active-stop-video" style="display: none; margin-top: 1rem;">
               <video
                 id="recxr-active-stop-player"
@@ -374,6 +394,11 @@ const experienceStops = [...(recxrSite?.experienceStops ?? [])]
   const activeStopDistance = document.getElementById('recxr-active-stop-distance');
   const activeStopStatus = document.getElementById('recxr-active-stop-status');
   const activeStopPrompt = document.getElementById('recxr-active-stop-prompt');
+  const activeStopDebugVideoMode = document.getElementById('recxr-active-stop-debug-video-mode');
+  const activeStopDebugStandard = document.getElementById('recxr-active-stop-debug-standard');
+  const activeStopDebugGuide = document.getElementById('recxr-active-stop-debug-guide');
+  const activeStopDebugLegacy = document.getElementById('recxr-active-stop-debug-legacy');
+  const activeStopDebugResolved = document.getElementById('recxr-active-stop-debug-resolved');
   const activeStopVideo = document.getElementById('recxr-active-stop-video');
   const activeStopPlayer = document.getElementById('recxr-active-stop-player');
   const activeStopSource = document.getElementById('recxr-active-stop-source');
@@ -381,6 +406,25 @@ const experienceStops = [...(recxrSite?.experienceStops ?? [])]
   const nextStopDescription = document.getElementById('recxr-next-stop-description');
   const nextStopDistance = document.getElementById('recxr-next-stop-distance');
   const nextStopStatus = document.getElementById('recxr-next-stop-status');
+
+  function updateActiveStopMappingDebug(stop) {
+    if (activeStopDebugVideoMode) {
+      activeStopDebugVideoMode.textContent = `raw videoMode: ${stop?.videoMode ?? 'unknown'}`;
+    }
+    if (activeStopDebugStandard) {
+      activeStopDebugStandard.textContent = `standardVideo playbackId exists: ${stop?.standardPlaybackId ? 'yes' : 'no'}`;
+    }
+    if (activeStopDebugGuide) {
+      activeStopDebugGuide.textContent = `arGuideVideo playbackId exists: ${stop?.arGuidePlaybackId ? 'yes' : 'no'}`;
+    }
+    if (activeStopDebugLegacy) {
+      const legacyPlaybackId = stop?.video?.asset?.playbackId || stop?.playbackId;
+      activeStopDebugLegacy.textContent = `legacy video playbackId exists: ${legacyPlaybackId ? 'yes' : 'no'}`;
+    }
+    if (activeStopDebugResolved) {
+      activeStopDebugResolved.textContent = `resolved mapped mode: ${stop?.videoMode ?? 'unknown'}`;
+    }
+  }
 
   function toRadians(value) {
     return (value * Math.PI) / 180;
@@ -479,6 +523,7 @@ const experienceStops = [...(recxrSite?.experienceStops ?? [])]
   function updateActiveStop(userLatitude, userLongitude, accuracy) {
     if (!experienceStops.length) {
       if (activeStopName) activeStopName.textContent = 'Nearest stop: no experience stops configured.';
+      updateActiveStopMappingDebug(null);
       updateNextStopPanel(null);
       return;
     }
@@ -517,6 +562,7 @@ const experienceStops = [...(recxrSite?.experienceStops ?? [])]
     if (activeStopPrompt) {
       activeStopPrompt.textContent = nearestStop.promptText || 'No prompt text is configured for the nearest stop.';
     }
+    updateActiveStopMappingDebug(nearestStop);
     updateNextStopPanel(nextStop);
 
     if (nearestStop.isUnlocked && nearestStop.standardHlsUrl && activeStopVideo && activeStopSource && activeStopPlayer) {
@@ -555,6 +601,7 @@ const experienceStops = [...(recxrSite?.experienceStops ?? [])]
       (error) => {
         if (geolocateStatus) geolocateStatus.textContent = `Location request failed: ${error.message}`;
         if (geolocateCoords) geolocateCoords.textContent = '';
+        updateActiveStopMappingDebug(null);
         updateNextStopPanel(null);
         updateStopCards();
       },

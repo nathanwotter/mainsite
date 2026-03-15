@@ -4,6 +4,7 @@ export default defineType({
   name: 'recxrSite',
   title: 'RecXR Site',
   type: 'document',
+  readOnly: false,
   fields: [
     defineField({
       name: 'title',
@@ -102,11 +103,13 @@ export default defineType({
       title: 'Experience Stops',
       description: 'AR guide trigger locations for this RecXR site. Add one item for each geolocated stop visitors can unlock on-site.',
       type: 'array',
+      readOnly: false,
       of: [
         defineArrayMember({
           type: 'object',
           name: 'experienceStop',
           title: 'Experience Stop',
+          readOnly: false,
           fields: [
             defineField({
               name: 'title',
@@ -155,6 +158,7 @@ export default defineType({
               title: 'Video Mode',
               description: 'Choose whether this stop uses a normal rectangular video or a packed-alpha AR guide asset.',
               type: 'string',
+              readOnly: false,
               initialValue: 'standard',
               options: {
                 list: [
@@ -169,12 +173,14 @@ export default defineType({
               title: 'Standard Video',
               description: 'Upload the regular Mux-hosted video used for standard playback and fallback viewing.',
               type: 'mux.video',
+              readOnly: false,
             }),
             defineField({
               name: 'arGuideVideo',
               title: 'AR Guide Video',
               description: 'Upload the packed-alpha Mux video used by WebXR AR and iPhone Camera Guide mode.',
               type: 'mux.video',
+              readOnly: false,
             }),
             defineField({
               name: 'video',
@@ -182,6 +188,7 @@ export default defineType({
               description: 'Optional legacy field kept for backward compatibility while older stops are migrated.',
               type: 'mux.video',
               hidden: true,
+              readOnly: false,
             }),
             defineField({
               name: 'order',
