@@ -91,7 +91,10 @@
         <p id="recxr-image-target-debug-dom" style="margin: 0 0 0.2rem 0; color: #dbeafe;">overlay/stage/canvas visibility: unknown</p>
         <p id="recxr-image-target-debug-render" style="margin: 0 0 0.2rem 0; color: #dbeafe;">camera render module active: unknown</p>
         <p id="recxr-image-target-debug-owner" style="margin: 0 0 0.2rem 0; color: #dbeafe;">XR render owner: unknown</p>
-        <p id="recxr-image-target-debug-injected" style="margin: 0; color: #dbeafe;">foreign XR layers in body: none</p>
+        <p id="recxr-image-target-debug-injected" style="margin: 0 0 0.2rem 0; color: #dbeafe;">foreign XR layers in body: none</p>
+        <p id="recxr-image-target-debug-modules" style="margin: 0 0 0.2rem 0; color: #dbeafe;">active pipeline modules: unknown</p>
+        <p id="recxr-image-target-debug-frames" style="margin: 0 0 0.2rem 0; color: #dbeafe;">visible canvas draw frames: 0</p>
+        <p id="recxr-image-target-debug-alpha" style="margin: 0; color: #dbeafe;">renderer alpha/composition: unknown</p>
       </div>
     </div>
 
@@ -138,6 +141,9 @@
   const imageTargetDebugRender = document.getElementById('recxr-image-target-debug-render');
   const imageTargetDebugOwner = document.getElementById('recxr-image-target-debug-owner');
   const imageTargetDebugInjected = document.getElementById('recxr-image-target-debug-injected');
+  const imageTargetDebugModules = document.getElementById('recxr-image-target-debug-modules');
+  const imageTargetDebugFrames = document.getElementById('recxr-image-target-debug-frames');
+  const imageTargetDebugAlpha = document.getElementById('recxr-image-target-debug-alpha');
 
   let currentStop = null;
   let currentSurfaceAvailable = false;
@@ -152,6 +158,9 @@
   let currentRenderDebug = 'unknown';
   let currentRenderOwnerDebug = 'unknown';
   let currentInjectedLayersDebug = 'none';
+  let currentPipelineModulesDebug = 'unknown';
+  let currentVisibleCanvasFrameCount = 0;
+  let currentRendererAlphaDebug = 'unknown';
 
   function isLikelyIphone() {
     const ua = navigator.userAgent || '';
@@ -204,6 +213,15 @@
     if (imageTargetDebugInjected) {
       imageTargetDebugInjected.textContent = `foreign XR layers in body: ${currentInjectedLayersDebug}`;
     }
+    if (imageTargetDebugModules) {
+      imageTargetDebugModules.textContent = `active pipeline modules: ${currentPipelineModulesDebug}`;
+    }
+    if (imageTargetDebugFrames) {
+      imageTargetDebugFrames.textContent = `visible canvas draw frames: ${currentVisibleCanvasFrameCount}`;
+    }
+    if (imageTargetDebugAlpha) {
+      imageTargetDebugAlpha.textContent = `renderer alpha/composition: ${currentRendererAlphaDebug}`;
+    }
   }
 
   function setStatusBanner(kind, message) {
@@ -240,6 +258,9 @@
     currentRenderDebug = 'unknown';
     currentRenderOwnerDebug = 'unknown';
     currentInjectedLayersDebug = 'none';
+    currentPipelineModulesDebug = 'unknown';
+    currentVisibleCanvasFrameCount = 0;
+    currentRendererAlphaDebug = 'unknown';
     setDebugState();
 
     if (imageTargetTitle) {
@@ -379,6 +400,15 @@
           currentInjectedLayersDebug = detail.foreignRenderLayers.length
             ? detail.foreignRenderLayers.join(', ')
             : 'none';
+        }
+        if (Array.isArray(detail?.activePipelineModules)) {
+          currentPipelineModulesDebug = detail.activePipelineModules.join(', ') || 'none';
+        }
+        if (typeof detail?.visibleCanvasFrameCount === 'number') {
+          currentVisibleCanvasFrameCount = detail.visibleCanvasFrameCount;
+        }
+        if (detail?.rendererAlphaDebug) {
+          currentRendererAlphaDebug = detail.rendererAlphaDebug;
         }
         if (detail?.event === 'tracking' && imageTargetStatus && currentTrackingStatus !== 'unknown') {
           imageTargetStatus.textContent = `Scanning for surface... Tracking state: ${currentTrackingStatus}`;

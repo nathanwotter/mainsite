@@ -15,6 +15,11 @@
     lastHitResultCount: 0,
     lastRejectReason: 'none',
     trackingStatus: 'unknown',
+    visibleCanvasFrameCount: 0,
+    activePipelineModules: [],
+    glTextureRendererActive: false,
+    threeRendererConfigured: false,
+    rendererAlphaDebug: 'unknown',
     sceneResources: null,
     pipelineModulesAdded: false,
     tapHandler: null,
@@ -57,6 +62,10 @@
         surfaceAvailable: state.currentSurfaceAvailable,
         hitType: state.surfaceHitType,
         placed: state.guideWorldPlaced,
+        visibleCanvasFrameCount: state.visibleCanvasFrameCount,
+        activePipelineModules: state.activePipelineModules,
+        glTextureRendererActive: state.glTextureRendererActive,
+        rendererAlphaDebug: state.rendererAlphaDebug,
         ...details,
       })
     }
@@ -289,6 +298,22 @@
 
     const xrScene = XR8.Threejs.xrScene()
     if (!xrScene?.scene) return null
+
+    const renderer = xrScene.renderer
+    if (renderer && !state.threeRendererConfigured) {
+      try {
+        if ('autoClear' in renderer) {
+          renderer.autoClear = false
+        }
+        if (typeof renderer.setClearColor === 'function') {
+          renderer.setClearColor(0x000000, 0)
+        }
+        state.rendererAlphaDebug = `autoClear=${String(renderer.autoClear)} clearAlpha=0`
+        state.threeRendererConfigured = true
+      } catch (error) {
+        state.rendererAlphaDebug = error instanceof Error ? error.message : 'renderer alpha config failed'
+      }
+    }
 
     state.sceneResources = xrScene
     return xrScene
@@ -559,6 +584,15 @@
       onStart: () => {
         updateTrackingStatus('initializing')
       },
+      onProcessGpu: () => {
+        state.visibleCanvasFrameCount += 1
+        if (state.visibleCanvasFrameCount === 1 || state.visibleCanvasFrameCount % 60 === 0) {
+          emitDebug({
+            event: 'visible-canvas-draw',
+            visibleCanvasFrameCount: state.visibleCanvasFrameCount,
+          })
+        }
+      },
       onUpdate: ({ processCpuResult }) => {
         const reality = processCpuResult?.reality
         const nextTrackingStatus =
@@ -599,6 +633,7 @@
     }
     if (XR8.GlTextureRenderer?.pipelineModule) {
       modules.push(XR8.GlTextureRenderer.pipelineModule())
+      state.glTextureRendererActive = true
     }
     if (XR8.XrController?.pipelineModule) {
       modules.push(XR8.XrController.pipelineModule())
@@ -612,9 +647,12 @@
 
     XR8.addCameraPipelineModules(modules)
     state.pipelineModulesAdded = true
+    state.activePipelineModules = modules.map((module) => module?.name || 'anonymous-module')
     emitDebug({
       event: 'pipeline-modules',
       cameraRenderModuleActive: Boolean(XR8.GlTextureRenderer?.pipelineModule),
+      activePipelineModules: state.activePipelineModules,
+      glTextureRendererActive: state.glTextureRendererActive,
       renderOwner: describeNode(state.canvas?.parentElement || state.canvas),
       foreignRenderLayers: getForeignRenderLayerCandidates().map((element) => describeNode(element)),
     })
@@ -655,6 +693,11 @@
     state.guideWorldPlaced = false
     state.lastHitResultCount = 0
     state.lastRejectReason = 'none'
+    state.visibleCanvasFrameCount = 0
+    state.activePipelineModules = []
+    state.glTextureRendererActive = false
+    state.threeRendererConfigured = false
+    state.rendererAlphaDebug = 'unknown'
     updateTrackingStatus('starting')
     setSurfaceCandidate(null)
     debugStatus('Starting SLAM-only horizontal-surface placement mode.')
@@ -729,6 +772,11 @@
     state.lastHitResultCount = 0
     state.lastRejectReason = 'none'
     state.trackingStatus = 'unknown'
+    state.visibleCanvasFrameCount = 0
+    state.activePipelineModules = []
+    state.glTextureRendererActive = false
+    state.threeRendererConfigured = false
+    state.rendererAlphaDebug = 'unknown'
     setSurfaceCandidate(null)
     state.config = null
   }
