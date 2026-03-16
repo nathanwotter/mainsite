@@ -422,6 +422,8 @@ const experienceStops = [...(recxrSite?.experienceStops ?? [])]
   const nextStopDescription = document.getElementById('recxr-next-stop-description');
   const nextStopDistance = document.getElementById('recxr-next-stop-distance');
   const nextStopStatus = document.getElementById('recxr-next-stop-status');
+  let geolocationWatchId = null;
+  let lastKnownPosition = null;
 
   function updateActiveStopMappingDebug(stop) {
     if (activeStopDebugVideoMode) {
@@ -536,7 +538,12 @@ const experienceStops = [...(recxrSite?.experienceStops ?? [])]
     });
   }
 
+  function logGeofence(message, details) {
+    console.log(`[RecXR][Geofence] ${message}`, details ?? {});
+  }
+
   function updateActiveStop(userLatitude, userLongitude, accuracy) {
+    lastKnownPosition = { latitude: userLatitude, longitude: userLongitude, accuracy };
     if (!experienceStops.length) {
       if (activeStopName) activeStopName.textContent = 'Nearest stop: no experience stops configured.';
       updateActiveStopMappingDebug(null);
@@ -547,17 +554,39 @@ const experienceStops = [...(recxrSite?.experienceStops ?? [])]
     const stopsWithDistance = experienceStops.map((stop) => {
       const distanceMeters = distanceInMeters(userLatitude, userLongitude, stop.latitude, stop.longitude);
       const radius = typeof stop.activationRadiusMeters === 'number' ? stop.activationRadiusMeters : 0;
+      const isUnlocked = radius > 0 && distanceMeters <= radius;
+
+      logGeofence('stop comparison', {
+        stopId: stop.slug?.current || stop.slug || stop.title || stop.index,
+        userLatitude,
+        userLongitude,
+        stopLatitude: stop.latitude,
+        stopLongitude: stop.longitude,
+        distanceMeters,
+        activationRadiusMeters: radius,
+        comparison: `${distanceMeters} <= ${radius}`,
+        unlockComparisonResult: isUnlocked,
+      });
 
       return {
         ...stop,
         distanceMeters,
-        isUnlocked: radius > 0 && distanceMeters <= radius,
+        isUnlocked,
       };
     });
 
     const nearestStop = [...stopsWithDistance].sort((a, b) => a.distanceMeters - b.distanceMeters)[0];
     nearestStop.allStops = stopsWithDistance;
     const nextStop = findNextStop(stopsWithDistance, nearestStop);
+    const hasUnlockedActiveStop = Boolean(nearestStop?.isUnlocked);
+
+    logGeofence('active stop resolved', {
+      activeStopId: nearestStop?.slug?.current || nearestStop?.slug || nearestStop?.title || nearestStop?.index,
+      hasUnlockedActiveStop,
+      nearestStopDistanceMeters: nearestStop?.distanceMeters,
+      nearestStopRadiusMeters: nearestStop?.activationRadiusMeters,
+      accuracy,
+    });
 
     if (activeStopSequence) {
       activeStopSequence.textContent = `Stop ${nearestStop.index + 1} of ${experienceStops.length}`;
@@ -591,10 +620,36 @@ const experienceStops = [...(recxrSite?.experienceStops ?? [])]
       activeStopPlayer.load();
     }
 
-    const activeStop = nearestStop.isUnlocked ? nearestStop : null;
+    const activeStop = hasUnlockedActiveStop ? nearestStop : null;
     window.dispatchEvent(new CustomEvent('recxr-active-stop', { detail: activeStop }));
 
     updateStopCards(nearestStop, nextStop);
+  }
+
+  function handlePositionUpdate(position) {
+    const { latitude, longitude, accuracy } = position.coords;
+    if (geolocateStatus) geolocateStatus.textContent = 'Location access granted.';
+    if (geolocateCoords) {
+      geolocateCoords.textContent = `Your coordinates: ${latitude.toFixed(6)}, ${longitude.toFixed(6)} (accuracy ±${Math.round(accuracy)}m)`;
+    }
+    logGeofence('position update', {
+      latitude,
+      longitude,
+      accuracy,
+    });
+    updateActiveStop(latitude, longitude, accuracy);
+  }
+
+  function handlePositionError(error) {
+    if (geolocateStatus) geolocateStatus.textContent = `Location request failed: ${error.message}`;
+    if (geolocateCoords) geolocateCoords.textContent = '';
+    updateActiveStopMappingDebug(null);
+    updateNextStopPanel(null);
+    updateStopCards();
+    logGeofence('position error', {
+      code: error?.code,
+      message: error?.message,
+    });
   }
 
   geolocateButton?.addEventListener('click', () => {
@@ -605,27 +660,18 @@ const experienceStops = [...(recxrSite?.experienceStops ?? [])]
 
     if (geolocateStatus) geolocateStatus.textContent = 'Requesting your location...';
 
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude, longitude, accuracy } = position.coords;
-        if (geolocateStatus) geolocateStatus.textContent = 'Location access granted.';
-        if (geolocateCoords) {
-          geolocateCoords.textContent = `Your coordinates: ${latitude.toFixed(6)}, ${longitude.toFixed(6)} (accuracy ±${Math.round(accuracy)}m)`;
-        }
-        updateActiveStop(latitude, longitude, accuracy);
-      },
-      (error) => {
-        if (geolocateStatus) geolocateStatus.textContent = `Location request failed: ${error.message}`;
-        if (geolocateCoords) geolocateCoords.textContent = '';
-        updateActiveStopMappingDebug(null);
-        updateNextStopPanel(null);
-        updateStopCards();
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-      }
-    );
+    const geolocationOptions = {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0,
+    };
+
+    navigator.geolocation.getCurrentPosition(handlePositionUpdate, handlePositionError, geolocationOptions);
+
+    if (geolocationWatchId != null) {
+      navigator.geolocation.clearWatch(geolocationWatchId);
+    }
+    geolocationWatchId = navigator.geolocation.watchPosition(handlePositionUpdate, handlePositionError, geolocationOptions);
   });
   window.dispatchEvent(new CustomEvent('recxr-active-stop', { detail: null }));
   updateNextStopPanel(null);

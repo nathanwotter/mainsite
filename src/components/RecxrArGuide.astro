@@ -483,6 +483,13 @@
     return Boolean(isLikelyIphone() && getGuideVideoUrl(stop));
   }
 
+  function logLaunchState(stop, details) {
+    console.log('[RecXR][LaunchState]', {
+      activeStopId: stop?.slug?.current || stop?.slug || stop?.title || stop?.index || 'none',
+      ...details,
+    });
+  }
+
   function getResolvedGuideMode(stop) {
     if (stop?.videoMode === 'packedAlpha' && stop?.arGuideHlsUrl) {
       return 'packedAlpha';
@@ -1559,6 +1566,39 @@
     const usesImageTargetGuide = Boolean(isUnlocked && shouldUseImageTargetGuide(stop));
     const canLaunchAr = Boolean(isUnlocked && hasGuideVideo && xrSupported);
     const canLaunchCamera = Boolean(isUnlocked && hasGuideVideo && cameraGuideSupported);
+    const launchReasons = {
+      isUnlocked,
+      hasGuideVideo,
+      hasStandardVideo,
+      xrSupported,
+      cameraGuideSupported,
+      usesImageTargetGuide,
+      arDisabledReason: canLaunchAr
+        ? 'enabled'
+        : !isUnlocked
+          ? 'stop-locked'
+          : !hasGuideVideo
+            ? 'missing-guide-video'
+            : !xrSupported
+              ? 'xr-unsupported'
+              : 'unknown',
+      cameraDisabledReason: canLaunchCamera
+        ? 'enabled'
+        : !isUnlocked
+          ? 'stop-locked'
+          : !hasGuideVideo
+            ? 'missing-guide-video'
+            : !cameraGuideSupported
+              ? 'camera-guide-unsupported'
+              : 'unknown',
+      standardDisabledReason: hasStandardVideo && isUnlocked
+        ? 'enabled'
+        : !isUnlocked
+          ? 'stop-locked'
+          : !hasStandardVideo
+            ? 'missing-standard-video'
+            : 'unknown',
+    };
 
     // Temporary debug override: keep the launcher visible so we can inspect capability and stop state.
     arLaunchSection.style.display = 'block';
@@ -1592,6 +1632,7 @@
     setButtonState(arLaunchButton, canLaunchAr);
     setButtonState(cameraLaunchButton, Boolean(isUnlocked && hasGuideVideo && cameraGuideSupported));
     setButtonState(standardVideoButton, Boolean(isUnlocked && hasStandardVideo));
+    logLaunchState(stop, launchReasons);
     updateDebugPanel(stop);
   }
 
