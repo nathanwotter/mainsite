@@ -328,7 +328,7 @@
     const xrScene = await ensureSceneResources()
     const THREE = global.THREE
     if (!xrScene || !THREE) {
-      debugStatus('TODO: self-hosted scene hook is missing. Wire Nathan scene ownership through XR8.Threejs and global THREE.')
+      emitError('Scene hook missing: XR8.Threejs scene or global THREE was unavailable during placement.')
       return null
     }
 
@@ -376,10 +376,11 @@
   }
 
   async function placeGuideInWorld(hit) {
+    debugStatus(`Placement function entered. Candidate hit type: ${getHitResultType(hit)}.`)
     const mesh = await ensureGuideSceneNode()
     const xrScene = await ensureSceneResources()
     if (!mesh || !xrScene?.scene) {
-      debugStatus('World placement hit succeeded, but the scene hook is still pending. Add the Nathan scene node hook in recxr-8thwall-bootstrap.js.')
+      emitError('Placement failed because the Nathan scene node could not be prepared.')
       return
     }
 
@@ -536,7 +537,12 @@
   }
 
   async function handleTapToPlace(event) {
-    if (!state.config?.placement?.detachToWorldOnGroundTap) return
+    const targetDescription = describeNode(event?.target)
+    debugStatus(`Scene tap received on ${targetDescription}.`)
+    if (!state.config?.placement?.detachToWorldOnGroundTap) {
+      debugStatus('Scene tap ignored because detachToWorldOnGroundTap is disabled.')
+      return
+    }
 
     const XR8 = getXR8()
     if (!XR8?.XrController?.hitTest) {
@@ -548,6 +554,7 @@
     try {
       const includedTypes = getIncludedHitTypes()
       let hit = state.currentSurfaceHit
+      debugStatus(`Tap candidate exists before hit test: ${hit ? 'yes' : 'no'}.`)
 
       if (!hit) {
         const results = await XR8.XrController.hitTest(point.x, point.y, includedTypes)
@@ -569,6 +576,7 @@
       }
 
       if (!hit) {
+        debugStatus(`Placement early return: no candidate available at tap point ${point.x.toFixed(3)}, ${point.y.toFixed(3)}.`)
         debugStatus(`Tap received but no SLAM hit result was returned. Tried hit types: ${includedTypes.join(', ')}.`)
         return
       }
@@ -577,6 +585,7 @@
       await placeGuideInWorld(hit)
       debugStatus('Nathan placed. He should stay upright on the ground.')
     } catch (error) {
+      debugStatus('Placement failed after scene tap.')
       emitError('SLAM hit test failed during tap-to-place.', error)
     }
   }
@@ -660,8 +669,15 @@
   }
 
   function bindTapPlacement() {
-    if (!state.canvas || state.tapHandler) return
+    if (!state.container || state.tapHandler) return
     state.tapHandler = (event) => {
+      if (
+        event?.target instanceof Element &&
+        event.target.closest('button, a, input, select, textarea, [data-recxr-ui-block]')
+      ) {
+        debugStatus(`Ignored UI tap on ${describeNode(event.target)}.`)
+        return
+      }
       const now = Date.now()
       if (now - state.lastTapAt < 700) {
         debugStatus('Ignored duplicate placement tap.')
@@ -670,17 +686,21 @@
       state.lastTapAt = now
       handleTapToPlace(event)
     }
-    state.canvas.addEventListener('click', state.tapHandler)
+    state.container.addEventListener('click', state.tapHandler)
     if (global.PointerEvent) {
-      state.canvas.addEventListener('pointerup', state.tapHandler)
+      state.container.addEventListener('pointerup', state.tapHandler)
+    } else {
+      state.container.addEventListener('touchend', state.tapHandler, { passive: true })
     }
   }
 
   function unbindTapPlacement() {
-    if (!state.canvas || !state.tapHandler) return
-    state.canvas.removeEventListener('click', state.tapHandler)
+    if (!state.container || !state.tapHandler) return
+    state.container.removeEventListener('click', state.tapHandler)
     if (global.PointerEvent) {
-      state.canvas.removeEventListener('pointerup', state.tapHandler)
+      state.container.removeEventListener('pointerup', state.tapHandler)
+    } else {
+      state.container.removeEventListener('touchend', state.tapHandler)
     }
     state.tapHandler = null
   }
