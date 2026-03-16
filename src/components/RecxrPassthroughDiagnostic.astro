@@ -152,6 +152,18 @@ const variantCopyMap: Record<DiagnosticVariant, string> = {
   let xrRunCalled = false;
   let permissionRequested = false;
   let startupInFlight = false;
+  let sessionActive = false;
+  let pipelineRegistered = false;
+  let lastStartGestureAt = 0;
+  let lastLoggedTrackingState = 'unknown';
+
+  function logDiagnostic(message, details) {
+    if (details !== undefined) {
+      console.log(`[RecxrDiagnostic:${variant}] ${message}`, details);
+    } else {
+      console.log(`[RecxrDiagnostic:${variant}] ${message}`);
+    }
+  }
 
   function getRuntimeWindow() {
     return window;
@@ -180,6 +192,9 @@ const variantCopyMap: Record<DiagnosticVariant, string> = {
 
   function setError(message) {
     setLine(errorDebug, `last error: ${message || 'none'}`);
+    if (message && message !== 'none') {
+      logDiagnostic('error', message);
+    }
   }
 
   function usesCustomCanvas() {
@@ -361,9 +376,16 @@ const variantCopyMap: Record<DiagnosticVariant, string> = {
       onUpdate: ({ processCpuResult }) => {
         trackingState = String(getTrackingState(processCpuResult) || 'unknown');
         setLine(trackingDebug, `tracking state: ${trackingState}`);
+        if (trackingState !== lastLoggedTrackingState) {
+          lastLoggedTrackingState = trackingState;
+          logDiagnostic('tracking state updated', trackingState);
+        }
       },
       onProcessGpu: () => {
         visibleCanvasFrameCount += 1;
+        if (visibleCanvasFrameCount === 1) {
+          logDiagnostic('first visible canvas draw frame');
+        }
         if (visibleCanvasFrameCount === 1 || visibleCanvasFrameCount % 60 === 0) {
           const primaryRenderLayer = getPrimaryRenderLayer();
           setLine(framesDebug, `visible canvas draw frames: ${visibleCanvasFrameCount}`);
@@ -384,6 +406,11 @@ const variantCopyMap: Record<DiagnosticVariant, string> = {
   async function stopDiagnosticSession() {
     const runtimeWindow = getRuntimeWindow();
     const XR8 = runtimeWindow.XR8;
+    logDiagnostic('stopDiagnosticSession entered', {
+      sessionActive,
+      pipelineRegistered,
+      startupInFlight,
+    });
     if (resizeHandler) {
       window.removeEventListener('resize', resizeHandler);
       window.removeEventListener('orientationchange', resizeHandler);
@@ -396,24 +423,40 @@ const variantCopyMap: Record<DiagnosticVariant, string> = {
         // Ignore teardown failures for diagnostics.
       }
     }
+    if (XR8?.clearCameraPipelineModules) {
+      try {
+        XR8.clearCameraPipelineModules();
+      } catch (_error) {
+        // Ignore pipeline clear failures in diagnostics.
+      }
+    }
     activePipelineModules = [];
     glTextureRendererActive = false;
     visibleCanvasFrameCount = 0;
     trackingState = 'unknown';
+    lastLoggedTrackingState = 'unknown';
     startEntered = false;
     xrScriptLoaded = false;
     xr8Detected = false;
     pipelineAdded = false;
     xrRunCalled = false;
     permissionRequested = false;
-    startupInFlight = false;
+    sessionActive = false;
+    pipelineRegistered = false;
     stageCanvas = usesCustomCanvas() ? stageCanvas : null;
     updateDebug();
     setLine(alphaDebug, 'renderer alpha/composition: n/a');
   }
 
   async function startDiagnosticSession({ viaUserGesture = false } = {}) {
-    if (!stage || startupInFlight) return;
+    if (!stage || startupInFlight || sessionActive) {
+      logDiagnostic('startDiagnosticSession ignored', {
+        hasStage: Boolean(stage),
+        startupInFlight,
+        sessionActive,
+      });
+      return;
+    }
     startupInFlight = true;
     startEntered = true;
     if (viaUserGesture) {
@@ -422,8 +465,10 @@ const variantCopyMap: Record<DiagnosticVariant, string> = {
     }
 
     setError('none');
+    logDiagnostic('startDiagnosticSession entered', { viaUserGesture });
     visibleCanvasFrameCount = 0;
     trackingState = 'unknown';
+    lastLoggedTrackingState = 'unknown';
     glTextureRendererActive = false;
     activePipelineModules = [];
     setLine(alphaDebug, 'renderer alpha/composition: n/a');
@@ -461,12 +506,14 @@ const variantCopyMap: Record<DiagnosticVariant, string> = {
     try {
       await ensureClassicScript(ENGINE_SCRIPT_URL);
       xrScriptLoaded = true;
+      logDiagnostic('xr.js loaded');
       updateDebug();
       const runtimeWindow = await waitForXr8Global();
       if (!runtimeWindow.XR8) {
         throw new Error(`XR8 was not exposed by ${ENGINE_SCRIPT_URL}.`);
       }
       xr8Detected = true;
+      logDiagnostic('XR8 detected');
       updateDebug();
 
       if (runtimeWindow.XR8.loadChunk) {
@@ -479,11 +526,16 @@ const variantCopyMap: Record<DiagnosticVariant, string> = {
       }
 
       const modules = buildModules(runtimeWindow.XR8);
-      runtimeWindow.XR8.addCameraPipelineModules(modules);
-      pipelineAdded = true;
+      if (!pipelineRegistered) {
+        runtimeWindow.XR8.addCameraPipelineModules(modules);
+        pipelineRegistered = true;
+        pipelineAdded = true;
+        logDiagnostic('pipeline modules added', activePipelineModules);
+      }
       updateDebug();
 
       xrRunCalled = true;
+      logDiagnostic('permission requested', { viaUserGesture });
       updateDebug();
       const runConfig = {
         allowedDevices: 'any',
@@ -491,7 +543,10 @@ const variantCopyMap: Record<DiagnosticVariant, string> = {
       if (usesCustomCanvas() && stageCanvas) {
         runConfig.canvas = stageCanvas;
       }
+      logDiagnostic('XR8.run called', runConfig);
       await runtimeWindow.XR8.run(runConfig);
+      sessionActive = true;
+      logDiagnostic('permission granted / XR8.run resolved');
 
       if (usesCustomCanvas()) {
         syncStageCanvasSize();
@@ -503,24 +558,58 @@ const variantCopyMap: Record<DiagnosticVariant, string> = {
       updateDebug();
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Unknown startup error');
+      if (permissionRequested) {
+        logDiagnostic('permission denied or startup failed');
+      }
     } finally {
       startupInFlight = false;
       updateDebug();
     }
   }
 
-  function handleStartTap() {
+  function handleStartTap(source = 'unknown') {
+    const now = Date.now();
+    if (now - lastStartGestureAt < 800) {
+      logDiagnostic('duplicate start gesture ignored', { source });
+      return;
+    }
+    lastStartGestureAt = now;
+    logDiagnostic('button tap received', { source });
     startDiagnosticSession({ viaUserGesture: true });
   }
 
-  startButton?.addEventListener('click', handleStartTap);
-  startButton?.addEventListener('touchend', (event) => {
-    event.preventDefault();
-    handleStartTap();
+  logDiagnostic('component init', {
+    variant,
+    usesCustomCanvas: usesCustomCanvas(),
+    usesFullWindowCanvas: usesFullWindowCanvas(),
   });
 
+  startButton?.addEventListener('click', () => {
+    handleStartTap('click');
+  });
+  if (window.PointerEvent) {
+    startButton?.addEventListener('pointerup', (event) => {
+      if (event.pointerType === 'touch') {
+        handleStartTap('pointerup-touch');
+      }
+    });
+  }
+
   restartButton?.addEventListener('click', () => {
-    startDiagnosticSession({ viaUserGesture: true });
+    if (startupInFlight) {
+      logDiagnostic('restart ignored while startup is in flight');
+      return;
+    }
+    if (!sessionActive) {
+      handleStartTap('restart-without-session');
+      return;
+    }
+    logDiagnostic('restart requested');
+    stopDiagnosticSession()
+      .then(() => startDiagnosticSession({ viaUserGesture: true }))
+      .catch((error) => {
+        setError(error instanceof Error ? error.message : 'Restart failed');
+      });
   });
 
   window.addEventListener('beforeunload', () => {
