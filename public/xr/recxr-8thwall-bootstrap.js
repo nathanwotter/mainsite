@@ -319,17 +319,10 @@
     uniform sampler2D videoMap;
     varying vec2 vUv;
 
-    float luma(vec3 color) {
-      return dot(color, vec3(0.299, 0.587, 0.114));
-    }
-
     void main() {
       vec2 colorUv = vec2(vUv.x, 0.5 + (vUv.y * 0.5));
-      vec2 alphaUv = vec2(vUv.x, vUv.y * 0.5);
-      vec4 colorSample = texture2D(videoMap, colorUv);
-      vec4 alphaSample = texture2D(videoMap, alphaUv);
-      float alpha = luma(alphaSample.rgb);
-      gl_FragColor = vec4(colorSample.rgb, alpha);
+      vec4 tex = texture2D(videoMap, colorUv);
+      gl_FragColor = vec4(tex.rgb, 1.0);
     }
   `
 
@@ -391,12 +384,12 @@
         },
         vertexShader: guideVideoVertexShader,
         fragmentShader: packedAlphaGuideFragmentShader,
-        transparent: true,
+        transparent: false,
         opacity: 1,
         alphaTest: 0.5,
         premultipliedAlpha: false,
-        blending: THREE.NormalBlending,
-        side: THREE.DoubleSide,
+        blending: THREE.NoBlending,
+        side: THREE.FrontSide,
         depthTest: true,
         depthWrite: true,
         toneMapped: false,
