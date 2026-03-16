@@ -382,9 +382,9 @@
         uniforms: {
           videoMap: { value: texture },
           variantOffset: { value: 0.5 },
-          keyColor: { value: new THREE.Color(0.05, 0.9, 0.15) },
-          similarity: { value: 0.42 },
-          smoothness: { value: 0.16 },
+          keyColor: { value: new THREE.Color(0.0, 0.8, 0.1) },
+          similarity: { value: 0.55 },
+          smoothness: { value: 0.22 },
         },
         vertexShader: guideVideoVertexShader,
         fragmentShader: chromaKeyGuideFragmentShader,
