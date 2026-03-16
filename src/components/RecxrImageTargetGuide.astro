@@ -161,6 +161,16 @@
   let currentPipelineModulesDebug = 'unknown';
   let currentVisibleCanvasFrameCount = 0;
   let currentRendererAlphaDebug = 'unknown';
+  let surfaceGuideOpening = false;
+  let surfaceGuideOpen = false;
+
+  function logSurfaceGuide(message, details) {
+    if (details !== undefined) {
+      console.log('[RecXR][SurfaceGuide]', message, details);
+    } else {
+      console.log('[RecXR][SurfaceGuide]', message);
+    }
+  }
 
   function isLikelyIphone() {
     const ua = navigator.userAgent || '';
@@ -329,12 +339,14 @@
       throw new Error('This stop does not have guide media to place on a surface.');
     }
 
+    logSurfaceGuide('startSurfacePlacement entered', { title: stop?.title || null });
     await startSelfHosted8thWallSession({
       canvasContainer: imageTargetStage,
       guide: buildGuideSpec(stop),
       placement: buildPlacementSpec(stop),
       onStatus: (message) => {
         if (typeof message !== 'string') return;
+        logSurfaceGuide('status', message);
         if (imageTargetStatus) {
           imageTargetStatus.textContent = message;
         }
@@ -427,13 +439,25 @@
   }
 
   async function stopSurfacePlacement() {
+    logSurfaceGuide('stopSurfacePlacement entered');
     await stopSelfHosted8thWallSession();
     if (imageTargetStage) {
       imageTargetStage.innerHTML = '';
     }
+    surfaceGuideOpen = false;
   }
 
   async function openSurfaceGuide(stop) {
+    if (surfaceGuideOpening) {
+      logSurfaceGuide('openSurfaceGuide ignored because startup is already in flight');
+      return;
+    }
+    if (surfaceGuideOpen && currentStop?._id === stop?._id) {
+      logSurfaceGuide('openSurfaceGuide ignored because the same stop is already open');
+      return;
+    }
+    surfaceGuideOpening = true;
+    logSurfaceGuide('openSurfaceGuide entered', { title: stop?.title || null });
     updateSurfaceUi(stop);
     if (imageTargetOverlay) {
       imageTargetOverlay.style.display = 'block';
@@ -442,6 +466,7 @@
     try {
       await stopSurfacePlacement();
       await startSurfacePlacement(stop);
+      surfaceGuideOpen = true;
     } catch (error) {
       currentSurfaceAvailable = false;
       currentHitType = 'none';
@@ -452,14 +477,19 @@
         imageTargetStatus.textContent = `Surface placement could not start: ${currentRuntimeError}`;
       }
       setStatusBanner('error', currentRuntimeError);
+    } finally {
+      surfaceGuideOpening = false;
     }
   }
 
   async function closeSurfaceGuide() {
+    logSurfaceGuide('closeSurfaceGuide entered');
     await stopSurfacePlacement();
     if (imageTargetOverlay) {
       imageTargetOverlay.style.display = 'none';
     }
+    surfaceGuideOpen = false;
+    surfaceGuideOpening = false;
   }
 
   imageTargetCloseButton?.addEventListener('click', () => {

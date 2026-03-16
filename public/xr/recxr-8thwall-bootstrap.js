@@ -22,8 +22,11 @@
     rendererAlphaDebug: 'unknown',
     sceneResources: null,
     pipelineModulesAdded: false,
+    sessionStarting: false,
+    sessionRunning: false,
     tapHandler: null,
     resizeHandler: null,
+    lastTapAt: 0,
     placementModuleName: 'recxr-world-placement',
     surfaceModuleName: 'recxr-slam-surface-candidates',
     errorModuleName: 'recxr-runtime-errors',
@@ -628,9 +631,6 @@
     if (!XR8?.addCameraPipelineModules || state.pipelineModulesAdded) return
 
     const modules = []
-    if (XR8.FullWindowCanvas?.pipelineModule) {
-      modules.push(XR8.FullWindowCanvas.pipelineModule())
-    }
     if (XR8.GlTextureRenderer?.pipelineModule) {
       modules.push(XR8.GlTextureRenderer.pipelineModule())
       state.glTextureRendererActive = true
@@ -648,6 +648,7 @@
     XR8.addCameraPipelineModules(modules)
     state.pipelineModulesAdded = true
     state.activePipelineModules = modules.map((module) => module?.name || 'anonymous-module')
+    debugStatus(`Pipeline modules added: ${state.activePipelineModules.join(', ')}`)
     emitDebug({
       event: 'pipeline-modules',
       cameraRenderModuleActive: Boolean(XR8.GlTextureRenderer?.pipelineModule),
@@ -661,16 +662,26 @@
   function bindTapPlacement() {
     if (!state.canvas || state.tapHandler) return
     state.tapHandler = (event) => {
+      const now = Date.now()
+      if (now - state.lastTapAt < 700) {
+        debugStatus('Ignored duplicate placement tap.')
+        return
+      }
+      state.lastTapAt = now
       handleTapToPlace(event)
     }
-    state.canvas.addEventListener('touchend', state.tapHandler, { passive: true })
     state.canvas.addEventListener('click', state.tapHandler)
+    if (global.PointerEvent) {
+      state.canvas.addEventListener('pointerup', state.tapHandler)
+    }
   }
 
   function unbindTapPlacement() {
     if (!state.canvas || !state.tapHandler) return
-    state.canvas.removeEventListener('touchend', state.tapHandler)
     state.canvas.removeEventListener('click', state.tapHandler)
+    if (global.PointerEvent) {
+      state.canvas.removeEventListener('pointerup', state.tapHandler)
+    }
     state.tapHandler = null
   }
 
@@ -679,6 +690,13 @@
     if (!XR8) {
       throw new Error('XR8 was not available on window.')
     }
+
+    if (state.sessionStarting || state.sessionRunning) {
+      debugStatus('Ignored duplicate session start request.')
+      return
+    }
+
+    state.sessionStarting = true
 
     await stopSession()
 
@@ -698,8 +716,10 @@
     state.glTextureRendererActive = false
     state.threeRendererConfigured = false
     state.rendererAlphaDebug = 'unknown'
+    state.lastTapAt = 0
     updateTrackingStatus('starting')
     setSurfaceCandidate(null)
+    debugStatus('Self-hosted 8th Wall bootstrap startSession entered.')
     debugStatus('Starting SLAM-only horizontal-surface placement mode.')
 
     if (XR8.XrController?.configure) {
@@ -718,23 +738,34 @@
       allowedDevices: 'any',
     }
 
-    if (XR8.run) {
-      await XR8.run(runConfig)
-      window.setTimeout(() => {
-        sizeCanvasToContainer()
-        reconcileRenderLayersIntoStage()
-      }, 50)
-      window.setTimeout(() => {
-        sizeCanvasToContainer()
-        reconcileRenderLayersIntoStage()
-      }, 300)
-    } else {
-      debugStatus('XR8.run is not available yet. Complete the self-hosted engine installation in /public/xr/.')
+    try {
+      if (XR8.run) {
+        debugStatus('Requesting camera permission and calling XR8.run...')
+        await XR8.run(runConfig)
+        state.sessionRunning = true
+        debugStatus('Camera permission granted and XR8.run resolved.')
+        window.setTimeout(() => {
+          sizeCanvasToContainer()
+          reconcileRenderLayersIntoStage()
+        }, 50)
+        window.setTimeout(() => {
+          sizeCanvasToContainer()
+          reconcileRenderLayersIntoStage()
+        }, 300)
+      } else {
+        debugStatus('XR8.run is not available yet. Complete the self-hosted engine installation in /public/xr/.')
+      }
+    } catch (error) {
+      debugStatus('Camera permission denied or XR8.run failed.')
+      throw error
+    } finally {
+      state.sessionStarting = false
     }
   }
 
   async function stopSession() {
     const XR8 = getXR8()
+    state.sessionStarting = false
     unbindTapPlacement()
     unbindCanvasResize()
 
@@ -743,6 +774,13 @@
         await XR8.stop()
       } catch (_error) {
         // Ignore stop errors during teardown.
+      }
+    }
+    if (XR8?.clearCameraPipelineModules) {
+      try {
+        XR8.clearCameraPipelineModules()
+      } catch (_error) {
+        // Ignore pipeline cleanup failures during teardown.
       }
     }
 
@@ -777,8 +815,12 @@
     state.glTextureRendererActive = false
     state.threeRendererConfigured = false
     state.rendererAlphaDebug = 'unknown'
+    state.pipelineModulesAdded = false
+    state.sessionRunning = false
+    state.lastTapAt = 0
     setSurfaceCandidate(null)
     state.config = null
+    debugStatus('8th Wall session stopped and lifecycle state reset.')
   }
 
   async function resetPlacement() {
