@@ -620,7 +620,14 @@ const experienceStops = [...(recxrSite?.experienceStops ?? [])]
       activeStopPlayer.load();
     }
 
-    const activeStop = hasUnlockedActiveStop ? nearestStop : null;
+    const activeStop = hasUnlockedActiveStop
+      ? {
+          ...nearestStop,
+          routeStopCount: experienceStops.length,
+          nextStopDistanceMeters: typeof nextStop?.distanceMeters === "number" ? nextStop.distanceMeters : null,
+          nextStopTitle: nextStop?.title || "",
+        }
+      : null;
     window.dispatchEvent(new CustomEvent('recxr-active-stop', { detail: activeStop }));
 
     updateStopCards(nearestStop, nextStop);

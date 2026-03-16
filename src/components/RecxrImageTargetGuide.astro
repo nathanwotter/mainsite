@@ -4,7 +4,7 @@
 <div
   id="recxr-image-target-overlay"
   data-recxr-surface-overlay
-  style="display: none; position: fixed; inset: 0; z-index: 1001; background: #000; color: #fff; overflow: hidden; pointer-events: none;"
+  style="display: none; position: fixed; inset: 0; z-index: 1001; background: #000; color: #fff; overflow: hidden; pointer-events: none; padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom) 0;"
 >
   <div
     id="recxr-image-target-stage"
@@ -13,65 +13,64 @@
 
   <div
     id="recxr-image-target-scrim"
-    style="position: absolute; inset: 0; z-index: 1; pointer-events: none; background: linear-gradient(to bottom, rgba(8, 10, 16, 0.42), rgba(8, 10, 16, 0.08) 32%, rgba(8, 10, 16, 0.34));"
+    style="position: absolute; inset: 0; z-index: 1; pointer-events: none; background: linear-gradient(to bottom, rgba(6, 10, 16, 0.82), rgba(6, 10, 16, 0.08) 24%, rgba(6, 10, 16, 0.22) 52%, rgba(6, 10, 16, 0.88));"
   ></div>
 
-  <div data-recxr-surface-ui style="position: relative; z-index: 2; max-width: 960px; margin: 0 auto; padding: 1.25rem 1rem 2rem 1rem; pointer-events: none;">
-    <div style="display: flex; justify-content: space-between; gap: 1rem; align-items: start; flex-wrap: wrap; margin-bottom: 1rem;">
-      <div style="max-width: 42rem;">
-        <p style="margin: 0 0 0.35rem 0; font-size: 0.85rem; letter-spacing: 0.08em; text-transform: uppercase; color: #d1d5db;">
-          RecXR Surface Placement
-        </p>
-        <h2 id="recxr-image-target-title" style="margin: 0 0 0.5rem 0;">Preparing surface placement...</h2>
-        <p id="recxr-image-target-copy" style="margin: 0; line-height: 1.7; color: #e5e7eb;">
-          Move your phone slowly until a horizontal surface is detected, then tap to place Nathan on the ground.
-        </p>
-      </div>
+  <div data-recxr-surface-ui style="position: relative; z-index: 2; min-height: 100%; padding: calc(0.75rem + env(safe-area-inset-top)) 0.9rem calc(1rem + env(safe-area-inset-bottom)) 0.9rem; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between;">
+    <div style="display: grid; gap: 0.75rem;">
+      <div style="display: flex; justify-content: space-between; gap: 0.75rem; align-items: start;">
+        <div id="recxr-image-target-instruction-pill" style="max-width: min(24rem, calc(100vw - 7rem)); padding: 0.7rem 0.9rem; border-radius: 18px; border: 1px solid rgba(255,255,255,0.16); background: rgba(8, 12, 18, 0.74); backdrop-filter: blur(10px); box-shadow: 0 18px 48px rgba(0,0,0,0.24);">
+          <p id="recxr-image-target-instruction-kicker" style="margin: 0; line-height: 1.3; color: #f8fafc; font-size: 0.96rem; font-weight: 700;">
+            Get ready
+          </p>
+        </div>
       <button
         id="recxr-image-target-close"
         type="button"
-        style="display: inline-block; padding: 0.8rem 1.1rem; border: 1px solid #fff; color: #fff; background: transparent; border-radius: 999px; cursor: pointer; pointer-events: auto;"
+          style="display: inline-flex; align-items: center; justify-content: center; min-width: 2.9rem; min-height: 2.9rem; padding: 0.8rem; border: 1px solid rgba(255,255,255,0.28); color: #fff; background: rgba(8, 12, 18, 0.72); border-radius: 999px; cursor: pointer; pointer-events: auto; backdrop-filter: blur(10px);"
+          aria-label="Close Surface Guide"
       >
-        Close Surface Guide
+        Close
       </button>
     </div>
 
-    <div
-      data-recxr-surface-controls
-      style="display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1rem; pointer-events: auto;"
-    >
-      <button
-        id="recxr-image-target-reset-placement"
-        type="button"
-        style="display: inline-block; padding: 0.8rem 1.1rem; border: 1px solid rgba(255,255,255,0.45); color: #fff; background: rgba(255,255,255,0.06); border-radius: 999px; cursor: pointer; pointer-events: auto;"
-      >
-        Reposition Nathan
-      </button>
-      <button
-        id="recxr-image-target-open-camera-fallback"
-        type="button"
-        style="display: inline-block; padding: 0.8rem 1.1rem; border: 1px solid rgba(255,255,255,0.45); color: #fff; background: rgba(255,255,255,0.06); border-radius: 999px; cursor: pointer; pointer-events: auto;"
-      >
-        Use Camera Guide Fallback
-      </button>
+      <div id="recxr-image-target-stop-card" style="display: inline-grid; gap: 0.3rem; width: min(19rem, 100%); padding: 0.85rem 0.95rem; border-radius: 20px; border: 1px solid rgba(255,255,255,0.16); background: rgba(8, 12, 18, 0.74); backdrop-filter: blur(10px); box-shadow: 0 18px 48px rgba(0,0,0,0.24);">
+        <p id="recxr-image-target-stop-meta" style="margin: 0; font-size: 0.76rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #c4b5fd;">
+          Stop 1 of 1
+        </p>
+        <h2 id="recxr-image-target-title" style="margin: 0; font-size: 1.05rem; line-height: 1.2; color: #fff;">
+          Preparing surface placement...
+        </h2>
+        <p id="recxr-image-target-next-stop" style="margin: 0; font-size: 0.9rem; color: #d1d5db;">
+          Next stop distance coming soon.
+        </p>
+      </div>
     </div>
 
-  <div
-    id="recxr-image-target-banner"
-      style="display: none; margin-bottom: 1rem; padding: 0.95rem 1rem; border-radius: 16px; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06);"
-    >
-      <p
-        id="recxr-image-target-banner-label"
-        style="margin: 0 0 0.3rem 0; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #bfdbfe;"
+    <div style="display: grid; gap: 0.8rem; align-self: stretch;">
+      <div
+        id="recxr-image-target-banner"
+        style="display: none; margin: 0 auto; width: min(28rem, 100%); padding: 0.8rem 0.95rem; border-radius: 18px; border: 1px solid rgba(255,255,255,0.18); background: rgba(8, 12, 18, 0.74); backdrop-filter: blur(10px);"
       >
-        Status
-      </p>
-      <p id="recxr-image-target-banner-copy" style="margin: 0; color: #f8fafc; line-height: 1.6;">
-        Preparing surface placement test...
-      </p>
-  </div>
+        <p
+          id="recxr-image-target-banner-label"
+          style="margin: 0 0 0.2rem 0; font-size: 0.74rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #bfdbfe;"
+        >
+          Status
+        </p>
+        <p id="recxr-image-target-banner-copy" style="margin: 0; color: #f8fafc; line-height: 1.45;">
+          Preparing surface placement test...
+        </p>
+      </div>
 
-    <div id="recxr-image-target-debug-grid" style="display: grid; gap: 0.85rem; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); margin-bottom: 1rem;">
+      <div id="recxr-image-target-action-bar" data-recxr-surface-controls style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.55rem; pointer-events: auto; align-self: stretch;">
+        <button id="recxr-image-target-map" type="button" style="min-height: 3.3rem; padding: 0.85rem 0.7rem; border: 1px solid rgba(255,255,255,0.18); color: #fff; background: rgba(8, 12, 18, 0.78); border-radius: 18px; cursor: pointer; font-weight: 700;">Map</button>
+        <button id="recxr-image-target-reset-placement" type="button" style="min-height: 3.3rem; padding: 0.85rem 0.7rem; border: 1px solid rgba(255,255,255,0.18); color: #fff; background: rgba(8, 12, 18, 0.78); border-radius: 18px; cursor: pointer; font-weight: 700;">Recenter</button>
+        <button id="recxr-image-target-audio" type="button" style="min-height: 3.3rem; padding: 0.85rem 0.7rem; border: 1px solid rgba(255,255,255,0.18); color: #fff; background: rgba(8, 12, 18, 0.78); border-radius: 18px; cursor: pointer; font-weight: 700;">Audio</button>
+      </div>
+    </div>
+
+    <div id="recxr-image-target-debug-grid" style="display: grid; gap: 0.85rem; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); margin-top: 0.8rem;">
       <div style="padding: 1rem; border-radius: 16px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.05);">
         <p style="margin: 0 0 0.4rem 0; font-size: 0.82rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #f9a8d4;">
           Placement Status
@@ -124,8 +123,12 @@
   const imageTargetOverlay = document.getElementById('recxr-image-target-overlay');
   const imageTargetStage = document.getElementById('recxr-image-target-stage');
   const imageTargetTitle = document.getElementById('recxr-image-target-title');
-  const imageTargetCopy = document.getElementById('recxr-image-target-copy');
+  const imageTargetInstructionKicker = document.getElementById('recxr-image-target-instruction-kicker');
+  const imageTargetStopMeta = document.getElementById('recxr-image-target-stop-meta');
+  const imageTargetNextStop = document.getElementById('recxr-image-target-next-stop');
   const imageTargetStatus = document.getElementById('recxr-image-target-status');
+  const imageTargetMapButton = document.getElementById('recxr-image-target-map');
+  const imageTargetAudioButton = document.getElementById('recxr-image-target-audio');
   const imageTargetConfig = document.getElementById('recxr-image-target-config');
   const imageTargetConfigDebug = document.getElementById('recxr-image-target-config-debug');
   const imageTargetDebugGrid = document.getElementById('recxr-image-target-debug-grid');
@@ -171,6 +174,39 @@
   let surfaceGuideOpening = false;
   let surfaceGuideOpen = false;
   const surfaceGuideDebugEnabled = false;
+
+  function getExperienceUiState() {
+    if (!currentStop) return 'navigating';
+    if (currentNathanPlaced) return 'placed';
+    if (currentSurfaceAvailable) return 'readyToPlace';
+    if (currentTrackingStatus !== 'unknown') return 'scanning';
+    return 'navigating';
+  }
+
+  function updateExperienceChrome() {
+    const uiState = getExperienceUiState();
+    const stopNumber = typeof currentStop?.index === 'number' ? currentStop.index + 1 : 1;
+    const stopCount = typeof currentStop?.routeStopCount === 'number' ? currentStop.routeStopCount : stopNumber;
+
+    if (imageTargetStopMeta) {
+      imageTargetStopMeta.textContent = `Stop ${stopNumber} of ${stopCount}`;
+    }
+    if (imageTargetNextStop) {
+      imageTargetNextStop.textContent =
+        typeof currentStop?.nextStopDistanceMeters === 'number'
+          ? `Next stop: ${Math.round(currentStop.nextStopDistanceMeters)} m`
+          : 'Next stop distance coming soon.';
+    }
+    if (imageTargetInstructionKicker) {
+      const instructionMap = {
+        navigating: 'Get ready',
+        scanning: 'Scan the ground',
+        readyToPlace: 'Tap to place Nathan',
+        placed: 'Nathan is ready',
+      };
+      imageTargetInstructionKicker.textContent = instructionMap[uiState];
+    }
+  }
 
   function logSurfaceGuide(message, details) {
     if (!surfaceGuideDebugEnabled) return;
@@ -257,6 +293,7 @@
     imageTargetConfigPanel?.setAttribute('style', 'display: none;');
     imageTargetDebugGrid?.setAttribute('style', 'display: block; margin-bottom: 1rem;');
   }
+  updateExperienceChrome();
 
   function setStatusBanner(kind, message) {
     if (!imageTargetBanner || !imageTargetBannerLabel || !imageTargetBannerCopy) return;
@@ -306,11 +343,6 @@
     if (imageTargetTitle) {
       imageTargetTitle.textContent = stop?.title || 'RecXR Surface Guide';
     }
-    if (imageTargetCopy) {
-      imageTargetCopy.textContent =
-        stop?.promptText ||
-        'Move your phone slowly until the center reticle finds a horizontal surface, then tap once to place Nathan.';
-    }
     if (imageTargetStatus) {
       imageTargetStatus.textContent = stop
         ? 'Preparing SLAM surface placement...'
@@ -333,6 +365,7 @@
         ? `imageTargetWidth=${typeof stop.imageTargetWidth === 'number' ? stop.imageTargetWidth : 'unset'} | anchorOffsetX=${stop.anchorOffsetX ?? 0} | anchorOffsetY=${stop.anchorOffsetY ?? 0} | anchorOffsetZ=${stop.anchorOffsetZ ?? 0} | anchorYaw=${stop.anchorYaw ?? 0}`
         : 'imageTargetWidth=unset | anchorOffsetX=0 | anchorOffsetY=0 | anchorOffsetZ=0 | anchorYaw=0';
     }
+    updateExperienceChrome();
   }
 
   function buildGuideSpec(stop) {
@@ -397,11 +430,13 @@
       onSurfaceCandidate: (detail) => {
         currentSurfaceAvailable = Boolean(detail?.available);
         currentHitType = detail?.type || 'none';
+        updateExperienceChrome();
         setDebugState();
       },
       onWorldPlaced: (detail) => {
         currentNathanPlaced = true;
         currentHitType = detail?.type || currentHitType || 'none';
+        updateExperienceChrome();
         setDebugState();
         setStatusBanner('success', 'Nathan placed.');
         if (imageTargetStatus) {
@@ -410,6 +445,7 @@
       },
       onPlacementReset: () => {
         currentNathanPlaced = false;
+        updateExperienceChrome();
         setDebugState();
         setStatusBanner('loading', 'Scanning for surface...');
         if (imageTargetStatus) {
@@ -457,6 +493,7 @@
         if (detail?.event === 'tracking' && imageTargetStatus && currentTrackingStatus !== 'unknown') {
           imageTargetStatus.textContent = `Scanning for surface... Tracking state: ${currentTrackingStatus}`;
         }
+        updateExperienceChrome();
         setDebugState();
       },
       onError: (message) => {
@@ -526,6 +563,14 @@
 
   imageTargetCloseButton?.addEventListener('click', () => {
     closeSurfaceGuide();
+  });
+
+  imageTargetMapButton?.addEventListener('click', () => {
+    setStatusBanner('info', 'Map will be added in a later phase.');
+  });
+
+  imageTargetAudioButton?.addEventListener('click', () => {
+    setStatusBanner('info', 'Audio controls stay on the current playback path in this phase.');
   });
 
   imageTargetResetPlacementButton?.addEventListener('click', async () => {
