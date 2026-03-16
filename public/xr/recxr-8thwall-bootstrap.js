@@ -375,23 +375,27 @@
     const guideMode = guide?.videoMode || 'standard'
 
     if (guideMode === 'packedAlpha' && guide?.arGuideHlsUrl) {
-      state.chromaKeyEnabled = false
-      state.greenScreenPath = 'packed-alpha-shader'
-      debugStatus('Green-screen removal path in use: packed-alpha shader.')
+      state.chromaKeyEnabled = true
+      state.greenScreenPath = 'packed-alpha-top-half-chroma-key'
+      debugStatus('Green-screen removal path in use: packed-alpha top-half chroma-key shader.')
       const material = new THREE.ShaderMaterial({
         uniforms: {
           videoMap: { value: texture },
+          variantOffset: { value: 0.5 },
+          keyColor: { value: new THREE.Color(0.05, 0.9, 0.15) },
+          similarity: { value: 0.42 },
+          smoothness: { value: 0.16 },
         },
         vertexShader: guideVideoVertexShader,
-        fragmentShader: packedAlphaGuideFragmentShader,
-        transparent: false,
+        fragmentShader: chromaKeyGuideFragmentShader,
+        transparent: true,
         opacity: 1,
         alphaTest: 0.5,
         premultipliedAlpha: false,
-        blending: THREE.NoBlending,
+        blending: THREE.NormalBlending,
         side: THREE.FrontSide,
         depthTest: true,
-        depthWrite: true,
+        depthWrite: false,
         toneMapped: false,
       })
       debugStatus(
