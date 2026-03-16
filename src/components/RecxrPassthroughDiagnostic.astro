@@ -1,18 +1,30 @@
 ---
 import * as THREE from 'three';
 
-type DiagnosticMode = 'camera' | 'three';
+type DiagnosticVariant = 'a' | 'b' | 'c';
 
 interface Props {
-  mode?: DiagnosticMode;
+  variant?: DiagnosticVariant;
 }
 
-const { mode = 'camera' } = Astro.props as Props;
+const { variant = 'a' } = Astro.props as Props;
+
+const variantTitleMap: Record<DiagnosticVariant, string> = {
+  a: 'Variant A: No FullWindowCanvas',
+  b: 'Variant B: XR8-Owned Canvas / Body',
+  c: 'Variant C: Official-Style Minimal',
+};
+
+const variantCopyMap: Record<DiagnosticVariant, string> = {
+  a: 'Custom full-screen stage canvas, but no XR8.FullWindowCanvas. Keeps only GlTextureRenderer + XrController.',
+  b: 'No custom canvas ownership. XR8 uses its default render ownership path while the page keeps only a minimal debug overlay.',
+  c: 'Closest minimal full-window XR8-style passthrough structure with no custom canvas, no reconciliation logic, no Three, and no placement.',
+};
 ---
 
 <div
   class="recxr-diagnostic"
-  data-mode={mode}
+  data-variant={variant}
   style="position: fixed; inset: 0; z-index: 1100; background: #000; color: #fff; overflow: hidden;"
 >
   <div
@@ -21,23 +33,21 @@ const { mode = 'camera' } = Astro.props as Props;
   ></div>
 
   <div
-    style="position: absolute; inset: 0; z-index: 1; pointer-events: none; background: linear-gradient(to bottom, rgba(0, 0, 0, 0.32), rgba(0, 0, 0, 0.06) 35%, rgba(0, 0, 0, 0.42));"
+    style="position: absolute; inset: 0; z-index: 1; pointer-events: none; background: linear-gradient(to bottom, rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0.04) 35%, rgba(0, 0, 0, 0.22));"
   ></div>
 
   <div
-    style="position: relative; z-index: 2; max-width: 40rem; padding: 1rem; pointer-events: auto;"
+    style="position: relative; z-index: 2; max-width: 42rem; padding: 1rem; pointer-events: auto;"
   >
     <div style="padding: 1rem; border-radius: 18px; border: 1px solid rgba(255,255,255,0.14); background: rgba(15, 23, 42, 0.72); backdrop-filter: blur(10px);">
       <p style="margin: 0 0 0.35rem 0; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #93c5fd;">
         RecXR Diagnostic
       </p>
       <h1 style="margin: 0 0 0.5rem 0; font-size: 1.45rem;">
-        {mode === 'camera' ? '8th Wall Passthrough Only' : '8th Wall Passthrough + ThreeJS'}
+        {variantTitleMap[variant]}
       </h1>
       <p style="margin: 0 0 1rem 0; line-height: 1.6; color: #dbeafe;">
-        {mode === 'camera'
-          ? 'Minimal self-hosted XR8 test with camera passthrough and SLAM only.'
-          : 'Minimal self-hosted XR8 test with camera passthrough plus an empty transparent ThreeJS scene.'}
+        {variantCopyMap[variant]}
       </p>
 
       <div style="display: flex; gap: 0.65rem; flex-wrap: wrap; margin-bottom: 1rem;">
@@ -56,16 +66,22 @@ const { mode = 'camera' } = Astro.props as Props;
           Restart Session
         </button>
         <a
-          href="/recreation-futures-lab/recxr/diagnostics/passthrough"
+          href="/recreation-futures-lab/recxr/diagnostics/passthrough-a"
           style="display: inline-block; padding: 0.8rem 1.05rem; border: 1px solid rgba(255,255,255,0.22); color: #fff; background: transparent; border-radius: 999px; text-decoration: none;"
         >
-          Camera Only
+          Variant A
         </a>
         <a
-          href="/recreation-futures-lab/recxr/diagnostics/passthrough-three"
+          href="/recreation-futures-lab/recxr/diagnostics/passthrough-b"
           style="display: inline-block; padding: 0.8rem 1.05rem; border: 1px solid rgba(255,255,255,0.22); color: #fff; background: transparent; border-radius: 999px; text-decoration: none;"
         >
-          Camera + Three
+          Variant B
+        </a>
+        <a
+          href="/recreation-futures-lab/recxr/diagnostics/passthrough-c"
+          style="display: inline-block; padding: 0.8rem 1.05rem; border: 1px solid rgba(255,255,255,0.22); color: #fff; background: transparent; border-radius: 999px; text-decoration: none;"
+        >
+          Variant C
         </a>
       </div>
 
@@ -103,7 +119,7 @@ const { mode = 'camera' } = Astro.props as Props;
   const stage = root?.querySelector('[data-diagnostic-stage]');
   const startButton = root?.querySelector('[data-diagnostic-start]');
   const restartButton = root?.querySelector('[data-diagnostic-restart]');
-  const mode = root?.getAttribute('data-mode') || 'camera';
+  const variant = root?.getAttribute('data-variant') || 'a';
 
   const sessionDebug = root?.querySelector('[data-debug-session]');
   const tapDebug = root?.querySelector('[data-debug-tap]');
@@ -128,7 +144,6 @@ const { mode = 'camera' } = Astro.props as Props;
   let activePipelineModules = [];
   let glTextureRendererActive = false;
   let trackingState = 'unknown';
-  let threeRendererConfigured = false;
   let startTapReceived = false;
   let startEntered = false;
   let xrScriptLoaded = false;
@@ -165,6 +180,14 @@ const { mode = 'camera' } = Astro.props as Props;
 
   function setError(message) {
     setLine(errorDebug, `last error: ${message || 'none'}`);
+  }
+
+  function usesCustomCanvas() {
+    return variant === 'a';
+  }
+
+  function usesFullWindowCanvas() {
+    return variant === 'c';
   }
 
   function ensureThreeGlobal() {
@@ -244,12 +267,24 @@ const { mode = 'camera' } = Astro.props as Props;
     return [...document.querySelectorAll('canvas, video')]
       .filter((element) => {
         if (element === stageCanvas) return false;
-        if (stage?.contains(element)) return false;
+        if (stage?.contains(element) && usesCustomCanvas()) return false;
         if (element.closest('.recxr-diagnostic')) return false;
         const rect = element.getBoundingClientRect();
         return rect.width > 120 && rect.height > 120;
       })
       .map((element) => describeNode(element));
+  }
+
+  function getPrimaryRenderLayer() {
+    if (usesCustomCanvas()) {
+      return stageCanvas;
+    }
+
+    return [...document.querySelectorAll('canvas, video')].find((element) => {
+      if (element.closest('.recxr-diagnostic')) return false;
+      const rect = element.getBoundingClientRect();
+      return rect.width > 120 && rect.height > 120;
+    });
   }
 
   function syncStageCanvasSize() {
@@ -283,36 +318,16 @@ const { mode = 'camera' } = Astro.props as Props;
   }
 
   function ensureStageCanvas() {
-    if (stageCanvas) return stageCanvas;
-    stageCanvas = stage?.querySelector('canvas[data-diagnostic-canvas="true"]');
+    if (!stageCanvas) {
+      stageCanvas = stage?.querySelector('canvas[data-diagnostic-canvas="true"]');
+    }
     if (!stageCanvas) {
       stageCanvas = document.createElement('canvas');
       stageCanvas.setAttribute('data-diagnostic-canvas', 'true');
-      stage.appendChild(stageCanvas);
+      stage?.appendChild(stageCanvas);
     }
     syncStageCanvasSize();
     return stageCanvas;
-  }
-
-  function configureTransparentThreeRenderer(XR8) {
-    if (mode !== 'three' || threeRendererConfigured || !XR8?.Threejs?.xrScene) return;
-
-    const xrScene = XR8.Threejs.xrScene();
-    const renderer = xrScene?.renderer;
-    if (!renderer) return;
-
-    try {
-      if ('autoClear' in renderer) {
-        renderer.autoClear = false;
-      }
-      if (typeof renderer.setClearColor === 'function') {
-        renderer.setClearColor(0x000000, 0);
-      }
-      alphaDebug.textContent = `renderer alpha/composition: autoClear=${String(renderer.autoClear)} clearAlpha=0`;
-      threeRendererConfigured = true;
-    } catch (error) {
-      setLine(alphaDebug, `renderer alpha/composition: ${error instanceof Error ? error.message : 'config failed'}`);
-    }
   }
 
   function getTrackingState(processCpuResult) {
@@ -327,7 +342,7 @@ const { mode = 'camera' } = Astro.props as Props;
   function buildModules(XR8) {
     const modules = [];
 
-    if (XR8.FullWindowCanvas?.pipelineModule) {
+    if (usesFullWindowCanvas() && XR8.FullWindowCanvas?.pipelineModule) {
       modules.push(XR8.FullWindowCanvas.pipelineModule());
     }
     if (XR8.GlTextureRenderer?.pipelineModule) {
@@ -337,26 +352,22 @@ const { mode = 'camera' } = Astro.props as Props;
     if (XR8.XrController?.pipelineModule) {
       modules.push(XR8.XrController.pipelineModule());
     }
-    if (mode === 'three' && XR8.Threejs?.pipelineModule) {
-      modules.push(XR8.Threejs.pipelineModule());
-    }
 
     modules.push({
-      name: `recxr-diagnostic-${mode}`,
+      name: `recxr-diagnostic-${variant}`,
       onStart: () => {
         setLine(sessionDebug, 'session started: yes');
-        configureTransparentThreeRenderer(XR8);
       },
       onUpdate: ({ processCpuResult }) => {
         trackingState = String(getTrackingState(processCpuResult) || 'unknown');
         setLine(trackingDebug, `tracking state: ${trackingState}`);
-        configureTransparentThreeRenderer(XR8);
       },
       onProcessGpu: () => {
         visibleCanvasFrameCount += 1;
         if (visibleCanvasFrameCount === 1 || visibleCanvasFrameCount % 60 === 0) {
+          const primaryRenderLayer = getPrimaryRenderLayer();
           setLine(framesDebug, `visible canvas draw frames: ${visibleCanvasFrameCount}`);
-          setLine(ownerDebug, `XR render owner: ${describeNode(stageCanvas?.parentElement || stageCanvas)}`);
+          setLine(ownerDebug, `XR render owner: ${describeNode(primaryRenderLayer?.parentElement || primaryRenderLayer)}`);
           setLine(layersDebug, `foreign XR layers: ${listForeignRenderLayers().join(', ') || 'none'}`);
         }
       },
@@ -389,7 +400,6 @@ const { mode = 'camera' } = Astro.props as Props;
     glTextureRendererActive = false;
     visibleCanvasFrameCount = 0;
     trackingState = 'unknown';
-    threeRendererConfigured = false;
     startEntered = false;
     xrScriptLoaded = false;
     xr8Detected = false;
@@ -397,13 +407,13 @@ const { mode = 'camera' } = Astro.props as Props;
     xrRunCalled = false;
     permissionRequested = false;
     startupInFlight = false;
+    stageCanvas = usesCustomCanvas() ? stageCanvas : null;
     updateDebug();
-    setLine(alphaDebug, `renderer alpha/composition: ${mode === 'three' ? 'reset' : 'n/a'}`);
+    setLine(alphaDebug, 'renderer alpha/composition: n/a');
   }
 
   async function startDiagnosticSession({ viaUserGesture = false } = {}) {
-    if (!stage) return;
-    if (startupInFlight) return;
+    if (!stage || startupInFlight) return;
     startupInFlight = true;
     startEntered = true;
     if (viaUserGesture) {
@@ -416,8 +426,7 @@ const { mode = 'camera' } = Astro.props as Props;
     trackingState = 'unknown';
     glTextureRendererActive = false;
     activePipelineModules = [];
-    threeRendererConfigured = false;
-    setLine(alphaDebug, `renderer alpha/composition: ${mode === 'three' ? 'pending' : 'n/a'}`);
+    setLine(alphaDebug, 'renderer alpha/composition: n/a');
     updateDebug();
 
     await stopDiagnosticSession();
@@ -429,10 +438,22 @@ const { mode = 'camera' } = Astro.props as Props;
     updateDebug();
 
     ensureThreeGlobal();
-    ensureStageCanvas();
+    if (usesCustomCanvas()) {
+      ensureStageCanvas();
+    } else {
+      stageCanvas = null;
+      setLine(ownerDebug, 'XR render owner: waiting for XR8-owned canvas');
+      setLine(layersDebug, `foreign XR layers: ${listForeignRenderLayers().join(', ') || 'none'}`);
+    }
 
     resizeHandler = () => {
-      syncStageCanvasSize();
+      if (usesCustomCanvas()) {
+        syncStageCanvasSize();
+      } else {
+        const primaryRenderLayer = getPrimaryRenderLayer();
+        setLine(ownerDebug, `XR render owner: ${describeNode(primaryRenderLayer?.parentElement || primaryRenderLayer)}`);
+        setLine(layersDebug, `foreign XR layers: ${listForeignRenderLayers().join(', ') || 'none'}`);
+      }
     };
     window.addEventListener('resize', resizeHandler);
     window.addEventListener('orientationchange', resizeHandler);
@@ -461,14 +482,24 @@ const { mode = 'camera' } = Astro.props as Props;
       runtimeWindow.XR8.addCameraPipelineModules(modules);
       pipelineAdded = true;
       updateDebug();
+
       xrRunCalled = true;
       updateDebug();
-      await runtimeWindow.XR8.run({
-        canvas: stageCanvas,
+      const runConfig = {
         allowedDevices: 'any',
-      });
+      };
+      if (usesCustomCanvas() && stageCanvas) {
+        runConfig.canvas = stageCanvas;
+      }
+      await runtimeWindow.XR8.run(runConfig);
 
-      syncStageCanvasSize();
+      if (usesCustomCanvas()) {
+        syncStageCanvasSize();
+      } else {
+        const primaryRenderLayer = getPrimaryRenderLayer();
+        setLine(ownerDebug, `XR render owner: ${describeNode(primaryRenderLayer?.parentElement || primaryRenderLayer)}`);
+        setLine(layersDebug, `foreign XR layers: ${listForeignRenderLayers().join(', ') || 'none'}`);
+      }
       updateDebug();
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Unknown startup error');
