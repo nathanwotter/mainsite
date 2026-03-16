@@ -2,6 +2,7 @@ const ENGINE_SCRIPT_URL = '/xr/xr.js'
 const BRIDGE_SCRIPT_URL = '/xr/recxr-8thwall-bootstrap.js'
 
 type SelfHosted8thWallWindow = Window & {
+  __recxrScriptPromises?: Record<string, Promise<void>>
   XR8?: {
     loadChunk?: (chunkName: string) => Promise<void> | void
     XrController?: {
@@ -14,11 +15,38 @@ type SelfHosted8thWallWindow = Window & {
   }
 }
 
-function loadScript(src: string) {
-  return new Promise<void>((resolve, reject) => {
-    const existing = document.querySelector(`script[data-recxr-src="${src}"]`)
+function getRuntimeWindow() {
+  return window as SelfHosted8thWallWindow
+}
+
+function ensureClassicScript(src: string) {
+  const runtimeWindow = getRuntimeWindow()
+  if (!runtimeWindow.__recxrScriptPromises) {
+    runtimeWindow.__recxrScriptPromises = {}
+  }
+
+  const existingPromise = runtimeWindow.__recxrScriptPromises[src]
+  if (existingPromise) {
+    return existingPromise
+  }
+
+  const promise = new Promise<void>((resolve, reject) => {
+    const existing = document.querySelector<HTMLScriptElement>(`script[data-recxr-src="${src}"]`)
     if (existing) {
-      resolve()
+      const loadState = existing.dataset.recxrLoaded
+      if (loadState === 'true') {
+        resolve()
+        return
+      }
+      if (loadState === 'error') {
+        reject(new Error(`Failed to load self-hosted AR script: ${src}`))
+        return
+      }
+
+      existing.addEventListener('load', () => resolve(), { once: true })
+      existing.addEventListener('error', () => reject(new Error(`Failed to load self-hosted AR script: ${src}`)), {
+        once: true,
+      })
       return
     }
 
@@ -26,20 +54,56 @@ function loadScript(src: string) {
     script.src = src
     script.async = true
     script.dataset.recxrSrc = src
+    script.dataset.recxrLoaded = 'false'
     if (src === ENGINE_SCRIPT_URL) {
-      // Self-hosted 8th Wall can preload SLAM directly from the local engine script tag.
+      // Load the self-hosted engine as a classic global script and ask it to preload SLAM.
       script.setAttribute('data-preload-chunks', 'slam')
     }
-    script.onload = () => resolve()
-    script.onerror = () => reject(new Error(`Failed to load self-hosted AR script: ${src}`))
+    script.onload = () => {
+      script.dataset.recxrLoaded = 'true'
+      resolve()
+    }
+    script.onerror = () => {
+      script.dataset.recxrLoaded = 'error'
+      reject(new Error(`Failed to load self-hosted AR script: ${src}`))
+    }
     document.head.appendChild(script)
   })
+
+  runtimeWindow.__recxrScriptPromises[src] = promise
+  return promise
+}
+
+async function loadXr8Engine() {
+  await ensureClassicScript(ENGINE_SCRIPT_URL)
+  const runtimeWindow = await waitForXr8Global()
+  if (!runtimeWindow.XR8) {
+    throw new Error(`Self-hosted 8th Wall engine did not expose XR8 from ${ENGINE_SCRIPT_URL}.`)
+  }
+  return runtimeWindow
+}
+
+async function loadRecxr8thWallBridge() {
+  await ensureClassicScript(BRIDGE_SCRIPT_URL)
+  return getRuntimeWindow()
+}
+
+async function waitForXr8Global(timeoutMs = 4000) {
+  const start = Date.now()
+  while (Date.now() - start < timeoutMs) {
+    const runtimeWindow = getRuntimeWindow()
+    if (runtimeWindow.XR8) {
+      return runtimeWindow
+    }
+    await new Promise((resolve) => window.setTimeout(resolve, 50))
+  }
+  return getRuntimeWindow()
 }
 
 export async function loadSelfHosted8thWall() {
-  await loadScript(ENGINE_SCRIPT_URL)
-  await loadScript(BRIDGE_SCRIPT_URL)
-  return window as SelfHosted8thWallWindow
+  const runtimeWindow = await loadXr8Engine()
+  await loadRecxr8thWallBridge()
+  return runtimeWindow
 }
 
 export function getSelfHosted8thWallPaths() {
@@ -53,9 +117,6 @@ export function getSelfHosted8thWallPaths() {
 
 export async function startSelfHosted8thWallSession(config: Record<string, unknown>) {
   const runtimeWindow = await loadSelfHosted8thWall()
-  if (!runtimeWindow.XR8) {
-    throw new Error(`Self-hosted 8th Wall engine did not expose XR8 from ${ENGINE_SCRIPT_URL}.`)
-  }
 
   if (!runtimeWindow.Recxr8thWallIntegration?.startSession) {
     throw new Error(
