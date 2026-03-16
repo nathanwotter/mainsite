@@ -79,6 +79,78 @@
     }
   }
 
+  function describeNode(element) {
+    if (!element) return 'missing'
+    const id = element.id ? `#${element.id}` : ''
+    const dataMarker = element.getAttribute?.('data-recxr-xr-canvas') ? '[recxr-stage-canvas]' : ''
+    return `${element.tagName.toLowerCase()}${id}${dataMarker}`
+  }
+
+  function getForeignRenderLayerCandidates() {
+    const elements = [...document.querySelectorAll('canvas, video')]
+    return elements.filter((element) => {
+      if (element === state.canvas) return false
+      if (state.container?.contains(element)) return false
+      if (element.closest('#recxr-image-target-overlay')) return false
+
+      const rect = element.getBoundingClientRect()
+      const computed = global.getComputedStyle ? global.getComputedStyle(element) : null
+      const largeEnough = rect.width > 120 && rect.height > 120
+      const looksPositioned = computed ? ['fixed', 'absolute', 'relative'].includes(computed.position) : false
+      const visuallyPresent = computed ? computed.display !== 'none' && computed.visibility !== 'hidden' : true
+
+      return largeEnough && looksPositioned && visuallyPresent
+    })
+  }
+
+  function styleRenderLayer(element, zIndex) {
+    if (!element) return
+    element.style.position = 'absolute'
+    element.style.inset = '0'
+    element.style.width = '100%'
+    element.style.height = '100%'
+    element.style.maxWidth = 'none'
+    element.style.maxHeight = 'none'
+    element.style.objectFit = 'cover'
+    element.style.background = 'transparent'
+    element.style.zIndex = String(zIndex)
+    element.style.pointerEvents = 'none'
+    element.style.display = element.tagName.toLowerCase() === 'video' ? 'block' : element.style.display || 'block'
+  }
+
+  function reconcileRenderLayersIntoStage() {
+    if (!state.container) return
+
+    const foreignLayers = getForeignRenderLayerCandidates()
+    let foreignVideoCount = 0
+    let foreignCanvasCount = 0
+
+    foreignLayers.forEach((element) => {
+      const tagName = element.tagName.toLowerCase()
+      if (tagName === 'video') {
+        foreignVideoCount += 1
+        styleRenderLayer(element, 0)
+      } else {
+        foreignCanvasCount += 1
+        styleRenderLayer(element, 1)
+      }
+
+      if (element.parentElement !== state.container) {
+        state.container.appendChild(element)
+      }
+    })
+
+    if (state.canvas) {
+      styleRenderLayer(state.canvas, foreignVideoCount > 0 ? 1 : 0)
+    }
+
+    emitDebug({
+      event: 'render-layers',
+      renderOwner: describeNode(state.canvas?.parentElement || state.canvas),
+      foreignRenderLayers: foreignLayers.map((element) => describeNode(element)),
+    })
+  }
+
   function getHitResultType(hit) {
     return hit?.type || hit?.hitType || hit?.kind || 'UNSPECIFIED'
   }
@@ -154,6 +226,8 @@
           stageZIndex: stageSummary.zIndex,
           canvasVisibility: canvasSummary.visibility,
           canvasZIndex: canvasSummary.zIndex,
+          renderOwner: describeNode(state.canvas?.parentElement || state.canvas),
+          foreignRenderLayers: getForeignRenderLayerCandidates().map((element) => describeNode(element)),
         }
       })(),
     })
@@ -179,10 +253,12 @@
     if (state.resizeHandler) return
     state.resizeHandler = () => {
       sizeCanvasToContainer()
+      reconcileRenderLayersIntoStage()
     }
     window.addEventListener('resize', state.resizeHandler)
     window.addEventListener('orientationchange', state.resizeHandler)
     sizeCanvasToContainer()
+    reconcileRenderLayersIntoStage()
   }
 
   function unbindCanvasResize() {
@@ -376,6 +452,7 @@
       event: 'tracking',
       trackingStatus: resolvedStatus,
     })
+    reconcileRenderLayersIntoStage()
   }
 
   async function refreshCenterSurfaceCandidate() {
@@ -538,6 +615,8 @@
     emitDebug({
       event: 'pipeline-modules',
       cameraRenderModuleActive: Boolean(XR8.GlTextureRenderer?.pipelineModule),
+      renderOwner: describeNode(state.canvas?.parentElement || state.canvas),
+      foreignRenderLayers: getForeignRenderLayerCandidates().map((element) => describeNode(element)),
     })
   }
 
@@ -598,6 +677,14 @@
 
     if (XR8.run) {
       await XR8.run(runConfig)
+      window.setTimeout(() => {
+        sizeCanvasToContainer()
+        reconcileRenderLayersIntoStage()
+      }, 50)
+      window.setTimeout(() => {
+        sizeCanvasToContainer()
+        reconcileRenderLayersIntoStage()
+      }, 300)
     } else {
       debugStatus('XR8.run is not available yet. Complete the self-hosted engine installation in /public/xr/.')
     }

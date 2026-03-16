@@ -3,7 +3,7 @@
 
 <div
   id="recxr-image-target-overlay"
-  style="display: none; position: fixed; inset: 0; z-index: 1001; background: transparent; color: #fff; overflow: hidden;"
+  style="display: none; position: fixed; inset: 0; z-index: 1001; background: #000; color: #fff; overflow: hidden;"
 >
   <div
     id="recxr-image-target-stage"
@@ -89,7 +89,9 @@
         <p id="recxr-image-target-debug-reject" style="margin: 0 0 0.2rem 0; color: #dbeafe;">candidate reject reason: none</p>
         <p id="recxr-image-target-debug-layout" style="margin: 0 0 0.2rem 0; color: #dbeafe;">stage/canvas layout: unknown</p>
         <p id="recxr-image-target-debug-dom" style="margin: 0 0 0.2rem 0; color: #dbeafe;">overlay/stage/canvas visibility: unknown</p>
-        <p id="recxr-image-target-debug-render" style="margin: 0; color: #dbeafe;">camera render module active: unknown</p>
+        <p id="recxr-image-target-debug-render" style="margin: 0 0 0.2rem 0; color: #dbeafe;">camera render module active: unknown</p>
+        <p id="recxr-image-target-debug-owner" style="margin: 0 0 0.2rem 0; color: #dbeafe;">XR render owner: unknown</p>
+        <p id="recxr-image-target-debug-injected" style="margin: 0; color: #dbeafe;">foreign XR layers in body: none</p>
       </div>
     </div>
 
@@ -134,6 +136,8 @@
   const imageTargetDebugLayout = document.getElementById('recxr-image-target-debug-layout');
   const imageTargetDebugDom = document.getElementById('recxr-image-target-debug-dom');
   const imageTargetDebugRender = document.getElementById('recxr-image-target-debug-render');
+  const imageTargetDebugOwner = document.getElementById('recxr-image-target-debug-owner');
+  const imageTargetDebugInjected = document.getElementById('recxr-image-target-debug-injected');
 
   let currentStop = null;
   let currentSurfaceAvailable = false;
@@ -146,6 +150,8 @@
   let currentLayoutDebug = 'unknown';
   let currentDomDebug = 'unknown';
   let currentRenderDebug = 'unknown';
+  let currentRenderOwnerDebug = 'unknown';
+  let currentInjectedLayersDebug = 'none';
 
   function isLikelyIphone() {
     const ua = navigator.userAgent || '';
@@ -192,6 +198,12 @@
     if (imageTargetDebugRender) {
       imageTargetDebugRender.textContent = `camera render module active: ${currentRenderDebug}`;
     }
+    if (imageTargetDebugOwner) {
+      imageTargetDebugOwner.textContent = `XR render owner: ${currentRenderOwnerDebug}`;
+    }
+    if (imageTargetDebugInjected) {
+      imageTargetDebugInjected.textContent = `foreign XR layers in body: ${currentInjectedLayersDebug}`;
+    }
   }
 
   function setStatusBanner(kind, message) {
@@ -226,6 +238,8 @@
     currentLayoutDebug = 'unknown';
     currentDomDebug = 'unknown';
     currentRenderDebug = 'unknown';
+    currentRenderOwnerDebug = 'unknown';
+    currentInjectedLayersDebug = 'none';
     setDebugState();
 
     if (imageTargetTitle) {
@@ -357,6 +371,14 @@
         }
         if (typeof detail?.cameraRenderModuleActive === 'boolean') {
           currentRenderDebug = detail.cameraRenderModuleActive ? 'yes' : 'no';
+        }
+        if (detail?.renderOwner) {
+          currentRenderOwnerDebug = detail.renderOwner;
+        }
+        if (Array.isArray(detail?.foreignRenderLayers)) {
+          currentInjectedLayersDebug = detail.foreignRenderLayers.length
+            ? detail.foreignRenderLayers.join(', ')
+            : 'none';
         }
         if (detail?.event === 'tracking' && imageTargetStatus && currentTrackingStatus !== 'unknown') {
           imageTargetStatus.textContent = `Scanning for surface... Tracking state: ${currentTrackingStatus}`;
