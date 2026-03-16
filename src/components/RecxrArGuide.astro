@@ -480,7 +480,7 @@
   }
 
   function shouldUseImageTargetGuide(stop) {
-    return Boolean(isLikelyIphone() && getAnchorMode(stop) === 'imageTarget' && getGuideVideoUrl(stop));
+    return Boolean(isLikelyIphone() && getGuideVideoUrl(stop));
   }
 
   function getResolvedGuideMode(stop) {
@@ -1566,11 +1566,11 @@
       if (hasGuideVideo || hasStandardVideo) {
         if (canLaunchAr && canLaunchCamera) {
           arLaunchCopy.textContent = usesImageTargetGuide
-            ? `The nearest stop, ${stop.title || 'this stop'}, is unlocked. Android can keep using world placement, and this iPhone stop is scaffolded for image-target anchoring once the target runtime is connected.`
+            ? `The nearest stop, ${stop.title || 'this stop'}, is unlocked. On iPhone, the primary AR path now uses SLAM surface placement so you can place Nathan on the ground without image tracking.`
             : `The nearest stop, ${stop.title || 'this stop'}, is unlocked. On WebXR-capable phones you can place the guide on a detected surface, and on other phones you can use Camera Guide mode with the same stop video.`;
         } else if (canLaunchCamera) {
           arLaunchCopy.textContent = usesImageTargetGuide
-            ? `The nearest stop, ${stop.title || 'this stop'}, is unlocked. This iPhone stop is configured for image-target anchoring, with Camera Guide still available as the fallback path.`
+            ? `The nearest stop, ${stop.title || 'this stop'}, is unlocked. This iPhone path now uses SLAM-only horizontal-surface placement, with Camera Guide still available as a fallback.`
             : `The nearest stop, ${stop.title || 'this stop'}, is unlocked. Camera Guide mode is ready for this phone, and the standard video player is still available below.`;
         } else if (canLaunchAr) {
           arLaunchCopy.textContent = `The nearest stop, ${stop.title || 'this stop'}, is unlocked. Launch the AR guide to place the video on a detected surface, or use the standard video player.`;
@@ -1586,7 +1586,7 @@
 
     if (cameraLaunchButton) {
       cameraLaunchButton.style.display = hasGuideVideo && isUnlocked ? 'inline-block' : 'none';
-      cameraLaunchButton.textContent = usesImageTargetGuide ? 'Launch Image Target Guide' : 'Launch Camera Guide';
+      cameraLaunchButton.textContent = usesImageTargetGuide ? 'Launch Surface Guide' : 'Launch Camera Guide';
     }
 
     setButtonState(arLaunchButton, canLaunchAr);
