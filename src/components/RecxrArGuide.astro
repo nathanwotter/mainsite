@@ -1898,6 +1898,11 @@
 
     window.addEventListener('recxr-open-camera-guide-fallback', (event) => {
       const stop = event.detail || null;
+      console.log('[RecXR][CameraFallback] event received', {
+        title: stop?.title || null,
+        isUnlocked: Boolean(stop?.isUnlocked),
+        hasGuideVideo: Boolean(getGuideVideoUrl(stop)),
+      });
       if (!stop?.isUnlocked || !getGuideVideoUrl(stop)) return;
 
       currentActiveStop = stop;

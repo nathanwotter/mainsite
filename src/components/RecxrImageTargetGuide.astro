@@ -36,7 +36,10 @@
       </button>
     </div>
 
-    <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1rem;">
+    <div
+      data-recxr-surface-controls
+      style="display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1rem; pointer-events: auto;"
+    >
       <button
         id="recxr-image-target-reset-placement"
         type="button"
@@ -273,6 +276,12 @@
     currentVisibleCanvasFrameCount = 0;
     currentRendererAlphaDebug = 'unknown';
     setDebugState();
+    logSurfaceGuide('camera fallback button rendered', {
+      visible: Boolean(imageTargetOpenCameraFallbackButton),
+      surfaceGuideOpen,
+      hasGuideVideo: Boolean(getGuideVideoUrl(stop)),
+      isUnlocked: Boolean(stop?.isUnlocked),
+    });
 
     if (imageTargetTitle) {
       imageTargetTitle.textContent = stop?.title || 'RecXR Surface Guide';
@@ -503,6 +512,11 @@
 
   imageTargetOpenCameraFallbackButton?.addEventListener('click', async () => {
     if (!currentStop) return;
+    logSurfaceGuide('camera guide launch action fired', {
+      title: currentStop?.title || null,
+      hasGuideVideo: Boolean(getGuideVideoUrl(currentStop)),
+      isUnlocked: Boolean(currentStop?.isUnlocked),
+    });
     await closeSurfaceGuide();
     window.dispatchEvent(new CustomEvent('recxr-open-camera-guide-fallback', { detail: currentStop }));
   });
