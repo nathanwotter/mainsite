@@ -23,6 +23,9 @@
     chosenVideoVariant: 'unknown',
     chromaKeyEnabled: false,
     greenScreenPath: 'none',
+    debugEnabled: false,
+    lastFacingYaw: null,
+    lastFacingYawLogAt: 0,
     sceneResources: null,
     pipelineModulesAdded: false,
     sessionStarting: false,
@@ -47,7 +50,9 @@
 
   function debugStatus(message) {
     setStatus(message)
-    console.log('[RecXR][8thWall]', message)
+    if (state.debugEnabled) {
+      console.log('[RecXR][8thWall]', message)
+    }
   }
 
   function emitError(message, originalError) {
@@ -293,6 +298,7 @@
     video.loop = true
     video.muted = true
     video.defaultMuted = true
+    video.volume = 1
     video.playsInline = true
     video.setAttribute('webkit-playsinline', 'true')
     video.preload = 'auto'
@@ -340,6 +346,7 @@
       vec4 colorSample = texture2D(videoMap, sampleUv);
       float chromaDistance = distance(colorSample.rgb, keyColor);
       float alpha = smoothstep(similarity, similarity + smoothness, chromaDistance);
+      alpha = alpha < 0.22 ? 0.0 : 1.0;
 
       float maxOther = max(colorSample.r, colorSample.b);
       float greenExcess = max(0.0, colorSample.g - maxOther);
@@ -376,17 +383,22 @@
       state.chromaKeyEnabled = false
       state.greenScreenPath = 'packed-alpha-shader'
       debugStatus('Green-screen removal path in use: packed-alpha shader.')
-      return new THREE.ShaderMaterial({
+      const material = new THREE.ShaderMaterial({
         uniforms: {
           videoMap: { value: texture },
         },
         vertexShader: guideVideoVertexShader,
         fragmentShader: packedAlphaGuideFragmentShader,
         transparent: true,
+        alphaTest: 0.5,
         side: THREE.DoubleSide,
-        depthWrite: false,
+        depthWrite: true,
         toneMapped: false,
       })
+      debugStatus(
+        `Material transparency settings: path=${state.greenScreenPath} transparent=${String(material.transparent)} alphaTest=${String(material.alphaTest)} depthWrite=${String(material.depthWrite)}`
+      )
+      return material
     }
 
     const chosenVariant = chooseGuideVariant(guide || {})
@@ -395,7 +407,7 @@
     state.greenScreenPath = 'chroma-key-shader'
     debugStatus(`Green-screen removal path in use: chroma-key shader. chosenVariant=${chosenVariant}`)
 
-    return new THREE.ShaderMaterial({
+    const material = new THREE.ShaderMaterial({
       uniforms: {
         videoMap: { value: texture },
         variantOffset: { value: chosenVariant === 'bottom' ? 0.0 : 0.5 },
@@ -406,34 +418,85 @@
       vertexShader: guideVideoVertexShader,
       fragmentShader: chromaKeyGuideFragmentShader,
       transparent: true,
+      alphaTest: 0.5,
       side: THREE.DoubleSide,
-      depthWrite: false,
+      depthWrite: true,
       toneMapped: false,
     })
+    debugStatus(
+      `Material transparency settings: path=${state.greenScreenPath} transparent=${String(material.transparent)} alphaTest=${String(material.alphaTest)} depthWrite=${String(material.depthWrite)}`
+    )
+    return material
   }
 
-  async function kickGuideVideoPlayback(context) {
+  async function kickGuideVideoPlayback(context, options = {}) {
     const video = state.guideVideo
     if (!video) {
       debugStatus(`Poster/static texture fallback detected because no guide video element exists during ${context}.`)
       return
     }
 
+    const allowAudio = Boolean(options.allowAudio)
+    if (allowAudio) {
+      video.muted = false
+      video.defaultMuted = false
+      video.volume = 1
+    }
+
     debugStatus(
-      `Video state before ${context}: paused=${String(video.paused)} muted=${String(video.muted)} playsInline=${String(video.playsInline)} readyState=${video.readyState} currentTime=${video.currentTime.toFixed(3)}`
+      `Video state before ${context}: paused=${String(video.paused)} muted=${String(video.muted)} volume=${video.volume.toFixed(2)} playsInline=${String(video.playsInline)} readyState=${video.readyState} currentTime=${video.currentTime.toFixed(3)}`
     )
 
     try {
       await video.play()
-      debugStatus(`video.play() resolved during ${context}.`)
+      debugStatus(`video.play() resolved during ${context}. audio=${allowAudio ? 'requested' : 'unchanged'}`)
     } catch (error) {
-      debugStatus(`video.play() rejected during ${context}.`)
+      debugStatus(`video.play() rejected during ${context}. audio=${allowAudio ? 'requested' : 'unchanged'}`)
+      if (allowAudio) {
+        video.muted = true
+        video.defaultMuted = true
+        try {
+          await video.play()
+          debugStatus(`audio play fallback succeeded during ${context} after remuting video.`)
+        } catch (_fallbackError) {
+          // Preserve the original rejection below.
+        }
+      }
       emitError('Guide video failed to start during world placement.', error)
     }
 
     debugStatus(
-      `Video state after ${context}: paused=${String(video.paused)} muted=${String(video.muted)} playsInline=${String(video.playsInline)} readyState=${video.readyState} currentTime=${video.currentTime.toFixed(3)}`
+      `Video state after ${context}: paused=${String(video.paused)} muted=${String(video.muted)} volume=${video.volume.toFixed(2)} playsInline=${String(video.playsInline)} readyState=${video.readyState} currentTime=${video.currentTime.toFixed(3)}`
     )
+  }
+
+  function updateGuideFacingYaw() {
+    const placement = state.config?.placement || {}
+    if (!placement.faceCameraYawOnly || !state.guideWorldPlaced || !state.guideMesh) return
+
+    const camera = state.sceneResources?.camera
+    if (!camera?.position) return
+
+    const dx = (camera.position.x || 0) - state.guideMesh.position.x
+    const dz = (camera.position.z || 0) - state.guideMesh.position.z
+    if (!dx && !dz) return
+
+    const nextYaw = Math.atan2(dx, dz)
+    state.guideMesh.rotation.x = placement.rotation?.x ?? 0
+    state.guideMesh.rotation.z = placement.rotation?.z ?? 0
+    state.guideMesh.rotation.y = nextYaw
+
+    const now = Date.now()
+    if (
+      state.debugEnabled &&
+      (state.lastFacingYaw == null || Math.abs(nextYaw - state.lastFacingYaw) > 0.12 || now - state.lastFacingYawLogAt > 1200)
+    ) {
+      debugStatus(
+        `Facing yaw updated: camera=(${(camera.position.x || 0).toFixed(3)}, ${(camera.position.y || 0).toFixed(3)}, ${(camera.position.z || 0).toFixed(3)}) mesh=(${state.guideMesh.position.x.toFixed(3)}, ${state.guideMesh.position.y.toFixed(3)}, ${state.guideMesh.position.z.toFixed(3)}) yaw=${nextYaw.toFixed(3)}`
+      )
+      state.lastFacingYawLogAt = now
+    }
+    state.lastFacingYaw = nextYaw
   }
 
   async function ensureSceneResources() {
@@ -550,6 +613,7 @@
       const dz = (cameraPosition?.z || 0) - mesh.position.z
       if (dx || dz) {
         mesh.rotation.y = Math.atan2(dx, dz)
+        state.lastFacingYaw = mesh.rotation.y
       }
     }
 
@@ -716,7 +780,7 @@
     const point = normalizeTouchPoint(event)
     try {
       ensureGuideVideo(state.config.guide || {})
-      await kickGuideVideoPlayback('tap gesture')
+      await kickGuideVideoPlayback('tap gesture', { allowAudio: true })
       const includedTypes = getIncludedHitTypes()
       debugStatus(
         `Tap coordinates client=(${point.clientX.toFixed(1)}, ${point.clientY.toFixed(1)}) normalized=(${point.x.toFixed(3)}, ${point.y.toFixed(3)}) reference=${Math.round(point.referenceWidth)}x${Math.round(point.referenceHeight)}`
@@ -780,14 +844,15 @@
       },
       onUpdate: ({ processCpuResult }) => {
         const reality = processCpuResult?.reality
-        const nextTrackingStatus =
+      const nextTrackingStatus =
           reality?.trackingStatus || reality?.worldTrackingStatus || reality?.slamStatus || state.trackingStatus
-        if (nextTrackingStatus) {
-          updateTrackingStatus(String(nextTrackingStatus))
-        }
-        refreshCenterSurfaceCandidate()
-      },
-    }
+      if (nextTrackingStatus) {
+        updateTrackingStatus(String(nextTrackingStatus))
+      }
+      updateGuideFacingYaw()
+      refreshCenterSurfaceCandidate()
+    },
+  }
   }
 
   function getRuntimeErrorPipelineModule() {
@@ -894,6 +959,7 @@
     await stopSession()
 
     state.config = config || {}
+    state.debugEnabled = Boolean(state.config?.debugEnabled)
     state.container = config.canvasContainer
     if (!state.container) {
       throw new Error('startSession requires config.canvasContainer.')
@@ -910,6 +976,8 @@
     state.threeRendererConfigured = false
     state.rendererAlphaDebug = 'unknown'
     state.lastTapAt = 0
+    state.lastFacingYaw = null
+    state.lastFacingYawLogAt = 0
     updateTrackingStatus('starting')
     setSurfaceCandidate(null)
     debugStatus('Self-hosted 8th Wall bootstrap startSession entered.')
@@ -1011,6 +1079,9 @@
     state.pipelineModulesAdded = false
     state.sessionRunning = false
     state.lastTapAt = 0
+    state.debugEnabled = false
+    state.lastFacingYaw = null
+    state.lastFacingYawLogAt = 0
     setSurfaceCandidate(null)
     state.config = null
     debugStatus('8th Wall session stopped and lifecycle state reset.')
