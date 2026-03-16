@@ -1,0 +1,416 @@
+---
+import * as THREE from 'three';
+
+type DiagnosticMode = 'camera' | 'three';
+
+interface Props {
+  mode?: DiagnosticMode;
+}
+
+const { mode = 'camera' } = Astro.props as Props;
+---
+
+<div
+  class="recxr-diagnostic"
+  data-mode={mode}
+  style="position: fixed; inset: 0; z-index: 1100; background: #000; color: #fff; overflow: hidden;"
+>
+  <div
+    data-diagnostic-stage
+    style="position: absolute; inset: 0; z-index: 0; background: #000; overflow: hidden;"
+  ></div>
+
+  <div
+    style="position: absolute; inset: 0; z-index: 1; pointer-events: none; background: linear-gradient(to bottom, rgba(0, 0, 0, 0.32), rgba(0, 0, 0, 0.06) 35%, rgba(0, 0, 0, 0.42));"
+  ></div>
+
+  <div
+    style="position: relative; z-index: 2; max-width: 40rem; padding: 1rem; pointer-events: auto;"
+  >
+    <div style="padding: 1rem; border-radius: 18px; border: 1px solid rgba(255,255,255,0.14); background: rgba(15, 23, 42, 0.72); backdrop-filter: blur(10px);">
+      <p style="margin: 0 0 0.35rem 0; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #93c5fd;">
+        RecXR Diagnostic
+      </p>
+      <h1 style="margin: 0 0 0.5rem 0; font-size: 1.45rem;">
+        {mode === 'camera' ? '8th Wall Passthrough Only' : '8th Wall Passthrough + ThreeJS'}
+      </h1>
+      <p style="margin: 0 0 1rem 0; line-height: 1.6; color: #dbeafe;">
+        {mode === 'camera'
+          ? 'Minimal self-hosted XR8 test with camera passthrough and SLAM only.'
+          : 'Minimal self-hosted XR8 test with camera passthrough plus an empty transparent ThreeJS scene.'}
+      </p>
+
+      <div style="display: flex; gap: 0.65rem; flex-wrap: wrap; margin-bottom: 1rem;">
+        <button
+          type="button"
+          data-diagnostic-restart
+          style="display: inline-block; padding: 0.8rem 1.05rem; border: 1px solid rgba(255,255,255,0.3); color: #fff; background: rgba(255,255,255,0.08); border-radius: 999px; cursor: pointer;"
+        >
+          Restart Session
+        </button>
+        <a
+          href="/recreation-futures-lab/recxr/diagnostics/passthrough"
+          style="display: inline-block; padding: 0.8rem 1.05rem; border: 1px solid rgba(255,255,255,0.22); color: #fff; background: transparent; border-radius: 999px; text-decoration: none;"
+        >
+          Camera Only
+        </a>
+        <a
+          href="/recreation-futures-lab/recxr/diagnostics/passthrough-three"
+          style="display: inline-block; padding: 0.8rem 1.05rem; border: 1px solid rgba(255,255,255,0.22); color: #fff; background: transparent; border-radius: 999px; text-decoration: none;"
+        >
+          Camera + Three
+        </a>
+      </div>
+
+      <div style="display: grid; gap: 0.55rem;">
+        <p data-debug-session style="margin: 0; color: #dbeafe;">session started: no</p>
+        <p data-debug-tracking style="margin: 0; color: #dbeafe;">tracking state: unknown</p>
+        <p data-debug-frames style="margin: 0; color: #dbeafe;">visible canvas draw frames: 0</p>
+        <p data-debug-render style="margin: 0; color: #dbeafe;">camera render module active: no</p>
+        <p data-debug-modules style="margin: 0; color: #dbeafe;">active pipeline modules: unknown</p>
+        <p data-debug-owner style="margin: 0; color: #dbeafe;">XR render owner: unknown</p>
+        <p data-debug-layers style="margin: 0; color: #dbeafe;">foreign XR layers: none</p>
+        <p data-debug-alpha style="margin: 0; color: #dbeafe;">renderer alpha/composition: n/a</p>
+        <p data-debug-error style="margin: 0; color: #fca5a5;">last error: none</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const ENGINE_SCRIPT_URL = '/xr/xr.js';
+
+  const root = document.querySelector('.recxr-diagnostic');
+  const stage = root?.querySelector('[data-diagnostic-stage]');
+  const restartButton = root?.querySelector('[data-diagnostic-restart]');
+  const mode = root?.getAttribute('data-mode') || 'camera';
+
+  const sessionDebug = root?.querySelector('[data-debug-session]');
+  const trackingDebug = root?.querySelector('[data-debug-tracking]');
+  const framesDebug = root?.querySelector('[data-debug-frames]');
+  const renderDebug = root?.querySelector('[data-debug-render]');
+  const modulesDebug = root?.querySelector('[data-debug-modules]');
+  const ownerDebug = root?.querySelector('[data-debug-owner]');
+  const layersDebug = root?.querySelector('[data-debug-layers]');
+  const alphaDebug = root?.querySelector('[data-debug-alpha]');
+  const errorDebug = root?.querySelector('[data-debug-error]');
+
+  let stageCanvas = null;
+  let resizeHandler = null;
+  let visibleCanvasFrameCount = 0;
+  let activePipelineModules = [];
+  let glTextureRendererActive = false;
+  let trackingState = 'unknown';
+  let threeRendererConfigured = false;
+
+  function getRuntimeWindow() {
+    return window;
+  }
+
+  function setLine(element, text) {
+    if (element) {
+      element.textContent = text;
+    }
+  }
+
+  function updateDebug() {
+    setLine(sessionDebug, `session started: ${visibleCanvasFrameCount > 0 ? 'yes' : 'no'}`);
+    setLine(trackingDebug, `tracking state: ${trackingState}`);
+    setLine(framesDebug, `visible canvas draw frames: ${visibleCanvasFrameCount}`);
+    setLine(renderDebug, `camera render module active: ${glTextureRendererActive ? 'yes' : 'no'}`);
+    setLine(modulesDebug, `active pipeline modules: ${activePipelineModules.join(', ') || 'unknown'}`);
+  }
+
+  function setError(message) {
+    setLine(errorDebug, `last error: ${message || 'none'}`);
+  }
+
+  function ensureThreeGlobal() {
+    const runtimeWindow = getRuntimeWindow();
+    if (!runtimeWindow.THREE) {
+      runtimeWindow.THREE = THREE;
+    }
+  }
+
+  function ensureClassicScript(src) {
+    const runtimeWindow = getRuntimeWindow();
+    runtimeWindow.__recxrDiagnosticPromises ||= {};
+
+    if (runtimeWindow.__recxrDiagnosticPromises[src]) {
+      return runtimeWindow.__recxrDiagnosticPromises[src];
+    }
+
+    runtimeWindow.__recxrDiagnosticPromises[src] = new Promise((resolve, reject) => {
+      const existing = document.querySelector(`script[data-recxr-diagnostic-src="${src}"]`);
+      if (existing) {
+        const loadState = existing.dataset.recxrLoaded;
+        if (loadState === 'true') {
+          resolve();
+          return;
+        }
+        if (loadState === 'error') {
+          reject(new Error(`Failed to load diagnostic AR script: ${src}`));
+          return;
+        }
+        existing.addEventListener('load', () => resolve(), { once: true });
+        existing.addEventListener('error', () => reject(new Error(`Failed to load diagnostic AR script: ${src}`)), {
+          once: true,
+        });
+        return;
+      }
+
+      const script = document.createElement('script');
+      script.src = src;
+      script.async = true;
+      script.dataset.recxrDiagnosticSrc = src;
+      script.dataset.recxrLoaded = 'false';
+      script.setAttribute('data-preload-chunks', 'slam');
+      script.onload = () => {
+        script.dataset.recxrLoaded = 'true';
+        resolve();
+      };
+      script.onerror = () => {
+        script.dataset.recxrLoaded = 'error';
+        reject(new Error(`Failed to load diagnostic AR script: ${src}`));
+      };
+      document.head.appendChild(script);
+    });
+
+    return runtimeWindow.__recxrDiagnosticPromises[src];
+  }
+
+  async function waitForXr8Global(timeoutMs = 4000) {
+    const startedAt = Date.now();
+    while (Date.now() - startedAt < timeoutMs) {
+      const runtimeWindow = getRuntimeWindow();
+      if (runtimeWindow.XR8) {
+        return runtimeWindow;
+      }
+      await new Promise((resolve) => window.setTimeout(resolve, 50));
+    }
+    return getRuntimeWindow();
+  }
+
+  function describeNode(element) {
+    if (!element) return 'missing';
+    const id = element.id ? `#${element.id}` : '';
+    const marker = element.getAttribute?.('data-diagnostic-canvas') ? '[diagnostic-stage-canvas]' : '';
+    return `${element.tagName.toLowerCase()}${id}${marker}`;
+  }
+
+  function listForeignRenderLayers() {
+    return [...document.querySelectorAll('canvas, video')]
+      .filter((element) => {
+        if (element === stageCanvas) return false;
+        if (stage?.contains(element)) return false;
+        if (element.closest('.recxr-diagnostic')) return false;
+        const rect = element.getBoundingClientRect();
+        return rect.width > 120 && rect.height > 120;
+      })
+      .map((element) => describeNode(element));
+  }
+
+  function syncStageCanvasSize() {
+    if (!stageCanvas || !stage) return;
+
+    const rect = stage.getBoundingClientRect();
+    const width = Math.max(Math.round(rect.width || window.innerWidth || 1), 1);
+    const height = Math.max(Math.round(rect.height || window.innerHeight || 1), 1);
+    const ratio = Math.max(window.devicePixelRatio || 1, 1);
+
+    stage.style.position = 'absolute';
+    stage.style.inset = '0';
+    stage.style.width = '100%';
+    stage.style.height = '100%';
+    stage.style.background = '#000';
+    stage.style.overflow = 'hidden';
+
+    stageCanvas.style.position = 'absolute';
+    stageCanvas.style.inset = '0';
+    stageCanvas.style.width = '100%';
+    stageCanvas.style.height = '100%';
+    stageCanvas.style.objectFit = 'cover';
+    stageCanvas.style.background = 'transparent';
+    stageCanvas.style.pointerEvents = 'none';
+
+    stageCanvas.width = Math.max(Math.round(width * ratio), 1);
+    stageCanvas.height = Math.max(Math.round(height * ratio), 1);
+
+    setLine(ownerDebug, `XR render owner: ${describeNode(stageCanvas.parentElement || stageCanvas)}`);
+    setLine(layersDebug, `foreign XR layers: ${listForeignRenderLayers().join(', ') || 'none'}`);
+  }
+
+  function ensureStageCanvas() {
+    if (stageCanvas) return stageCanvas;
+    stageCanvas = stage?.querySelector('canvas[data-diagnostic-canvas="true"]');
+    if (!stageCanvas) {
+      stageCanvas = document.createElement('canvas');
+      stageCanvas.setAttribute('data-diagnostic-canvas', 'true');
+      stage.appendChild(stageCanvas);
+    }
+    syncStageCanvasSize();
+    return stageCanvas;
+  }
+
+  function configureTransparentThreeRenderer(XR8) {
+    if (mode !== 'three' || threeRendererConfigured || !XR8?.Threejs?.xrScene) return;
+
+    const xrScene = XR8.Threejs.xrScene();
+    const renderer = xrScene?.renderer;
+    if (!renderer) return;
+
+    try {
+      if ('autoClear' in renderer) {
+        renderer.autoClear = false;
+      }
+      if (typeof renderer.setClearColor === 'function') {
+        renderer.setClearColor(0x000000, 0);
+      }
+      alphaDebug.textContent = `renderer alpha/composition: autoClear=${String(renderer.autoClear)} clearAlpha=0`;
+      threeRendererConfigured = true;
+    } catch (error) {
+      setLine(alphaDebug, `renderer alpha/composition: ${error instanceof Error ? error.message : 'config failed'}`);
+    }
+  }
+
+  function getTrackingState(processCpuResult) {
+    const reality = processCpuResult?.reality;
+    return reality?.trackingStatus || reality?.worldTrackingStatus || reality?.slamStatus || trackingState;
+  }
+
+  function getModuleName(module) {
+    return module?.name || 'anonymous-module';
+  }
+
+  function buildModules(XR8) {
+    const modules = [];
+
+    if (XR8.FullWindowCanvas?.pipelineModule) {
+      modules.push(XR8.FullWindowCanvas.pipelineModule());
+    }
+    if (XR8.GlTextureRenderer?.pipelineModule) {
+      modules.push(XR8.GlTextureRenderer.pipelineModule());
+      glTextureRendererActive = true;
+    }
+    if (XR8.XrController?.pipelineModule) {
+      modules.push(XR8.XrController.pipelineModule());
+    }
+    if (mode === 'three' && XR8.Threejs?.pipelineModule) {
+      modules.push(XR8.Threejs.pipelineModule());
+    }
+
+    modules.push({
+      name: `recxr-diagnostic-${mode}`,
+      onStart: () => {
+        setLine(sessionDebug, 'session started: yes');
+        configureTransparentThreeRenderer(XR8);
+      },
+      onUpdate: ({ processCpuResult }) => {
+        trackingState = String(getTrackingState(processCpuResult) || 'unknown');
+        setLine(trackingDebug, `tracking state: ${trackingState}`);
+        configureTransparentThreeRenderer(XR8);
+      },
+      onProcessGpu: () => {
+        visibleCanvasFrameCount += 1;
+        if (visibleCanvasFrameCount === 1 || visibleCanvasFrameCount % 60 === 0) {
+          setLine(framesDebug, `visible canvas draw frames: ${visibleCanvasFrameCount}`);
+          setLine(ownerDebug, `XR render owner: ${describeNode(stageCanvas?.parentElement || stageCanvas)}`);
+          setLine(layersDebug, `foreign XR layers: ${listForeignRenderLayers().join(', ') || 'none'}`);
+        }
+      },
+      onException: (error) => {
+        setError(error instanceof Error ? error.message : 'Unknown XR pipeline error');
+      },
+    });
+
+    activePipelineModules = modules.map((module) => getModuleName(module));
+    updateDebug();
+    return modules;
+  }
+
+  async function stopDiagnosticSession() {
+    const runtimeWindow = getRuntimeWindow();
+    const XR8 = runtimeWindow.XR8;
+    if (resizeHandler) {
+      window.removeEventListener('resize', resizeHandler);
+      window.removeEventListener('orientationchange', resizeHandler);
+      resizeHandler = null;
+    }
+    if (XR8?.stop) {
+      try {
+        await XR8.stop();
+      } catch (_error) {
+        // Ignore teardown failures for diagnostics.
+      }
+    }
+    activePipelineModules = [];
+    glTextureRendererActive = false;
+    visibleCanvasFrameCount = 0;
+    trackingState = 'unknown';
+    threeRendererConfigured = false;
+    updateDebug();
+    setLine(alphaDebug, `renderer alpha/composition: ${mode === 'three' ? 'reset' : 'n/a'}`);
+  }
+
+  async function startDiagnosticSession() {
+    if (!stage) return;
+
+    setError('none');
+    visibleCanvasFrameCount = 0;
+    trackingState = 'unknown';
+    glTextureRendererActive = false;
+    activePipelineModules = [];
+    threeRendererConfigured = false;
+    setLine(alphaDebug, `renderer alpha/composition: ${mode === 'three' ? 'pending' : 'n/a'}`);
+
+    await stopDiagnosticSession();
+
+    ensureThreeGlobal();
+    ensureStageCanvas();
+
+    resizeHandler = () => {
+      syncStageCanvasSize();
+    };
+    window.addEventListener('resize', resizeHandler);
+    window.addEventListener('orientationchange', resizeHandler);
+
+    try {
+      await ensureClassicScript(ENGINE_SCRIPT_URL);
+      const runtimeWindow = await waitForXr8Global();
+      if (!runtimeWindow.XR8) {
+        throw new Error(`XR8 was not exposed by ${ENGINE_SCRIPT_URL}.`);
+      }
+
+      if (runtimeWindow.XR8.loadChunk) {
+        await runtimeWindow.XR8.loadChunk('slam');
+      }
+      if (runtimeWindow.XR8.XrController?.configure) {
+        runtimeWindow.XR8.XrController.configure({
+          enableWorldPoints: true,
+        });
+      }
+
+      const modules = buildModules(runtimeWindow.XR8);
+      runtimeWindow.XR8.addCameraPipelineModules(modules);
+      await runtimeWindow.XR8.run({
+        canvas: stageCanvas,
+        allowedDevices: 'any',
+      });
+
+      syncStageCanvasSize();
+      updateDebug();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Unknown startup error');
+    }
+  }
+
+  restartButton?.addEventListener('click', () => {
+    startDiagnosticSession();
+  });
+
+  window.addEventListener('beforeunload', () => {
+    stopDiagnosticSession();
+  });
+
+  startDiagnosticSession();
+</script>
