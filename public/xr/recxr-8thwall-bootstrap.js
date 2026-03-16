@@ -333,6 +333,7 @@
     }
 
     const video = ensureGuideVideo(state.config.guide || {})
+    debugStatus(`Guide video exists: ${video ? 'yes' : 'no'}. src=${video?.src || 'none'}`)
     await new Promise((resolve) => {
       const onReady = () => {
         video.removeEventListener('loadedmetadata', onReady)
@@ -364,11 +365,15 @@
 
     const mesh = new THREE.Mesh(geometry, material)
     const placement = state.config?.placement || {}
-    const position = placement.position || { x: 0, y: 0, z: height / 2 }
-    const rotation = placement.rotation || { x: -Math.PI / 2, y: 0, z: 0 }
-    mesh.position.set(position.x || 0, position.y || 0, position.z || (height / 2))
-    mesh.rotation.set(rotation.x || 0, rotation.y || 0, 0)
+    const position = placement.position || { x: 0, y: height / 2, z: 0 }
+    const rotation = placement.rotation || { x: 0, y: 0, z: 0 }
+    mesh.position.set(position.x ?? 0, position.y ?? (height / 2), position.z ?? 0)
+    mesh.rotation.set(rotation.x ?? 0, rotation.y ?? 0, rotation.z ?? 0)
     mesh.visible = false
+
+    debugStatus(
+      `Guide mesh created. transform position=(${mesh.position.x.toFixed(3)}, ${mesh.position.y.toFixed(3)}, ${mesh.position.z.toFixed(3)}) rotation=(${mesh.rotation.x.toFixed(3)}, ${mesh.rotation.y.toFixed(3)}, ${mesh.rotation.z.toFixed(3)}) aspect=${aspect.toFixed(3)}`
+    )
 
     state.guideMesh = mesh
     state.guideTexture = texture
@@ -391,13 +396,16 @@
     xrScene.scene.add(mesh)
     mesh.visible = true
 
-    if (hit?.position) {
-      mesh.position.set(hit.position.x || 0, hit.position.y || 0, hit.position.z || 0)
-    }
-
     const placement = state.config?.placement || {}
+    const basePosition = hit?.position || { x: 0, y: 0, z: 0 }
+    const placementOffset = placement.position || { x: 0, y: 0, z: 0 }
+    mesh.position.set(
+      (basePosition.x ?? 0) + (placementOffset.x ?? 0),
+      (basePosition.y ?? 0) + (placementOffset.y ?? 0),
+      (basePosition.z ?? 0) + (placementOffset.z ?? 0)
+    )
     const yawOnly = placement.rotation?.y || 0
-    mesh.rotation.set(placement.rotation?.x || -Math.PI / 2, yawOnly, 0)
+    mesh.rotation.set(placement.rotation?.x ?? 0, yawOnly, placement.rotation?.z ?? 0)
 
     if (placement.faceCameraYawOnly && xrScene.camera) {
       const cameraPosition = xrScene.camera.position
@@ -408,8 +416,28 @@
       }
     }
 
+    const video = state.guideVideo
+    if (video) {
+      try {
+        debugStatus(
+          `Calling video.play(). paused=${String(video.paused)} readyState=${video.readyState} currentTime=${video.currentTime.toFixed(3)}`
+        )
+        await video.play()
+      } catch (error) {
+        emitError('Guide video failed to start during world placement.', error)
+      }
+      debugStatus(
+        `Video playback state after placement. paused=${String(video.paused)} readyState=${video.readyState} currentTime=${video.currentTime.toFixed(3)}`
+      )
+    } else {
+      debugStatus('Poster/static texture fallback detected because no guide video element exists.')
+    }
+
     state.guideWorldPlaced = true
     setSurfaceCandidate(hit)
+    debugStatus(
+      `Final mesh transform position=(${mesh.position.x.toFixed(3)}, ${mesh.position.y.toFixed(3)}, ${mesh.position.z.toFixed(3)}) rotation=(${mesh.rotation.x.toFixed(3)}, ${mesh.rotation.y.toFixed(3)}, ${mesh.rotation.z.toFixed(3)})`
+    )
     debugStatus(`Nathan placed in world space using ${hit?.type || 'unknown'} hit.`)
 
     if (typeof state.config?.onWorldPlaced === 'function') {

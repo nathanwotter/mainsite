@@ -14,11 +14,11 @@ export function getUprightGuidePlacement(input: UprightPlacementInput, guideHeig
   return {
     position: {
       x: offsetX,
-      y: offsetY,
-      z: (guideHeight / 2) + offsetZ,
+      y: (guideHeight / 2) + offsetY,
+      z: offsetZ,
     },
     rotation: {
-      x: -Math.PI / 2,
+      x: 0,
       y: (yaw * Math.PI) / 180,
       z: 0,
     },
