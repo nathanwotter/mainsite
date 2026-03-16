@@ -1,8 +1,11 @@
+import * as THREE from 'three'
+
 const ENGINE_SCRIPT_URL = '/xr/xr.js'
 const BRIDGE_SCRIPT_URL = '/xr/recxr-8thwall-bootstrap.js'
 
 type SelfHosted8thWallWindow = Window & {
   __recxrScriptPromises?: Record<string, Promise<void>>
+  THREE?: typeof THREE
   XR8?: {
     loadChunk?: (chunkName: string) => Promise<void> | void
     XrController?: {
@@ -17,6 +20,14 @@ type SelfHosted8thWallWindow = Window & {
 
 function getRuntimeWindow() {
   return window as SelfHosted8thWallWindow
+}
+
+function ensureThreeGlobal() {
+  const runtimeWindow = getRuntimeWindow()
+  if (!runtimeWindow.THREE) {
+    runtimeWindow.THREE = THREE
+  }
+  return runtimeWindow
 }
 
 function ensureClassicScript(src: string) {
@@ -101,7 +112,9 @@ async function waitForXr8Global(timeoutMs = 4000) {
 }
 
 export async function loadSelfHosted8thWall() {
+  ensureThreeGlobal()
   const runtimeWindow = await loadXr8Engine()
+  ensureThreeGlobal()
   await loadRecxr8thWallBridge()
   return runtimeWindow
 }
