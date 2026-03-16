@@ -392,13 +392,17 @@
         vertexShader: guideVideoVertexShader,
         fragmentShader: packedAlphaGuideFragmentShader,
         transparent: true,
+        opacity: 1,
         alphaTest: 0.5,
+        premultipliedAlpha: false,
+        blending: THREE.NormalBlending,
         side: THREE.DoubleSide,
+        depthTest: true,
         depthWrite: true,
         toneMapped: false,
       })
       debugStatus(
-        `Material transparency settings: path=${state.greenScreenPath} transparent=${String(material.transparent)} alphaTest=${String(material.alphaTest)} depthWrite=${String(material.depthWrite)}`
+        `Material transparency settings: path=${state.greenScreenPath} transparent=${String(material.transparent)} opacity=${String(material.opacity)} alphaTest=${String(material.alphaTest)} premultipliedAlpha=${String(material.premultipliedAlpha)} blending=${String(material.blending)} depthTest=${String(material.depthTest)} depthWrite=${String(material.depthWrite)}`
       )
       return material
     }
@@ -423,12 +427,14 @@
       opacity: 1,
       alphaTest: 0.5,
       premultipliedAlpha: false,
+      blending: THREE.NoBlending,
       side: THREE.DoubleSide,
+      depthTest: true,
       depthWrite: true,
       toneMapped: false,
     })
     debugStatus(
-      `Material transparency settings: path=${state.greenScreenPath} transparent=${String(material.transparent)} opacity=${String(material.opacity)} alphaTest=${String(material.alphaTest)} premultipliedAlpha=${String(material.premultipliedAlpha)} depthWrite=${String(material.depthWrite)}`
+      `Material transparency settings: path=${state.greenScreenPath} transparent=${String(material.transparent)} opacity=${String(material.opacity)} alphaTest=${String(material.alphaTest)} premultipliedAlpha=${String(material.premultipliedAlpha)} blending=${String(material.blending)} depthTest=${String(material.depthTest)} depthWrite=${String(material.depthWrite)}`
     )
     return material
   }
