@@ -346,13 +346,15 @@
       vec4 colorSample = texture2D(videoMap, sampleUv);
       float chromaDistance = distance(colorSample.rgb, keyColor);
       float alpha = smoothstep(similarity, similarity + smoothness, chromaDistance);
-      alpha = alpha < 0.22 ? 0.0 : 1.0;
+      if (alpha < 0.5) {
+        discard;
+      }
 
       float maxOther = max(colorSample.r, colorSample.b);
       float greenExcess = max(0.0, colorSample.g - maxOther);
       vec3 despilled = vec3(colorSample.r, colorSample.g - (greenExcess * 0.65), colorSample.b);
 
-      gl_FragColor = vec4(despilled, alpha);
+      gl_FragColor = vec4(despilled, 1.0);
     }
   `
 
@@ -417,14 +419,16 @@
       },
       vertexShader: guideVideoVertexShader,
       fragmentShader: chromaKeyGuideFragmentShader,
-      transparent: true,
+      transparent: false,
+      opacity: 1,
       alphaTest: 0.5,
+      premultipliedAlpha: false,
       side: THREE.DoubleSide,
       depthWrite: true,
       toneMapped: false,
     })
     debugStatus(
-      `Material transparency settings: path=${state.greenScreenPath} transparent=${String(material.transparent)} alphaTest=${String(material.alphaTest)} depthWrite=${String(material.depthWrite)}`
+      `Material transparency settings: path=${state.greenScreenPath} transparent=${String(material.transparent)} opacity=${String(material.opacity)} alphaTest=${String(material.alphaTest)} premultipliedAlpha=${String(material.premultipliedAlpha)} depthWrite=${String(material.depthWrite)}`
     )
     return material
   }
