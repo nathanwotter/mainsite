@@ -538,7 +538,11 @@
 
   async function handleTapToPlace(event) {
     const targetDescription = describeNode(event?.target)
-    debugStatus(`Scene tap received on ${targetDescription}.`)
+    const overlayWrapperReceived = event?.target instanceof Element && event.target.matches('[data-recxr-surface-overlay]')
+    const uiTarget = event?.target instanceof Element && event.target.closest('[data-recxr-surface-ui]')
+    debugStatus(
+      `Scene tap received on ${targetDescription}. overlayWrapperReceived=${overlayWrapperReceived ? 'yes' : 'no'} uiTarget=${uiTarget ? 'yes' : 'no'}.`
+    )
     if (!state.config?.placement?.detachToWorldOnGroundTap) {
       debugStatus('Scene tap ignored because detachToWorldOnGroundTap is disabled.')
       return

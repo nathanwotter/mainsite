@@ -3,11 +3,12 @@
 
 <div
   id="recxr-image-target-overlay"
-  style="display: none; position: fixed; inset: 0; z-index: 1001; background: #000; color: #fff; overflow: hidden;"
+  data-recxr-surface-overlay
+  style="display: none; position: fixed; inset: 0; z-index: 1001; background: #000; color: #fff; overflow: hidden; pointer-events: none;"
 >
   <div
     id="recxr-image-target-stage"
-    style="position: absolute; inset: 0; z-index: 0; overflow: hidden; background: transparent;"
+    style="position: absolute; inset: 0; z-index: 0; overflow: hidden; background: transparent; pointer-events: auto;"
   ></div>
 
   <div
@@ -15,7 +16,7 @@
     style="position: absolute; inset: 0; z-index: 1; pointer-events: none; background: linear-gradient(to bottom, rgba(8, 10, 16, 0.42), rgba(8, 10, 16, 0.08) 32%, rgba(8, 10, 16, 0.34));"
   ></div>
 
-  <div style="position: relative; z-index: 2; max-width: 960px; margin: 0 auto; padding: 1.25rem 1rem 2rem 1rem; pointer-events: auto;">
+  <div data-recxr-surface-ui style="position: relative; z-index: 2; max-width: 960px; margin: 0 auto; padding: 1.25rem 1rem 2rem 1rem; pointer-events: none;">
     <div style="display: flex; justify-content: space-between; gap: 1rem; align-items: start; flex-wrap: wrap; margin-bottom: 1rem;">
       <div style="max-width: 42rem;">
         <p style="margin: 0 0 0.35rem 0; font-size: 0.85rem; letter-spacing: 0.08em; text-transform: uppercase; color: #d1d5db;">
@@ -29,7 +30,7 @@
       <button
         id="recxr-image-target-close"
         type="button"
-        style="display: inline-block; padding: 0.8rem 1.1rem; border: 1px solid #fff; color: #fff; background: transparent; border-radius: 999px; cursor: pointer;"
+        style="display: inline-block; padding: 0.8rem 1.1rem; border: 1px solid #fff; color: #fff; background: transparent; border-radius: 999px; cursor: pointer; pointer-events: auto;"
       >
         Close Surface Guide
       </button>
@@ -39,14 +40,14 @@
       <button
         id="recxr-image-target-reset-placement"
         type="button"
-        style="display: inline-block; padding: 0.8rem 1.1rem; border: 1px solid rgba(255,255,255,0.45); color: #fff; background: rgba(255,255,255,0.06); border-radius: 999px; cursor: pointer;"
+        style="display: inline-block; padding: 0.8rem 1.1rem; border: 1px solid rgba(255,255,255,0.45); color: #fff; background: rgba(255,255,255,0.06); border-radius: 999px; cursor: pointer; pointer-events: auto;"
       >
         Reposition Nathan
       </button>
       <button
         id="recxr-image-target-open-camera-fallback"
         type="button"
-        style="display: inline-block; padding: 0.8rem 1.1rem; border: 1px solid rgba(255,255,255,0.45); color: #fff; background: rgba(255,255,255,0.06); border-radius: 999px; cursor: pointer;"
+        style="display: inline-block; padding: 0.8rem 1.1rem; border: 1px solid rgba(255,255,255,0.45); color: #fff; background: rgba(255,255,255,0.06); border-radius: 999px; cursor: pointer; pointer-events: auto;"
       >
         Use Camera Guide Fallback
       </button>
