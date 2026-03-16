@@ -62,6 +62,23 @@
     }
   }
 
+  function getVisibilitySummary(element) {
+    if (!element) {
+      return {
+        visibility: 'missing',
+        zIndex: 'n/a',
+      }
+    }
+
+    const computed = global.getComputedStyle ? global.getComputedStyle(element) : null
+    return {
+      visibility: computed
+        ? `${computed.display}/${computed.visibility}/opacity:${computed.opacity}`
+        : 'unknown',
+      zIndex: computed?.zIndex || 'auto',
+    }
+  }
+
   function getHitResultType(hit) {
     return hit?.type || hit?.hitType || hit?.kind || 'UNSPECIFIED'
   }
@@ -126,6 +143,19 @@
       stageHeight: cssHeight,
       canvasWidth: drawingWidth,
       canvasHeight: drawingHeight,
+      ...(() => {
+        const overlaySummary = getVisibilitySummary(state.container?.closest('#recxr-image-target-overlay'))
+        const stageSummary = getVisibilitySummary(state.container)
+        const canvasSummary = getVisibilitySummary(state.canvas)
+        return {
+          overlayVisibility: overlaySummary.visibility,
+          overlayZIndex: overlaySummary.zIndex,
+          stageVisibility: stageSummary.visibility,
+          stageZIndex: stageSummary.zIndex,
+          canvasVisibility: canvasSummary.visibility,
+          canvasZIndex: canvasSummary.zIndex,
+        }
+      })(),
     })
   }
 
@@ -505,6 +535,10 @@
 
     XR8.addCameraPipelineModules(modules)
     state.pipelineModulesAdded = true
+    emitDebug({
+      event: 'pipeline-modules',
+      cameraRenderModuleActive: Boolean(XR8.GlTextureRenderer?.pipelineModule),
+    })
   }
 
   function bindTapPlacement() {

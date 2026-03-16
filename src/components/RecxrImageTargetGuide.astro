@@ -3,8 +3,18 @@
 
 <div
   id="recxr-image-target-overlay"
-  style="display: none; position: fixed; inset: 0; z-index: 1001; background: rgba(8, 10, 16, 0.96); color: #fff; overflow: hidden;"
+  style="display: none; position: fixed; inset: 0; z-index: 1001; background: transparent; color: #fff; overflow: hidden;"
 >
+  <div
+    id="recxr-image-target-stage"
+    style="position: absolute; inset: 0; z-index: 0; overflow: hidden; background: transparent;"
+  ></div>
+
+  <div
+    id="recxr-image-target-scrim"
+    style="position: absolute; inset: 0; z-index: 1; pointer-events: none; background: linear-gradient(to bottom, rgba(8, 10, 16, 0.42), rgba(8, 10, 16, 0.08) 32%, rgba(8, 10, 16, 0.34));"
+  ></div>
+
   <div style="position: relative; z-index: 2; max-width: 960px; margin: 0 auto; padding: 1.25rem 1rem 2rem 1rem; pointer-events: auto;">
     <div style="display: flex; justify-content: space-between; gap: 1rem; align-items: start; flex-wrap: wrap; margin-bottom: 1rem;">
       <div style="max-width: 42rem;">
@@ -77,7 +87,9 @@
         <p id="recxr-image-target-debug-tracking" style="margin: 0 0 0.2rem 0; color: #dbeafe;">SLAM tracking state: unknown</p>
         <p id="recxr-image-target-debug-count" style="margin: 0 0 0.2rem 0; color: #dbeafe;">hit test candidates per frame: 0</p>
         <p id="recxr-image-target-debug-reject" style="margin: 0 0 0.2rem 0; color: #dbeafe;">candidate reject reason: none</p>
-        <p id="recxr-image-target-debug-layout" style="margin: 0; color: #dbeafe;">stage/canvas layout: unknown</p>
+        <p id="recxr-image-target-debug-layout" style="margin: 0 0 0.2rem 0; color: #dbeafe;">stage/canvas layout: unknown</p>
+        <p id="recxr-image-target-debug-dom" style="margin: 0 0 0.2rem 0; color: #dbeafe;">overlay/stage/canvas visibility: unknown</p>
+        <p id="recxr-image-target-debug-render" style="margin: 0; color: #dbeafe;">camera render module active: unknown</p>
       </div>
     </div>
 
@@ -94,10 +106,6 @@
     </div>
   </div>
 
-  <div
-    id="recxr-image-target-stage"
-    style="position: absolute; inset: 0; z-index: 1; overflow: hidden;"
-  ></div>
 </div>
 
 <script>
@@ -124,6 +132,8 @@
   const imageTargetDebugCount = document.getElementById('recxr-image-target-debug-count');
   const imageTargetDebugReject = document.getElementById('recxr-image-target-debug-reject');
   const imageTargetDebugLayout = document.getElementById('recxr-image-target-debug-layout');
+  const imageTargetDebugDom = document.getElementById('recxr-image-target-debug-dom');
+  const imageTargetDebugRender = document.getElementById('recxr-image-target-debug-render');
 
   let currentStop = null;
   let currentSurfaceAvailable = false;
@@ -134,6 +144,8 @@
   let currentHitCount = 0;
   let currentRejectReason = 'none';
   let currentLayoutDebug = 'unknown';
+  let currentDomDebug = 'unknown';
+  let currentRenderDebug = 'unknown';
 
   function isLikelyIphone() {
     const ua = navigator.userAgent || '';
@@ -174,6 +186,12 @@
     if (imageTargetDebugLayout) {
       imageTargetDebugLayout.textContent = `stage/canvas layout: ${currentLayoutDebug}`;
     }
+    if (imageTargetDebugDom) {
+      imageTargetDebugDom.textContent = `overlay/stage/canvas visibility: ${currentDomDebug}`;
+    }
+    if (imageTargetDebugRender) {
+      imageTargetDebugRender.textContent = `camera render module active: ${currentRenderDebug}`;
+    }
   }
 
   function setStatusBanner(kind, message) {
@@ -206,6 +224,8 @@
     currentHitCount = 0;
     currentRejectReason = 'none';
     currentLayoutDebug = 'unknown';
+    currentDomDebug = 'unknown';
+    currentRenderDebug = 'unknown';
     setDebugState();
 
     if (imageTargetTitle) {
@@ -328,6 +348,15 @@
           typeof detail?.canvasHeight === 'number'
         ) {
           currentLayoutDebug = `${detail.stageWidth}x${detail.stageHeight} stage | ${detail.canvasWidth}x${detail.canvasHeight} canvas`;
+        }
+        if (detail?.overlayVisibility || detail?.stageVisibility || detail?.canvasVisibility) {
+          currentDomDebug =
+            `overlay=${detail.overlayVisibility || 'unknown'} z${detail.overlayZIndex || '?'} | ` +
+            `stage=${detail.stageVisibility || 'unknown'} z${detail.stageZIndex || '?'} | ` +
+            `canvas=${detail.canvasVisibility || 'unknown'} z${detail.canvasZIndex || '?'}`;
+        }
+        if (typeof detail?.cameraRenderModuleActive === 'boolean') {
+          currentRenderDebug = detail.cameraRenderModuleActive ? 'yes' : 'no';
         }
         if (detail?.event === 'tracking' && imageTargetStatus && currentTrackingStatus !== 'unknown') {
           imageTargetStatus.textContent = `Scanning for surface... Tracking state: ${currentTrackingStatus}`;
