@@ -320,9 +320,9 @@
     varying vec2 vUv;
 
     void main() {
-      vec2 colorUv = vec2(vUv.x, 0.5 + (vUv.y * 0.5));
-      vec4 tex = texture2D(videoMap, colorUv);
-      gl_FragColor = vec4(tex.rgb, 1.0);
+      vec2 keyedUv = vec2(vUv.x, vUv.y * 0.5);
+      vec4 tex = texture2D(videoMap, keyedUv);
+      gl_FragColor = tex;
     }
   `
 
