@@ -20,6 +20,9 @@
     glTextureRendererActive: false,
     threeRendererConfigured: false,
     rendererAlphaDebug: 'unknown',
+    chosenVideoVariant: 'unknown',
+    chromaKeyEnabled: false,
+    greenScreenPath: 'none',
     sceneResources: null,
     pipelineModulesAdded: false,
     sessionStarting: false,
@@ -297,6 +300,118 @@
     return video
   }
 
+  const guideVideoVertexShader = `
+    varying vec2 vUv;
+
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `
+
+  const packedAlphaGuideFragmentShader = `
+    uniform sampler2D videoMap;
+    varying vec2 vUv;
+
+    float luma(vec3 color) {
+      return dot(color, vec3(0.299, 0.587, 0.114));
+    }
+
+    void main() {
+      vec2 colorUv = vec2(vUv.x, 0.5 + (vUv.y * 0.5));
+      vec2 alphaUv = vec2(vUv.x, vUv.y * 0.5);
+      vec4 colorSample = texture2D(videoMap, colorUv);
+      vec4 alphaSample = texture2D(videoMap, alphaUv);
+      float alpha = luma(alphaSample.rgb);
+      gl_FragColor = vec4(colorSample.rgb, alpha);
+    }
+  `
+
+  const chromaKeyGuideFragmentShader = `
+    uniform sampler2D videoMap;
+    uniform float variantOffset;
+    uniform vec3 keyColor;
+    uniform float similarity;
+    uniform float smoothness;
+    varying vec2 vUv;
+
+    void main() {
+      vec2 sampleUv = vec2(vUv.x, variantOffset + (vUv.y * 0.5));
+      vec4 colorSample = texture2D(videoMap, sampleUv);
+      float chromaDistance = distance(colorSample.rgb, keyColor);
+      float alpha = smoothstep(similarity, similarity + smoothness, chromaDistance);
+
+      float maxOther = max(colorSample.r, colorSample.b);
+      float greenExcess = max(0.0, colorSample.g - maxOther);
+      vec3 despilled = vec3(colorSample.r, colorSample.g - (greenExcess * 0.65), colorSample.b);
+
+      gl_FragColor = vec4(despilled, alpha);
+    }
+  `
+
+  function isLikelyIphone() {
+    const ua = global.navigator?.userAgent || ''
+    return /iPhone|iPad|iPod/i.test(ua) || (/Macintosh/i.test(ua) && 'ontouchend' in global.document)
+  }
+
+  function chooseGuideVariant(guide) {
+    const viewportWidth = global.innerWidth || 1
+    const viewportHeight = global.innerHeight || 1
+    const aspect = viewportWidth / Math.max(viewportHeight, 1)
+    const portrait = viewportHeight >= viewportWidth
+    const iphone = isLikelyIphone()
+    const chosenVariant = iphone && portrait ? 'bottom' : 'top'
+
+    debugStatus(
+      `Chosen video source=${guide.guideVideoUrl || guide.arGuideHlsUrl || guide.standardHlsUrl || 'unset'} variant=${chosenVariant} device=iPhone:${iphone ? 'yes' : 'no'} portrait:${portrait ? 'yes' : 'no'} aspect=${aspect.toFixed(3)}`
+    )
+
+    return chosenVariant
+  }
+
+  function createGuideMaterial(guide, THREE, texture) {
+    const guideMode = guide?.videoMode || 'standard'
+
+    if (guideMode === 'packedAlpha' && guide?.arGuideHlsUrl) {
+      state.chromaKeyEnabled = false
+      state.greenScreenPath = 'packed-alpha-shader'
+      debugStatus('Green-screen removal path in use: packed-alpha shader.')
+      return new THREE.ShaderMaterial({
+        uniforms: {
+          videoMap: { value: texture },
+        },
+        vertexShader: guideVideoVertexShader,
+        fragmentShader: packedAlphaGuideFragmentShader,
+        transparent: true,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+        toneMapped: false,
+      })
+    }
+
+    const chosenVariant = chooseGuideVariant(guide || {})
+    state.chosenVideoVariant = chosenVariant
+    state.chromaKeyEnabled = true
+    state.greenScreenPath = 'chroma-key-shader'
+    debugStatus(`Green-screen removal path in use: chroma-key shader. chosenVariant=${chosenVariant}`)
+
+    return new THREE.ShaderMaterial({
+      uniforms: {
+        videoMap: { value: texture },
+        variantOffset: { value: chosenVariant === 'bottom' ? 0.0 : 0.5 },
+        keyColor: { value: new THREE.Color(0.05, 0.9, 0.15) },
+        similarity: { value: 0.42 },
+        smoothness: { value: 0.16 },
+      },
+      vertexShader: guideVideoVertexShader,
+      fragmentShader: chromaKeyGuideFragmentShader,
+      transparent: true,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+      toneMapped: false,
+    })
+  }
+
   async function kickGuideVideoPlayback(context) {
     const video = state.guideVideo
     if (!video) {
@@ -363,6 +478,7 @@
     await new Promise((resolve) => {
       const onReady = () => {
         video.removeEventListener('loadedmetadata', onReady)
+        debugStatus(`Video metadata loaded: ${video.videoWidth}x${video.videoHeight}`)
         resolve()
       }
       video.addEventListener('loadedmetadata', onReady)
@@ -382,12 +498,7 @@
       texture.colorSpace = THREE.SRGBColorSpace
     }
 
-    const material = new THREE.MeshBasicMaterial({
-      map: texture,
-      transparent: true,
-      side: THREE.DoubleSide,
-      toneMapped: false,
-    })
+    const material = createGuideMaterial(state.config?.guide || {}, THREE, texture)
 
     const mesh = new THREE.Mesh(geometry, material)
     const placement = state.config?.placement || {}
