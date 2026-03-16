@@ -486,7 +486,7 @@
       setTimeout(resolve, 1200)
     })
 
-    const width = state.config?.placement?.imageTargetWidth || state.config?.guide?.imageTargetWidth || 0.22
+    const width = state.config?.placement?.imageTargetWidth || state.config?.guide?.imageTargetWidth || 0.82
     const aspect = video.videoHeight > 0 ? video.videoWidth / video.videoHeight : 0.5625
     const height = width / Math.max(aspect, 0.01)
     const geometry = new THREE.PlaneGeometry(width, height)
@@ -509,7 +509,7 @@
     mesh.visible = false
 
     debugStatus(
-      `Guide mesh created. transform position=(${mesh.position.x.toFixed(3)}, ${mesh.position.y.toFixed(3)}, ${mesh.position.z.toFixed(3)}) rotation=(${mesh.rotation.x.toFixed(3)}, ${mesh.rotation.y.toFixed(3)}, ${mesh.rotation.z.toFixed(3)}) aspect=${aspect.toFixed(3)}`
+      `Guide mesh created. transform position=(${mesh.position.x.toFixed(3)}, ${mesh.position.y.toFixed(3)}, ${mesh.position.z.toFixed(3)}) rotation=(${mesh.rotation.x.toFixed(3)}, ${mesh.rotation.y.toFixed(3)}, ${mesh.rotation.z.toFixed(3)}) width=${width.toFixed(3)}m height=${height.toFixed(3)}m aspect=${aspect.toFixed(3)} video=${video.videoWidth || 0}x${video.videoHeight || 0}`
     )
 
     state.guideMesh = mesh
@@ -557,8 +557,9 @@
 
     state.guideWorldPlaced = true
     setSurfaceCandidate(hit)
+    const geometryParams = mesh.geometry?.parameters || {}
     debugStatus(
-      `Final mesh transform position=(${mesh.position.x.toFixed(3)}, ${mesh.position.y.toFixed(3)}, ${mesh.position.z.toFixed(3)}) rotation=(${mesh.rotation.x.toFixed(3)}, ${mesh.rotation.y.toFixed(3)}, ${mesh.rotation.z.toFixed(3)})`
+      `Final mesh transform position=(${mesh.position.x.toFixed(3)}, ${mesh.position.y.toFixed(3)}, ${mesh.position.z.toFixed(3)}) rotation=(${mesh.rotation.x.toFixed(3)}, ${mesh.rotation.y.toFixed(3)}, ${mesh.rotation.z.toFixed(3)}) size=${Number(geometryParams.width || 0).toFixed(3)}x${Number(geometryParams.height || 0).toFixed(3)} scale=(${mesh.scale.x.toFixed(3)}, ${mesh.scale.y.toFixed(3)}, ${mesh.scale.z.toFixed(3)})`
     )
     debugStatus(`Nathan placed in world space using ${hit?.type || 'unknown'} hit.`)
 
@@ -571,17 +572,25 @@
   }
 
   function normalizeTouchPoint(event) {
-    const viewportWidth = window.innerWidth || 1
-    const viewportHeight = window.innerHeight || 1
-    if (event.touches?.[0]) {
-      return {
-        x: event.touches[0].clientX / viewportWidth,
-        y: event.touches[0].clientY / viewportHeight,
+    const referenceRect =
+      state.canvas?.getBoundingClientRect?.() ||
+      state.container?.getBoundingClientRect?.() || {
+        left: 0,
+        top: 0,
+        width: window.innerWidth || 1,
+        height: window.innerHeight || 1,
       }
-    }
+    const clientPoint = event.changedTouches?.[0] || event.touches?.[0] || event
+    const clientX = typeof clientPoint?.clientX === 'number' ? clientPoint.clientX : 0
+    const clientY = typeof clientPoint?.clientY === 'number' ? clientPoint.clientY : 0
+
     return {
-      x: (event.clientX || 0) / viewportWidth,
-      y: (event.clientY || 0) / viewportHeight,
+      clientX,
+      clientY,
+      x: Math.min(1, Math.max(0, (clientX - referenceRect.left) / Math.max(referenceRect.width || 1, 1))),
+      y: Math.min(1, Math.max(0, (clientY - referenceRect.top) / Math.max(referenceRect.height || 1, 1))),
+      referenceWidth: referenceRect.width || 1,
+      referenceHeight: referenceRect.height || 1,
     }
   }
 
@@ -619,7 +628,7 @@
   }
 
   function getCenterScreenPoint() {
-    return { x: 0.5, y: 0.68 }
+    return { x: 0.5, y: 0.5 }
   }
 
   function updateTrackingStatus(nextStatus) {
@@ -709,26 +718,32 @@
       ensureGuideVideo(state.config.guide || {})
       await kickGuideVideoPlayback('tap gesture')
       const includedTypes = getIncludedHitTypes()
-      let hit = state.currentSurfaceHit
-      debugStatus(`Tap candidate exists before hit test: ${hit ? 'yes' : 'no'}.`)
+      debugStatus(
+        `Tap coordinates client=(${point.clientX.toFixed(1)}, ${point.clientY.toFixed(1)}) normalized=(${point.x.toFixed(3)}, ${point.y.toFixed(3)}) reference=${Math.round(point.referenceWidth)}x${Math.round(point.referenceHeight)}`
+      )
+      debugStatus(`Tap candidate exists before hit test: ${state.currentSurfaceHit ? 'yes' : 'no'}.`)
 
-      if (!hit) {
-        const results = await XR8.XrController.hitTest(point.x, point.y, includedTypes)
-        const hitResults = Array.isArray(results) ? results : (results ? [results] : [])
-        state.lastHitResultCount = hitResults.length
-        hit = chooseBestHitResult(hitResults)
-        state.lastRejectReason = hit
-          ? 'none'
-          : hitResults.length === 0
-            ? 'tap hitTest returned zero candidates'
-            : 'tap hitTest candidates rejected by selector'
-        emitDebug({
-          event: 'tap-hit-test',
-          point,
-          hitResultCount: hitResults.length,
-          hitTypes: hitResults.map((candidate) => getHitResultType(candidate)),
-          rejectReason: state.lastRejectReason,
-        })
+      const results = await XR8.XrController.hitTest(point.x, point.y, includedTypes)
+      const hitResults = Array.isArray(results) ? results : (results ? [results] : [])
+      state.lastHitResultCount = hitResults.length
+      let hit = chooseBestHitResult(hitResults)
+      let hitSource = 'tap-coordinates'
+      state.lastRejectReason = hit
+        ? 'none'
+        : hitResults.length === 0
+          ? 'tap hitTest returned zero candidates'
+          : 'tap hitTest candidates rejected by selector'
+      emitDebug({
+        event: 'tap-hit-test',
+        point,
+        hitResultCount: hitResults.length,
+        hitTypes: hitResults.map((candidate) => getHitResultType(candidate)),
+        rejectReason: state.lastRejectReason,
+      })
+
+      if (!hit && state.currentSurfaceHit) {
+        hit = state.currentSurfaceHit
+        hitSource = 'current-reticle-candidate'
       }
 
       if (!hit) {
@@ -737,7 +752,9 @@
         return
       }
 
-      debugStatus(`Tap-to-place selected ${getHitResultType(hit)} hit for world placement.`)
+      debugStatus(
+        `Tap-to-place selected ${getHitResultType(hit)} hit for world placement using ${hitSource}. hitPosition=(${Number(hit?.position?.x || 0).toFixed(3)}, ${Number(hit?.position?.y || 0).toFixed(3)}, ${Number(hit?.position?.z || 0).toFixed(3)})`
+      )
       await placeGuideInWorld(hit)
       debugStatus('Nathan placed. He should stay upright on the ground.')
     } catch (error) {

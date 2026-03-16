@@ -193,6 +193,15 @@
     return 'standard';
   }
 
+  function getGuideWorldWidth(stop) {
+    const configuredWidth = typeof stop?.imageTargetWidth === 'number' ? stop.imageTargetWidth : null;
+    if (configuredWidth && configuredWidth > 0.45) {
+      return configuredWidth;
+    }
+
+    return 0.82;
+  }
+
   function setDebugState() {
     if (imageTargetDebugSurface) {
       imageTargetDebugSurface.textContent = `surface candidate available: ${currentSurfaceAvailable ? 'yes' : 'no'}`;
@@ -316,18 +325,19 @@
   }
 
   function buildGuideSpec(stop) {
+    const worldWidth = getGuideWorldWidth(stop);
     return {
       title: stop?.title || 'RecXR Guide',
       guideVideoUrl: getGuideVideoUrl(stop),
       standardHlsUrl: stop?.standardHlsUrl || stop?.hlsUrl || '',
       arGuideHlsUrl: stop?.arGuideHlsUrl || '',
       videoMode: getResolvedGuideMode(stop),
-      imageTargetWidth: typeof stop?.imageTargetWidth === 'number' ? stop.imageTargetWidth : 0.22,
+      imageTargetWidth: worldWidth,
     };
   }
 
   function buildPlacementSpec(stop) {
-    const width = typeof stop?.imageTargetWidth === 'number' && stop.imageTargetWidth > 0 ? stop.imageTargetWidth : 0.22;
+    const width = getGuideWorldWidth(stop);
     const guideHeight = width / 0.5625;
     const uprightPlacement = getUprightGuidePlacement(stop || {}, guideHeight);
 
