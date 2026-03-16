@@ -73,7 +73,11 @@
         </p>
         <p id="recxr-image-target-debug-surface" style="margin: 0 0 0.2rem 0; color: #dbeafe;">surface candidate available: no</p>
         <p id="recxr-image-target-debug-hit" style="margin: 0 0 0.2rem 0; color: #dbeafe;">chosen hit type: none</p>
-        <p id="recxr-image-target-debug-placed" style="margin: 0; color: #dbeafe;">Nathan placed: no</p>
+        <p id="recxr-image-target-debug-placed" style="margin: 0 0 0.2rem 0; color: #dbeafe;">Nathan placed: no</p>
+        <p id="recxr-image-target-debug-tracking" style="margin: 0 0 0.2rem 0; color: #dbeafe;">SLAM tracking state: unknown</p>
+        <p id="recxr-image-target-debug-count" style="margin: 0 0 0.2rem 0; color: #dbeafe;">hit test candidates per frame: 0</p>
+        <p id="recxr-image-target-debug-reject" style="margin: 0 0 0.2rem 0; color: #dbeafe;">candidate reject reason: none</p>
+        <p id="recxr-image-target-debug-layout" style="margin: 0; color: #dbeafe;">stage/canvas layout: unknown</p>
       </div>
     </div>
 
@@ -116,12 +120,20 @@
   const imageTargetDebugSurface = document.getElementById('recxr-image-target-debug-surface');
   const imageTargetDebugHit = document.getElementById('recxr-image-target-debug-hit');
   const imageTargetDebugPlaced = document.getElementById('recxr-image-target-debug-placed');
+  const imageTargetDebugTracking = document.getElementById('recxr-image-target-debug-tracking');
+  const imageTargetDebugCount = document.getElementById('recxr-image-target-debug-count');
+  const imageTargetDebugReject = document.getElementById('recxr-image-target-debug-reject');
+  const imageTargetDebugLayout = document.getElementById('recxr-image-target-debug-layout');
 
   let currentStop = null;
   let currentSurfaceAvailable = false;
   let currentHitType = 'none';
   let currentNathanPlaced = false;
   let currentRuntimeError = '';
+  let currentTrackingStatus = 'unknown';
+  let currentHitCount = 0;
+  let currentRejectReason = 'none';
+  let currentLayoutDebug = 'unknown';
 
   function isLikelyIphone() {
     const ua = navigator.userAgent || '';
@@ -149,6 +161,18 @@
     }
     if (imageTargetDebugPlaced) {
       imageTargetDebugPlaced.textContent = `Nathan placed: ${currentNathanPlaced ? 'yes' : 'no'}`;
+    }
+    if (imageTargetDebugTracking) {
+      imageTargetDebugTracking.textContent = `SLAM tracking state: ${currentTrackingStatus}`;
+    }
+    if (imageTargetDebugCount) {
+      imageTargetDebugCount.textContent = `hit test candidates per frame: ${currentHitCount}`;
+    }
+    if (imageTargetDebugReject) {
+      imageTargetDebugReject.textContent = `candidate reject reason: ${currentRejectReason}`;
+    }
+    if (imageTargetDebugLayout) {
+      imageTargetDebugLayout.textContent = `stage/canvas layout: ${currentLayoutDebug}`;
     }
   }
 
@@ -178,6 +202,10 @@
     currentHitType = 'none';
     currentNathanPlaced = false;
     currentRuntimeError = '';
+    currentTrackingStatus = 'unknown';
+    currentHitCount = 0;
+    currentRejectReason = 'none';
+    currentLayoutDebug = 'unknown';
     setDebugState();
 
     if (imageTargetTitle) {
@@ -288,6 +316,23 @@
         if (imageTargetStatus) {
           imageTargetStatus.textContent = 'Placement reset. Move your phone slowly until a surface is found, then tap to place Nathan again.';
         }
+      },
+      onDebug: (detail) => {
+        currentTrackingStatus = detail?.trackingStatus || currentTrackingStatus;
+        currentHitCount = typeof detail?.hitResultCount === 'number' ? detail.hitResultCount : currentHitCount;
+        currentRejectReason = detail?.rejectReason || currentRejectReason;
+        if (
+          typeof detail?.stageWidth === 'number' &&
+          typeof detail?.stageHeight === 'number' &&
+          typeof detail?.canvasWidth === 'number' &&
+          typeof detail?.canvasHeight === 'number'
+        ) {
+          currentLayoutDebug = `${detail.stageWidth}x${detail.stageHeight} stage | ${detail.canvasWidth}x${detail.canvasHeight} canvas`;
+        }
+        if (detail?.event === 'tracking' && imageTargetStatus && currentTrackingStatus !== 'unknown') {
+          imageTargetStatus.textContent = `Scanning for surface... Tracking state: ${currentTrackingStatus}`;
+        }
+        setDebugState();
       },
       onError: (message) => {
         throw new Error(typeof message === 'string' ? message : 'Unknown 8th Wall integration error.');

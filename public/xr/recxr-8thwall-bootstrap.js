@@ -12,9 +12,13 @@
     surfaceHitType: 'none',
     centerHitInFlight: false,
     centerHitLastRunAt: 0,
+    lastHitResultCount: 0,
+    lastRejectReason: 'none',
+    trackingStatus: 'unknown',
     sceneResources: null,
     pipelineModulesAdded: false,
     tapHandler: null,
+    resizeHandler: null,
     placementModuleName: 'recxr-world-placement',
     surfaceModuleName: 'recxr-slam-surface-candidates',
     errorModuleName: 'recxr-runtime-errors',
@@ -44,6 +48,20 @@
     }
   }
 
+  function emitDebug(details) {
+    if (typeof state.config?.onDebug === 'function') {
+      state.config.onDebug({
+        trackingStatus: state.trackingStatus,
+        hitResultCount: state.lastHitResultCount,
+        rejectReason: state.lastRejectReason,
+        surfaceAvailable: state.currentSurfaceAvailable,
+        hitType: state.surfaceHitType,
+        placed: state.guideWorldPlaced,
+        ...details,
+      })
+    }
+  }
+
   function getHitResultType(hit) {
     return hit?.type || hit?.hitType || hit?.kind || 'UNSPECIFIED'
   }
@@ -60,6 +78,55 @@
         hit: hit || null,
       })
     }
+
+    emitDebug({
+      event: 'surface-candidate',
+      surfaceAvailable: Boolean(hit),
+      hitType: hit ? state.surfaceHitType : 'none',
+    })
+  }
+
+  function sizeCanvasToContainer() {
+    if (!state.canvas || !state.container) return
+
+    const bounds = state.container.getBoundingClientRect()
+    const viewportWidth = Math.max(window.innerWidth || 0, document.documentElement?.clientWidth || 0, 1)
+    const viewportHeight = Math.max(window.innerHeight || 0, document.documentElement?.clientHeight || 0, 1)
+    const cssWidth = Math.max(Math.round(bounds.width || viewportWidth), 1)
+    const cssHeight = Math.max(Math.round(bounds.height || viewportHeight), 1)
+    const pixelRatio = Math.max(window.devicePixelRatio || 1, 1)
+    const drawingWidth = Math.max(Math.round(cssWidth * pixelRatio), 1)
+    const drawingHeight = Math.max(Math.round(cssHeight * pixelRatio), 1)
+
+    state.container.style.position = state.container.style.position || 'absolute'
+    state.container.style.inset = state.container.style.inset || '0'
+    state.container.style.width = '100%'
+    state.container.style.height = '100%'
+    state.container.style.overflow = 'hidden'
+
+    state.canvas.style.position = 'absolute'
+    state.canvas.style.inset = '0'
+    state.canvas.style.display = 'block'
+    state.canvas.style.width = '100%'
+    state.canvas.style.height = '100%'
+    state.canvas.style.objectFit = 'cover'
+
+    if (state.canvas.width !== drawingWidth) {
+      state.canvas.width = drawingWidth
+    }
+    if (state.canvas.height !== drawingHeight) {
+      state.canvas.height = drawingHeight
+    }
+
+    emitDebug({
+      event: 'layout',
+      viewportWidth,
+      viewportHeight,
+      stageWidth: cssWidth,
+      stageHeight: cssHeight,
+      canvasWidth: drawingWidth,
+      canvasHeight: drawingHeight,
+    })
   }
 
   function ensureCanvas(container) {
@@ -76,6 +143,23 @@
       container.appendChild(canvas)
     }
     return canvas
+  }
+
+  function bindCanvasResize() {
+    if (state.resizeHandler) return
+    state.resizeHandler = () => {
+      sizeCanvasToContainer()
+    }
+    window.addEventListener('resize', state.resizeHandler)
+    window.addEventListener('orientationchange', state.resizeHandler)
+    sizeCanvasToContainer()
+  }
+
+  function unbindCanvasResize() {
+    if (!state.resizeHandler) return
+    window.removeEventListener('resize', state.resizeHandler)
+    window.removeEventListener('orientationchange', state.resizeHandler)
+    state.resizeHandler = null
   }
 
   function ensureGuideVideo(guide) {
@@ -250,7 +334,18 @@
   }
 
   function getCenterScreenPoint() {
-    return { x: 0.5, y: 0.58 }
+    return { x: 0.5, y: 0.68 }
+  }
+
+  function updateTrackingStatus(nextStatus) {
+    const resolvedStatus = nextStatus || 'unknown'
+    if (resolvedStatus === state.trackingStatus) return
+    state.trackingStatus = resolvedStatus
+    debugStatus(`SLAM tracking state changed: ${resolvedStatus}.`)
+    emitDebug({
+      event: 'tracking',
+      trackingStatus: resolvedStatus,
+    })
   }
 
   async function refreshCenterSurfaceCandidate() {
@@ -267,18 +362,38 @@
       const includedTypes = getIncludedHitTypes()
       const results = await XR8.XrController.hitTest(point.x, point.y, includedTypes)
       const hitResults = Array.isArray(results) ? results : (results ? [results] : [])
+      state.lastHitResultCount = hitResults.length
       const bestHit = chooseBestHitResult(hitResults)
       const previousAvailability = state.currentSurfaceAvailable
       const previousType = state.surfaceHitType
+      state.lastRejectReason = bestHit
+        ? 'none'
+        : hitResults.length === 0
+          ? 'hitTest returned zero candidates'
+          : 'all candidates were rejected by selector'
 
       setSurfaceCandidate(bestHit)
+      emitDebug({
+        event: 'hit-test',
+        point,
+        hitResultCount: hitResults.length,
+        hitTypes: hitResults.map((hit) => getHitResultType(hit)),
+        rejectReason: state.lastRejectReason,
+      })
 
       if (!bestHit && previousAvailability) {
         debugStatus('No placeable horizontal-surface candidate is currently available at the center reticle.')
       } else if (bestHit && (!previousAvailability || previousType !== state.surfaceHitType)) {
         debugStatus(`Center reticle has a placeable surface candidate using ${state.surfaceHitType}.`)
+      } else if (!bestHit && hitResults.length === 0) {
+        debugStatus('Center reticle hit test returned zero candidates.')
       }
     } catch (error) {
+      state.lastRejectReason = error instanceof Error ? error.message : 'hitTest threw'
+      emitDebug({
+        event: 'hit-test-error',
+        rejectReason: state.lastRejectReason,
+      })
       emitError('Failed to refresh SLAM center-surface candidate.', error)
     } finally {
       state.centerHitInFlight = false
@@ -302,7 +417,20 @@
       if (!hit) {
         const results = await XR8.XrController.hitTest(point.x, point.y, includedTypes)
         const hitResults = Array.isArray(results) ? results : (results ? [results] : [])
+        state.lastHitResultCount = hitResults.length
         hit = chooseBestHitResult(hitResults)
+        state.lastRejectReason = hit
+          ? 'none'
+          : hitResults.length === 0
+            ? 'tap hitTest returned zero candidates'
+            : 'tap hitTest candidates rejected by selector'
+        emitDebug({
+          event: 'tap-hit-test',
+          point,
+          hitResultCount: hitResults.length,
+          hitTypes: hitResults.map((candidate) => getHitResultType(candidate)),
+          rejectReason: state.lastRejectReason,
+        })
       }
 
       if (!hit) {
@@ -321,7 +449,16 @@
   function getSlamSurfacePipelineModule() {
     return {
       name: state.surfaceModuleName,
-      onUpdate: () => {
+      onStart: () => {
+        updateTrackingStatus('initializing')
+      },
+      onUpdate: ({ processCpuResult }) => {
+        const reality = processCpuResult?.reality
+        const nextTrackingStatus =
+          reality?.trackingStatus || reality?.worldTrackingStatus || reality?.slamStatus || state.trackingStatus
+        if (nextTrackingStatus) {
+          updateTrackingStatus(String(nextTrackingStatus))
+        }
         refreshCenterSurfaceCandidate()
       },
     }
@@ -350,8 +487,14 @@
     if (!XR8?.addCameraPipelineModules || state.pipelineModulesAdded) return
 
     const modules = []
+    if (XR8.FullWindowCanvas?.pipelineModule) {
+      modules.push(XR8.FullWindowCanvas.pipelineModule())
+    }
     if (XR8.GlTextureRenderer?.pipelineModule) {
       modules.push(XR8.GlTextureRenderer.pipelineModule())
+    }
+    if (XR8.XrController?.pipelineModule) {
+      modules.push(XR8.XrController.pipelineModule())
     }
     if (XR8.Threejs?.pipelineModule) {
       modules.push(XR8.Threejs.pipelineModule())
@@ -395,12 +538,24 @@
     }
 
     state.canvas = ensureCanvas(state.container)
+    sizeCanvasToContainer()
     state.guideWorldPlaced = false
+    state.lastHitResultCount = 0
+    state.lastRejectReason = 'none'
+    updateTrackingStatus('starting')
     setSurfaceCandidate(null)
     debugStatus('Starting SLAM-only horizontal-surface placement mode.')
 
+    if (XR8.XrController?.configure) {
+      XR8.XrController.configure({
+        enableWorldPoints: true,
+      })
+      debugStatus('Applied XR8.XrController.configure for SLAM world-point placement.')
+    }
+
     addPipelineModules()
     bindTapPlacement()
+    bindCanvasResize()
 
     const runConfig = {
       canvas: state.canvas,
@@ -417,6 +572,7 @@
   async function stopSession() {
     const XR8 = getXR8()
     unbindTapPlacement()
+    unbindCanvasResize()
 
     if (XR8?.stop) {
       try {
@@ -449,6 +605,9 @@
 
     state.sceneResources = null
     state.guideWorldPlaced = false
+    state.lastHitResultCount = 0
+    state.lastRejectReason = 'none'
+    state.trackingStatus = 'unknown'
     setSurfaceCandidate(null)
     state.config = null
   }
