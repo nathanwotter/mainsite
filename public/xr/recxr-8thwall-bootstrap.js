@@ -286,13 +286,39 @@
     const video = document.createElement('video')
     video.src = guide.guideVideoUrl || guide.arGuideHlsUrl || guide.standardHlsUrl || ''
     video.crossOrigin = 'anonymous'
+    video.autoplay = true
     video.loop = true
     video.muted = true
+    video.defaultMuted = true
     video.playsInline = true
     video.setAttribute('webkit-playsinline', 'true')
     video.preload = 'auto'
     state.guideVideo = video
     return video
+  }
+
+  async function kickGuideVideoPlayback(context) {
+    const video = state.guideVideo
+    if (!video) {
+      debugStatus(`Poster/static texture fallback detected because no guide video element exists during ${context}.`)
+      return
+    }
+
+    debugStatus(
+      `Video state before ${context}: paused=${String(video.paused)} muted=${String(video.muted)} playsInline=${String(video.playsInline)} readyState=${video.readyState} currentTime=${video.currentTime.toFixed(3)}`
+    )
+
+    try {
+      await video.play()
+      debugStatus(`video.play() resolved during ${context}.`)
+    } catch (error) {
+      debugStatus(`video.play() rejected during ${context}.`)
+      emitError('Guide video failed to start during world placement.', error)
+    }
+
+    debugStatus(
+      `Video state after ${context}: paused=${String(video.paused)} muted=${String(video.muted)} playsInline=${String(video.playsInline)} readyState=${video.readyState} currentTime=${video.currentTime.toFixed(3)}`
+    )
   }
 
   async function ensureSceneResources() {
@@ -416,22 +442,7 @@
       }
     }
 
-    const video = state.guideVideo
-    if (video) {
-      try {
-        debugStatus(
-          `Calling video.play(). paused=${String(video.paused)} readyState=${video.readyState} currentTime=${video.currentTime.toFixed(3)}`
-        )
-        await video.play()
-      } catch (error) {
-        emitError('Guide video failed to start during world placement.', error)
-      }
-      debugStatus(
-        `Video playback state after placement. paused=${String(video.paused)} readyState=${video.readyState} currentTime=${video.currentTime.toFixed(3)}`
-      )
-    } else {
-      debugStatus('Poster/static texture fallback detected because no guide video element exists.')
-    }
+    await kickGuideVideoPlayback('placement')
 
     state.guideWorldPlaced = true
     setSurfaceCandidate(hit)
@@ -584,6 +595,8 @@
 
     const point = normalizeTouchPoint(event)
     try {
+      ensureGuideVideo(state.config.guide || {})
+      await kickGuideVideoPlayback('tap gesture')
       const includedTypes = getIncludedHitTypes()
       let hit = state.currentSurfaceHit
       debugStatus(`Tap candidate exists before hit test: ${hit ? 'yes' : 'no'}.`)
