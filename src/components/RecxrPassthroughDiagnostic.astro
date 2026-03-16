@@ -43,6 +43,13 @@ const { mode = 'camera' } = Astro.props as Props;
       <div style="display: flex; gap: 0.65rem; flex-wrap: wrap; margin-bottom: 1rem;">
         <button
           type="button"
+          data-diagnostic-start
+          style="display: inline-block; padding: 0.8rem 1.05rem; border: 1px solid rgba(147,197,253,0.45); color: #08111f; background: #93c5fd; border-radius: 999px; cursor: pointer; font-weight: 700;"
+        >
+          Start Session
+        </button>
+        <button
+          type="button"
           data-diagnostic-restart
           style="display: inline-block; padding: 0.8rem 1.05rem; border: 1px solid rgba(255,255,255,0.3); color: #fff; background: rgba(255,255,255,0.08); border-radius: 999px; cursor: pointer;"
         >
@@ -64,6 +71,13 @@ const { mode = 'camera' } = Astro.props as Props;
 
       <div style="display: grid; gap: 0.55rem;">
         <p data-debug-session style="margin: 0; color: #dbeafe;">session started: no</p>
+        <p data-debug-tap style="margin: 0; color: #dbeafe;">button tap received: no</p>
+        <p data-debug-entered style="margin: 0; color: #dbeafe;">start function entered: no</p>
+        <p data-debug-script style="margin: 0; color: #dbeafe;">xr.js loaded: no</p>
+        <p data-debug-xr8 style="margin: 0; color: #dbeafe;">XR8 detected: no</p>
+        <p data-debug-pipeline style="margin: 0; color: #dbeafe;">pipeline modules added: no</p>
+        <p data-debug-run style="margin: 0; color: #dbeafe;">XR8.run() called: no</p>
+        <p data-debug-permission style="margin: 0; color: #dbeafe;">permission prompt requested: no</p>
         <p data-debug-tracking style="margin: 0; color: #dbeafe;">tracking state: unknown</p>
         <p data-debug-frames style="margin: 0; color: #dbeafe;">visible canvas draw frames: 0</p>
         <p data-debug-render style="margin: 0; color: #dbeafe;">camera render module active: no</p>
@@ -73,19 +87,32 @@ const { mode = 'camera' } = Astro.props as Props;
         <p data-debug-alpha style="margin: 0; color: #dbeafe;">renderer alpha/composition: n/a</p>
         <p data-debug-error style="margin: 0; color: #fca5a5;">last error: none</p>
       </div>
+      <p style="margin: 1rem 0 0 0; line-height: 1.5; color: #bfdbfe; font-size: 0.95rem;">
+        iPhone Safari may require tapping <strong>Start Session</strong> before camera permission and XR startup can proceed.
+      </p>
     </div>
   </div>
 </div>
 
 <script>
+  import * as THREE from 'three';
+
   const ENGINE_SCRIPT_URL = '/xr/xr.js';
 
   const root = document.querySelector('.recxr-diagnostic');
   const stage = root?.querySelector('[data-diagnostic-stage]');
+  const startButton = root?.querySelector('[data-diagnostic-start]');
   const restartButton = root?.querySelector('[data-diagnostic-restart]');
   const mode = root?.getAttribute('data-mode') || 'camera';
 
   const sessionDebug = root?.querySelector('[data-debug-session]');
+  const tapDebug = root?.querySelector('[data-debug-tap]');
+  const enteredDebug = root?.querySelector('[data-debug-entered]');
+  const scriptDebug = root?.querySelector('[data-debug-script]');
+  const xr8Debug = root?.querySelector('[data-debug-xr8]');
+  const pipelineDebug = root?.querySelector('[data-debug-pipeline]');
+  const runDebug = root?.querySelector('[data-debug-run]');
+  const permissionDebug = root?.querySelector('[data-debug-permission]');
   const trackingDebug = root?.querySelector('[data-debug-tracking]');
   const framesDebug = root?.querySelector('[data-debug-frames]');
   const renderDebug = root?.querySelector('[data-debug-render]');
@@ -102,6 +129,14 @@ const { mode = 'camera' } = Astro.props as Props;
   let glTextureRendererActive = false;
   let trackingState = 'unknown';
   let threeRendererConfigured = false;
+  let startTapReceived = false;
+  let startEntered = false;
+  let xrScriptLoaded = false;
+  let xr8Detected = false;
+  let pipelineAdded = false;
+  let xrRunCalled = false;
+  let permissionRequested = false;
+  let startupInFlight = false;
 
   function getRuntimeWindow() {
     return window;
@@ -115,6 +150,13 @@ const { mode = 'camera' } = Astro.props as Props;
 
   function updateDebug() {
     setLine(sessionDebug, `session started: ${visibleCanvasFrameCount > 0 ? 'yes' : 'no'}`);
+    setLine(tapDebug, `button tap received: ${startTapReceived ? 'yes' : 'no'}`);
+    setLine(enteredDebug, `start function entered: ${startEntered ? 'yes' : 'no'}`);
+    setLine(scriptDebug, `xr.js loaded: ${xrScriptLoaded ? 'yes' : 'no'}`);
+    setLine(xr8Debug, `XR8 detected: ${xr8Detected ? 'yes' : 'no'}`);
+    setLine(pipelineDebug, `pipeline modules added: ${pipelineAdded ? 'yes' : 'no'}`);
+    setLine(runDebug, `XR8.run() called: ${xrRunCalled ? 'yes' : 'no'}`);
+    setLine(permissionDebug, `permission prompt requested: ${permissionRequested ? 'yes' : 'no'}`);
     setLine(trackingDebug, `tracking state: ${trackingState}`);
     setLine(framesDebug, `visible canvas draw frames: ${visibleCanvasFrameCount}`);
     setLine(renderDebug, `camera render module active: ${glTextureRendererActive ? 'yes' : 'no'}`);
@@ -348,12 +390,26 @@ const { mode = 'camera' } = Astro.props as Props;
     visibleCanvasFrameCount = 0;
     trackingState = 'unknown';
     threeRendererConfigured = false;
+    startEntered = false;
+    xrScriptLoaded = false;
+    xr8Detected = false;
+    pipelineAdded = false;
+    xrRunCalled = false;
+    permissionRequested = false;
+    startupInFlight = false;
     updateDebug();
     setLine(alphaDebug, `renderer alpha/composition: ${mode === 'three' ? 'reset' : 'n/a'}`);
   }
 
-  async function startDiagnosticSession() {
+  async function startDiagnosticSession({ viaUserGesture = false } = {}) {
     if (!stage) return;
+    if (startupInFlight) return;
+    startupInFlight = true;
+    startEntered = true;
+    if (viaUserGesture) {
+      startTapReceived = true;
+      permissionRequested = true;
+    }
 
     setError('none');
     visibleCanvasFrameCount = 0;
@@ -362,8 +418,15 @@ const { mode = 'camera' } = Astro.props as Props;
     activePipelineModules = [];
     threeRendererConfigured = false;
     setLine(alphaDebug, `renderer alpha/composition: ${mode === 'three' ? 'pending' : 'n/a'}`);
+    updateDebug();
 
     await stopDiagnosticSession();
+    startEntered = true;
+    if (viaUserGesture) {
+      startTapReceived = true;
+      permissionRequested = true;
+    }
+    updateDebug();
 
     ensureThreeGlobal();
     ensureStageCanvas();
@@ -376,10 +439,14 @@ const { mode = 'camera' } = Astro.props as Props;
 
     try {
       await ensureClassicScript(ENGINE_SCRIPT_URL);
+      xrScriptLoaded = true;
+      updateDebug();
       const runtimeWindow = await waitForXr8Global();
       if (!runtimeWindow.XR8) {
         throw new Error(`XR8 was not exposed by ${ENGINE_SCRIPT_URL}.`);
       }
+      xr8Detected = true;
+      updateDebug();
 
       if (runtimeWindow.XR8.loadChunk) {
         await runtimeWindow.XR8.loadChunk('slam');
@@ -392,6 +459,10 @@ const { mode = 'camera' } = Astro.props as Props;
 
       const modules = buildModules(runtimeWindow.XR8);
       runtimeWindow.XR8.addCameraPipelineModules(modules);
+      pipelineAdded = true;
+      updateDebug();
+      xrRunCalled = true;
+      updateDebug();
       await runtimeWindow.XR8.run({
         canvas: stageCanvas,
         allowedDevices: 'any',
@@ -401,16 +472,38 @@ const { mode = 'camera' } = Astro.props as Props;
       updateDebug();
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Unknown startup error');
+    } finally {
+      startupInFlight = false;
+      updateDebug();
     }
   }
 
+  function handleStartTap() {
+    startDiagnosticSession({ viaUserGesture: true });
+  }
+
+  startButton?.addEventListener('click', handleStartTap);
+  startButton?.addEventListener('touchend', (event) => {
+    event.preventDefault();
+    handleStartTap();
+  });
+
   restartButton?.addEventListener('click', () => {
-    startDiagnosticSession();
+    startDiagnosticSession({ viaUserGesture: true });
   });
 
   window.addEventListener('beforeunload', () => {
     stopDiagnosticSession();
   });
 
-  startDiagnosticSession();
+  window.addEventListener('error', (event) => {
+    setError(event.error instanceof Error ? event.error.message : event.message || 'Window error');
+  });
+
+  window.addEventListener('unhandledrejection', (event) => {
+    const reason = event.reason;
+    setError(reason instanceof Error ? reason.message : String(reason || 'Unhandled promise rejection'));
+  });
+
+  updateDebug();
 </script>
