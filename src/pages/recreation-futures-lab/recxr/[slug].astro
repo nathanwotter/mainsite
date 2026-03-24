@@ -5,6 +5,15 @@ import { PortableText } from "astro-portabletext";
 import RecxrArGuide from "../../../components/RecxrArGuide.astro";
 import RecxrImageTargetGuide from "../../../components/RecxrImageTargetGuide.astro";
 
+function normalizeNumber(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim() !== "") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
 export async function getStaticPaths() {
   const slugs = await client.fetch(
     `*[_type == "recxrSite" && defined(slug.current)]{
@@ -86,8 +95,10 @@ const body = recxrSite?.body ?? [];
 const guideVideoUrl = recxrSite?.guideVideoUrl ?? "";
 const fallbackVideoUrl = recxrSite?.fallbackVideoUrl ?? "";
 const safetyNotes = recxrSite?.safetyNotes ?? [];
-const hasCoordinates = typeof recxrSite?.latitude === "number" && typeof recxrSite?.longitude === "number";
-const activationRadiusMeters = recxrSite?.activationRadiusMeters;
+const siteLatitude = normalizeNumber(recxrSite?.latitude);
+const siteLongitude = normalizeNumber(recxrSite?.longitude);
+const hasCoordinates = siteLatitude != null && siteLongitude != null;
+const activationRadiusMeters = normalizeNumber(recxrSite?.activationRadiusMeters);
 const experienceStops = [...(recxrSite?.experienceStops ?? [])]
   .sort((a, b) => (a?.order ?? 999) - (b?.order ?? 999))
   .map((stop, index) => {
@@ -100,6 +111,9 @@ const experienceStops = [...(recxrSite?.experienceStops ?? [])]
     return {
       ...stop,
       index,
+      latitude: normalizeNumber(stop?.latitude),
+      longitude: normalizeNumber(stop?.longitude),
+      activationRadiusMeters: normalizeNumber(stop?.activationRadiusMeters),
       anchorMode: stop?.anchorMode ?? "world",
       imageTargetName: stop?.imageTargetName ?? "",
       imageTargetWidth: typeof stop?.imageTargetWidth === "number" ? stop.imageTargetWidth : null,
@@ -154,7 +168,7 @@ const experienceStops = [...(recxrSite?.experienceStops ?? [])]
       </p>
       {hasCoordinates && (
         <p style="margin: 0 0 0.5rem 0;">
-          <strong>Site coordinates:</strong> {recxrSite.latitude}, {recxrSite.longitude}
+          <strong>Site coordinates:</strong> {siteLatitude}, {siteLongitude}
         </p>
       )}
       {typeof activationRadiusMeters === "number" && (
@@ -274,6 +288,20 @@ const experienceStops = [...(recxrSite?.experienceStops ?? [])]
 
   <RecxrArGuide client:load />
   <RecxrImageTargetGuide client:load />
+
+  <div
+    id="recxr-geofence-debug-overlay"
+    style="position: fixed; right: 1rem; bottom: 1rem; z-index: 50; width: min(92vw, 24rem); padding: 0.8rem 0.9rem; border: 1px solid rgba(23,18,39,0.18); border-radius: 14px; background: rgba(255,255,255,0.96); box-shadow: 0 18px 48px rgba(15,23,42,0.16); backdrop-filter: blur(10px); font-size: 0.82rem; line-height: 1.45;"
+  >
+    <p style="margin: 0 0 0.45rem 0; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #6d28d9;">
+      Geofence Debug
+    </p>
+    <p id="recxr-geofence-debug-stop" style="margin: 0 0 0.2rem 0; color: #1f2937;">Stop: waiting</p>
+    <p id="recxr-geofence-debug-stop-coords" style="margin: 0 0 0.2rem 0; color: #1f2937;">Stop coords: unknown</p>
+    <p id="recxr-geofence-debug-user-coords" style="margin: 0 0 0.2rem 0; color: #1f2937;">User coords: unknown</p>
+    <p id="recxr-geofence-debug-distance" style="margin: 0 0 0.2rem 0; color: #1f2937;">Distance: unknown</p>
+    <p id="recxr-geofence-debug-enabled" style="margin: 0; color: #1f2937;">launchEnabled: false</p>
+  </div>
 
   {body.length > 0 && (
     <section style="padding: 0 0 2rem 0;">
@@ -422,6 +450,11 @@ const experienceStops = [...(recxrSite?.experienceStops ?? [])]
   const nextStopDescription = document.getElementById('recxr-next-stop-description');
   const nextStopDistance = document.getElementById('recxr-next-stop-distance');
   const nextStopStatus = document.getElementById('recxr-next-stop-status');
+  const geofenceDebugStop = document.getElementById('recxr-geofence-debug-stop');
+  const geofenceDebugStopCoords = document.getElementById('recxr-geofence-debug-stop-coords');
+  const geofenceDebugUserCoords = document.getElementById('recxr-geofence-debug-user-coords');
+  const geofenceDebugDistance = document.getElementById('recxr-geofence-debug-distance');
+  const geofenceDebugEnabled = document.getElementById('recxr-geofence-debug-enabled');
   let geolocationWatchId = null;
   let lastKnownPosition = null;
 
@@ -542,19 +575,66 @@ const experienceStops = [...(recxrSite?.experienceStops ?? [])]
     console.log(`[RecXR][Geofence] ${message}`, details ?? {});
   }
 
+  function formatCoordinate(value) {
+    return typeof value === 'number' && Number.isFinite(value) ? value.toFixed(6) : 'unknown';
+  }
+
+  function updateGeofenceDebugOverlay(details) {
+    if (geofenceDebugStop) {
+      geofenceDebugStop.textContent = `Stop: ${details?.stopTitle || 'waiting'}`;
+    }
+    if (geofenceDebugStopCoords) {
+      geofenceDebugStopCoords.textContent = `Stop coords: ${formatCoordinate(details?.stopLatitude)}, ${formatCoordinate(details?.stopLongitude)}`;
+    }
+    if (geofenceDebugUserCoords) {
+      geofenceDebugUserCoords.textContent = `User coords: ${formatCoordinate(details?.userLatitude)}, ${formatCoordinate(details?.userLongitude)}`;
+    }
+    if (geofenceDebugDistance) {
+      geofenceDebugDistance.textContent = `Distance: ${typeof details?.distanceMeters === 'number' ? `${details.distanceMeters.toFixed(2)} m` : 'unknown'}`;
+    }
+    if (geofenceDebugEnabled) {
+      geofenceDebugEnabled.textContent = `launchEnabled: ${details?.launchEnabled ? 'true' : 'false'}${typeof details?.radiusMeters === 'number' ? ` (${details?.distanceMeters?.toFixed?.(2) ?? 'unknown'} <= ${details.radiusMeters})` : ''}`;
+    }
+  }
+
+  function dispatchGeofenceDebug(details) {
+    updateGeofenceDebugOverlay(details);
+    window.dispatchEvent(new CustomEvent('recxr-geofence-debug', { detail: details }));
+  }
+
+  console.log('[RecXR][Sanity] experienceStops from page payload', experienceStops);
+  experienceStops.forEach((stop) => {
+    console.log('[RecXR][Sanity] fetched stop record', stop);
+  });
+
   function updateActiveStop(userLatitude, userLongitude, accuracy) {
     lastKnownPosition = { latitude: userLatitude, longitude: userLongitude, accuracy };
     if (!experienceStops.length) {
       if (activeStopName) activeStopName.textContent = 'Nearest stop: no experience stops configured.';
       updateActiveStopMappingDebug(null);
       updateNextStopPanel(null);
+      dispatchGeofenceDebug({
+        stopTitle: 'No configured stops',
+        stopLatitude: null,
+        stopLongitude: null,
+        userLatitude,
+        userLongitude,
+        distanceMeters: null,
+        radiusMeters: null,
+        launchEnabled: false,
+      });
       return;
     }
 
     const stopsWithDistance = experienceStops.map((stop) => {
-      const distanceMeters = distanceInMeters(userLatitude, userLongitude, stop.latitude, stop.longitude);
+      const hasValidCoordinates = typeof stop.latitude === 'number' && typeof stop.longitude === 'number';
+      const distanceMeters = hasValidCoordinates
+        ? distanceInMeters(userLatitude, userLongitude, stop.latitude, stop.longitude)
+        : Number.POSITIVE_INFINITY;
       const radius = typeof stop.activationRadiusMeters === 'number' ? stop.activationRadiusMeters : 0;
-      const isUnlocked = radius > 0 && distanceMeters <= radius;
+      const isUnlocked = hasValidCoordinates && radius > 0 && distanceMeters <= radius;
+
+      logGeofence('fetched stop record used for comparison', stop);
 
       logGeofence('stop comparison', {
         stopId: stop.slug?.current || stop.slug || stop.title || stop.index,
@@ -562,6 +642,7 @@ const experienceStops = [...(recxrSite?.experienceStops ?? [])]
         userLongitude,
         stopLatitude: stop.latitude,
         stopLongitude: stop.longitude,
+        hasValidCoordinates,
         distanceMeters,
         activationRadiusMeters: radius,
         comparison: `${distanceMeters} <= ${radius}`,
@@ -585,7 +666,21 @@ const experienceStops = [...(recxrSite?.experienceStops ?? [])]
       hasUnlockedActiveStop,
       nearestStopDistanceMeters: nearestStop?.distanceMeters,
       nearestStopRadiusMeters: nearestStop?.activationRadiusMeters,
+      userLatitude,
+      userLongitude,
       accuracy,
+    });
+
+    dispatchGeofenceDebug({
+      stopTitle: nearestStop?.title || 'Untitled Stop',
+      stopLatitude: nearestStop?.latitude ?? null,
+      stopLongitude: nearestStop?.longitude ?? null,
+      userLatitude,
+      userLongitude,
+      distanceMeters: nearestStop?.distanceMeters ?? null,
+      radiusMeters: nearestStop?.activationRadiusMeters ?? null,
+      launchEnabled: hasUnlockedActiveStop,
+      fetchedStop: nearestStop ?? null,
     });
 
     if (activeStopSequence) {
@@ -653,6 +748,17 @@ const experienceStops = [...(recxrSite?.experienceStops ?? [])]
     updateActiveStopMappingDebug(null);
     updateNextStopPanel(null);
     updateStopCards();
+    dispatchGeofenceDebug({
+      stopTitle: 'No active stop',
+      stopLatitude: null,
+      stopLongitude: null,
+      userLatitude: null,
+      userLongitude: null,
+      distanceMeters: null,
+      radiusMeters: null,
+      launchEnabled: false,
+      error: error?.message || 'Unknown geolocation error',
+    });
     logGeofence('position error', {
       code: error?.code,
       message: error?.message,
@@ -681,6 +787,16 @@ const experienceStops = [...(recxrSite?.experienceStops ?? [])]
     geolocationWatchId = navigator.geolocation.watchPosition(handlePositionUpdate, handlePositionError, geolocationOptions);
   });
   window.dispatchEvent(new CustomEvent('recxr-active-stop', { detail: null }));
+  dispatchGeofenceDebug({
+    stopTitle: 'Waiting for location',
+    stopLatitude: null,
+    stopLongitude: null,
+    userLatitude: null,
+    userLongitude: null,
+    distanceMeters: null,
+    radiusMeters: null,
+    launchEnabled: false,
+  });
   updateNextStopPanel(null);
   updateStopCards();
 </script>

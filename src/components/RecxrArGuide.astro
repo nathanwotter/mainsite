@@ -62,6 +62,20 @@
 </section>
 
 <div
+  id="recxr-launch-debug-overlay"
+  style="position: fixed; right: 1rem; bottom: calc(1rem + min(16rem, 34vh)); z-index: 55; width: min(92vw, 24rem); padding: 0.8rem 0.9rem; border: 1px solid rgba(29,78,216,0.2); border-radius: 14px; background: rgba(239,246,255,0.96); box-shadow: 0 18px 48px rgba(15,23,42,0.14); backdrop-filter: blur(10px); font-size: 0.82rem; line-height: 1.45;"
+>
+  <p style="margin: 0 0 0.45rem 0; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #1d4ed8;">
+    Launch Debug
+  </p>
+  <p id="recxr-launch-debug-stop" style="margin: 0 0 0.2rem 0; color: #1e3a8a;">Stop: waiting</p>
+  <p id="recxr-launch-debug-stop-coords" style="margin: 0 0 0.2rem 0; color: #1e3a8a;">Stop coords: unknown</p>
+  <p id="recxr-launch-debug-user-coords" style="margin: 0 0 0.2rem 0; color: #1e3a8a;">User coords: unknown</p>
+  <p id="recxr-launch-debug-distance" style="margin: 0 0 0.2rem 0; color: #1e3a8a;">Distance: unknown</p>
+  <p id="recxr-launch-debug-enabled" style="margin: 0; color: #1e3a8a;">launchEnabled: false</p>
+</div>
+
+<div
   id="recxr-ar-overlay"
   style="display: none; position: fixed; inset: 0; z-index: 1000; background: rgba(15, 15, 20, 0.96); color: #fff; overflow: hidden;"
 >
@@ -368,10 +382,16 @@
   const runtimeCompleted = document.getElementById('recxr-runtime-completed');
   const runtimeStep = document.getElementById('recxr-runtime-step');
   const runtimeError = document.getElementById('recxr-runtime-error');
+  const launchDebugStop = document.getElementById('recxr-launch-debug-stop');
+  const launchDebugStopCoords = document.getElementById('recxr-launch-debug-stop-coords');
+  const launchDebugUserCoords = document.getElementById('recxr-launch-debug-user-coords');
+  const launchDebugDistance = document.getElementById('recxr-launch-debug-distance');
+  const launchDebugEnabled = document.getElementById('recxr-launch-debug-enabled');
 
   const debugEnabled = false;
 
   let currentActiveStop = null;
+  let latestGeofenceDebug = null;
   let xrSupported = false;
   let cameraGuideSupported = false;
   let preferredMode = 'standard';
@@ -488,6 +508,35 @@
       activeStopId: stop?.slug?.current || stop?.slug || stop?.title || stop?.index || 'none',
       ...details,
     });
+  }
+
+  function formatDebugCoordinate(value) {
+    return typeof value === 'number' && Number.isFinite(value) ? value.toFixed(6) : 'unknown';
+  }
+
+  function updateLaunchDebugOverlay(stop, launchEnabled) {
+    const stopTitle = stop?.title || latestGeofenceDebug?.stopTitle || 'waiting';
+    const stopLatitude = typeof stop?.latitude === 'number' ? stop.latitude : latestGeofenceDebug?.stopLatitude;
+    const stopLongitude = typeof stop?.longitude === 'number' ? stop.longitude : latestGeofenceDebug?.stopLongitude;
+    const userLatitude = latestGeofenceDebug?.userLatitude;
+    const userLongitude = latestGeofenceDebug?.userLongitude;
+    const distanceMeters = latestGeofenceDebug?.distanceMeters;
+
+    if (launchDebugStop) {
+      launchDebugStop.textContent = `Stop: ${stopTitle}`;
+    }
+    if (launchDebugStopCoords) {
+      launchDebugStopCoords.textContent = `Stop coords: ${formatDebugCoordinate(stopLatitude)}, ${formatDebugCoordinate(stopLongitude)}`;
+    }
+    if (launchDebugUserCoords) {
+      launchDebugUserCoords.textContent = `User coords: ${formatDebugCoordinate(userLatitude)}, ${formatDebugCoordinate(userLongitude)}`;
+    }
+    if (launchDebugDistance) {
+      launchDebugDistance.textContent = `Distance: ${typeof distanceMeters === 'number' ? `${distanceMeters.toFixed(2)} m` : 'unknown'}`;
+    }
+    if (launchDebugEnabled) {
+      launchDebugEnabled.textContent = `launchEnabled: ${launchEnabled ? 'true' : 'false'}`;
+    }
   }
 
   function getResolvedGuideMode(stop) {
@@ -1634,6 +1683,7 @@
     setButtonState(standardVideoButton, Boolean(isUnlocked && hasStandardVideo));
     logLaunchState(stop, launchReasons);
     updateDebugPanel(stop);
+    updateLaunchDebugOverlay(stop, canLaunchAr);
   }
 
   function updateLaunchState(stop) {
@@ -1935,6 +1985,12 @@
       updateCameraGuideDebug(stop);
       updateLaunchState(stop);
       setRuntimeStep('received recxr-active-stop event');
+    });
+
+    window.addEventListener('recxr-geofence-debug', (event) => {
+      latestGeofenceDebug = event.detail || null;
+      console.log('[RecXR][GeofenceDebug]', latestGeofenceDebug);
+      updateLaunchDebugOverlay(currentActiveStop, Boolean(arLaunchButton && !arLaunchButton.disabled));
     });
 
     window.addEventListener('recxr-open-camera-guide-fallback', (event) => {
