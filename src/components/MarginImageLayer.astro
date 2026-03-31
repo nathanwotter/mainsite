@@ -1,0 +1,79 @@
+---
+const marginImageModules = import.meta.glob(
+    [
+        '/src/assets/margin-images/*.avif',
+        '/src/assets/margin-images/*.gif',
+        '/src/assets/margin-images/*.jpeg',
+        '/src/assets/margin-images/*.jpg',
+        '/src/assets/margin-images/*.png',
+        '/src/assets/margin-images/*.svg',
+        '/src/assets/margin-images/*.webp'
+    ],
+    {
+        eager: true,
+        import: 'default',
+        query: '?url'
+    }
+);
+
+const marginImages = Object.values(marginImageModules).filter(Boolean);
+---
+
+{
+    marginImages.length > 0 && (
+        <>
+            <div class="margin-image-layer" aria-hidden="true">
+                <div class="margin-image-strip margin-image-strip-left" />
+                <div class="margin-image-strip margin-image-strip-right" />
+            </div>
+            <script define:vars={{ marginImages }} is:inline>
+                const images = marginImages;
+
+                if (Array.isArray(images) && images.length > 0) {
+                    const selectedImage = images[Math.floor(Math.random() * images.length)];
+                    document.documentElement.style.setProperty('--margin-image-url', `url("${selectedImage}")`);
+                }
+            </script>
+        </>
+    )
+}
+
+<style>
+    :global(:root) {
+        --margin-image-url: none;
+    }
+
+    .margin-image-layer {
+        display: none;
+    }
+
+    @media (min-width: 64rem) {
+        .margin-image-layer {
+            display: block;
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .margin-image-strip {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: clamp(6rem, 17vw, 12rem);
+            background-image: var(--margin-image-url);
+            background-repeat: repeat-y;
+            background-size: auto clamp(18rem, 36vw, 28rem);
+        }
+
+        .margin-image-strip-left {
+            left: 0;
+            background-position: left top;
+        }
+
+        .margin-image-strip-right {
+            right: 0;
+            background-position: right top;
+        }
+    }
+</style>

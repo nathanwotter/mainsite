@@ -38,6 +38,10 @@ function isRecreationFuturesNavItem(item) {
     );
 }
 
+function isCoachingNavItem(item) {
+    return item?.url === '/coaching' || item?.url === '/coaching/' || item?.label === 'Coaching';
+}
+
 function toTeachingChildLink(item) {
     const label = item?.menuTitle || item?.title;
     const slug = item?.slug;
@@ -111,21 +115,23 @@ export async function fetchData() {
         return configData;
     }
 
-    const navLinks = configData.header.navLinks.map((item) =>
-        isTeachingNavItem(item)
-            ? {
-                  ...item,
-                  _type: item._type || 'navigationItem',
-                  children: mergeTeachingChildren(item.children, teachingSubpages)
-              }
-            : isRecreationFuturesNavItem(item)
-              ? {
-                    ...item,
-                    _type: item._type || 'navigationItem',
-                    children: mergeRecreationFuturesChildren(item.children, recreationFuturesSubpages)
-                }
-              : item
-    );
+    const navLinks = configData.header.navLinks
+        .filter((item) => !isCoachingNavItem(item))
+        .map((item) =>
+            isTeachingNavItem(item)
+                ? {
+                      ...item,
+                      _type: item._type || 'navigationItem',
+                      children: mergeTeachingChildren(item.children, teachingSubpages)
+                  }
+                : isRecreationFuturesNavItem(item)
+                  ? {
+                        ...item,
+                        _type: item._type || 'navigationItem',
+                        children: mergeRecreationFuturesChildren(item.children, recreationFuturesSubpages)
+                    }
+                  : item
+        );
 
     return {
         ...configData,
