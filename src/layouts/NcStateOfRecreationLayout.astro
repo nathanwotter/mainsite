@@ -1,0 +1,27 @@
+---
+import type { ActionLink } from 'types';
+import SectionLayout from './SectionLayout.astro';
+
+interface Props {
+    title: string;
+    intro?: string;
+    body?: any[];
+    secondaryNavItems?: ActionLink[];
+    currentPath: string;
+    description?: string;
+}
+
+const { title, intro = '', body = [], secondaryNavItems = [], currentPath, description } = Astro.props;
+---
+
+<SectionLayout
+    title={title}
+    intro={intro}
+    body={body}
+    description={description}
+    secondaryNavTitle="NC:State of Recreation"
+    secondaryNavItems={secondaryNavItems}
+    currentPath={currentPath}
+>
+    <slot />
+</SectionLayout>

@@ -1,27 +1,36 @@
 ---
 import { client } from "../utils/sanity-client";
-import { PortableText } from "astro-portabletext";
-import Layout from "../layouts/Layout.astro";
+import SectionLayout from "../layouts/SectionLayout.astro";
+import {
+  fetchRecreationFuturesSubpages,
+  RECREATION_FUTURES_BASE_PATH,
+  toSectionNavItems
+} from "../data/sectionNav";
 
-const recreationfuturesPage = await client.fetch(
-  `*[_type == "recreationFuturesPage"][0]`
-);
+const [recreationFuturesPage, recreationFuturesSubpages] = await Promise.all([
+  client.fetch(
+    `*[_type == "recreationFuturesPage"][0]{
+      title,
+      intro,
+      body
+    }`
+  ),
+  fetchRecreationFuturesSubpages()
+]);
 
-const title = recreationfuturesPage?.title ?? "Recreation Futures Lab";
-const intro = recreationfuturesPage?.intro ?? "";
-const body = recreationfuturesPage?.body ?? [];
+const title = recreationFuturesPage?.title ?? "Recreation Futures Lab";
+const intro = recreationFuturesPage?.intro ?? "";
+const body = recreationFuturesPage?.body ?? [];
+const secondaryNavItems = toSectionNavItems(recreationFuturesSubpages, RECREATION_FUTURES_BASE_PATH);
 ---
 
-<Layout title={title}>
-
-<h1>{title}</h1>
-
-{intro && (
-  <p>{intro}</p>
-)}
-
-{body.length > 0 && (
-  <PortableText value={body} />
-)}
-
-</Layout>
+<SectionLayout
+  title={title}
+  intro={intro}
+  body={body}
+  secondaryNavTitle="Recreation Futures Lab"
+  secondaryNavItems={secondaryNavItems}
+  currentPath={RECREATION_FUTURES_BASE_PATH}
+>
+  <p>Recreation Futures Lab content can be added in Sanity Studio.</p>
+</SectionLayout>

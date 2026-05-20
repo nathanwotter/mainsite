@@ -1,0 +1,47 @@
+---
+import { client } from "../../utils/sanity-client";
+import SectionLayout from "../../layouts/SectionLayout.astro";
+import { ABOUT_NATHAN_BASE_PATH, fetchAboutNathanSubpages, toSectionNavItems } from "../../data/sectionNav";
+
+export async function getStaticPaths() {
+  const slugs = await client.fetch(
+    `*[_type == "aboutNathanSubpage" && defined(slug.current)]{
+      "slug": slug.current
+    }`
+  );
+
+  return slugs.map(({ slug }: { slug: string }) => ({
+    params: { slug },
+  }));
+}
+
+const { slug } = Astro.params;
+
+const [aboutNathanSubpage, aboutNathanSubpages] = await Promise.all([
+  slug
+    ? client.fetch(
+        `*[_type == "aboutNathanSubpage" && slug.current == $slug][0]{
+          title,
+          intro,
+          body
+        }`,
+        { slug }
+      )
+    : null,
+  fetchAboutNathanSubpages(),
+]);
+
+const title = aboutNathanSubpage?.title ?? "About Nathan";
+const intro = aboutNathanSubpage?.intro ?? "";
+const body = aboutNathanSubpage?.body ?? [];
+const secondaryNavItems = toSectionNavItems(aboutNathanSubpages, ABOUT_NATHAN_BASE_PATH);
+---
+
+<SectionLayout
+  title={title}
+  intro={intro}
+  body={body}
+  secondaryNavTitle="About Nathan"
+  secondaryNavItems={secondaryNavItems}
+  currentPath={`${ABOUT_NATHAN_BASE_PATH}/${slug}`}
+/>

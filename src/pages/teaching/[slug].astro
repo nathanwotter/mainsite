@@ -1,7 +1,7 @@
 ---
-import Layout from "../../layouts/Layout.astro";
 import { client } from "../../utils/sanity-client";
-import { PortableText } from "astro-portabletext";
+import SectionLayout from "../../layouts/SectionLayout.astro";
+import { fetchTeachingSubpages, TEACHING_BASE_PATH, toSectionNavItems } from "../../data/sectionNav";
 
 export async function getStaticPaths() {
   const slugs = await client.fetch(
@@ -17,8 +17,9 @@ export async function getStaticPaths() {
 
 const { slug } = Astro.params;
 
-const teachingSubpage = slug
-  ? await client.fetch(
+const [teachingSubpage, teachingSubpages] = await Promise.all([
+  slug
+  ? client.fetch(
       `*[_type == "teachingSubpage" && slug.current == $slug][0]{
         title,
         intro,
@@ -26,17 +27,21 @@ const teachingSubpage = slug
       }`,
       { slug }
     )
-  : null;
+  : null,
+  fetchTeachingSubpages()
+]);
 
 const title = teachingSubpage?.title ?? "Teaching";
 const intro = teachingSubpage?.intro ?? "";
 const body = teachingSubpage?.body ?? [];
+const secondaryNavItems = toSectionNavItems(teachingSubpages, TEACHING_BASE_PATH);
 ---
 
-<Layout title={title}>
-  <h1>{title}</h1>
-
-  {intro && <p>{intro}</p>}
-
-  {body.length > 0 && <PortableText value={body} />}
-</Layout>
+<SectionLayout
+  title={title}
+  intro={intro}
+  body={body}
+  secondaryNavTitle="Teaching"
+  secondaryNavItems={secondaryNavItems}
+  currentPath={`${TEACHING_BASE_PATH}/${slug}`}
+/>

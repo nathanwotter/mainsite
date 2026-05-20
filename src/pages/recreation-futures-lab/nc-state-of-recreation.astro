@@ -1,0 +1,33 @@
+---
+import NcStateOfRecreationLayout from "../../layouts/NcStateOfRecreationLayout.astro";
+import {
+  NC_STATE_BASE_PATH,
+  fetchNcStateOfRecreationParentPage,
+  fetchNcStateOfRecreationSubpages,
+  toNcStateSecondaryNavItems
+} from "../../data/ncStateOfRecreation";
+
+const [parentPage, subpages] = await Promise.all([
+  fetchNcStateOfRecreationParentPage(),
+  fetchNcStateOfRecreationSubpages()
+]);
+
+const title = parentPage?.title ?? "NC:State of Recreation";
+const intro =
+  parentPage?.intro ??
+  "This page is a placeholder for the NC:State of Recreation content within Recreation Futures Lab.";
+const body = parentPage?.body ?? [];
+const secondaryNavItems = toNcStateSecondaryNavItems(subpages);
+---
+
+<NcStateOfRecreationLayout
+  title={title}
+  intro={intro}
+  body={body}
+  currentPath={NC_STATE_BASE_PATH}
+  secondaryNavItems={secondaryNavItems}
+>
+  {body.length === 0 && (
+    <p>Additional NC:State of Recreation content can be added in Sanity later.</p>
+  )}
+</NcStateOfRecreationLayout>

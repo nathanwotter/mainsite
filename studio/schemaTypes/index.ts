@@ -6,6 +6,9 @@ import aboutNathanPage from './aboutNathanPage'
 import homePage from './homePage'
 import teachingSubpage from './teachingSubpage'
 import recreationFuturesSubpage from './recreationFuturesSubpage'
+import ncStateOfRecreationSubpage from './ncStateOfRecreationSubpage'
+import foodSubpage from './foodSubpage'
+import aboutNathanSubpage from './aboutNathanSubpage'
 import recxrSite from './recxrSite'
 
 import actionButton from './actionButton'
@@ -56,5 +59,8 @@ export const schemaTypes = [
   homePage,
   teachingSubpage,
   recreationFuturesSubpage,
+  ncStateOfRecreationSubpage,
+  foodSubpage,
+  aboutNathanSubpage,
   recxrSite,
 ]

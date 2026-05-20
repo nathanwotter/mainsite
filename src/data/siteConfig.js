@@ -26,6 +26,18 @@ const RECREATION_FUTURES_SUBPAGES_QUERY = `*[_type == "recreationFuturesSubpage"
   "slug": slug.current
 }`;
 
+const FOOD_SUBPAGES_QUERY = `*[_type == "foodSubpage" && defined(slug.current)] | order(order asc, title asc) {
+  title,
+  menuTitle,
+  "slug": slug.current
+}`;
+
+const ABOUT_NATHAN_SUBPAGES_QUERY = `*[_type == "aboutNathanSubpage" && defined(slug.current)] | order(order asc, title asc) {
+  title,
+  menuTitle,
+  "slug": slug.current
+}`;
+
 function isTeachingNavItem(item) {
     return item?.url === '/teaching' || item?.url === '/teaching/' || item?.label === 'Teaching';
 }
@@ -40,6 +52,14 @@ function isRecreationFuturesNavItem(item) {
 
 function isCoachingNavItem(item) {
     return item?.url === '/coaching' || item?.url === '/coaching/' || item?.label === 'Coaching';
+}
+
+function isFoodNavItem(item) {
+    return item?.url === '/food' || item?.url === '/food/' || item?.label === 'Food';
+}
+
+function isAboutNathanNavItem(item) {
+    return item?.url === '/about-nathan' || item?.url === '/about-nathan/' || item?.label === 'About Nathan';
 }
 
 function toTeachingChildLink(item) {
@@ -104,11 +124,75 @@ function mergeRecreationFuturesChildren(existingChildren = [], subpages = []) {
     return mergedChildren;
 }
 
+function toFoodChildLink(item) {
+    const label = item?.menuTitle || item?.title;
+    const slug = item?.slug;
+
+    if (!label || !slug) {
+        return null;
+    }
+
+    return {
+        _type: 'actionLink',
+        label,
+        url: `/food/${slug}`,
+        ariaLabel: label
+    };
+}
+
+function mergeFoodChildren(existingChildren = [], subpages = []) {
+    const dynamicChildren = subpages.map(toFoodChildLink).filter(Boolean);
+    const seenUrls = new Set(existingChildren.map((child) => child?.url).filter(Boolean));
+
+    const mergedChildren = [...existingChildren];
+    for (const child of dynamicChildren) {
+        if (!seenUrls.has(child.url)) {
+            mergedChildren.push(child);
+            seenUrls.add(child.url);
+        }
+    }
+
+    return mergedChildren;
+}
+
+function toAboutNathanChildLink(item) {
+    const label = item?.menuTitle || item?.title;
+    const slug = item?.slug;
+
+    if (!label || !slug) {
+        return null;
+    }
+
+    return {
+        _type: 'actionLink',
+        label,
+        url: `/about-nathan/${slug}`,
+        ariaLabel: label
+    };
+}
+
+function mergeAboutNathanChildren(existingChildren = [], subpages = []) {
+    const dynamicChildren = subpages.map(toAboutNathanChildLink).filter(Boolean);
+    const seenUrls = new Set(existingChildren.map((child) => child?.url).filter(Boolean));
+
+    const mergedChildren = [...existingChildren];
+    for (const child of dynamicChildren) {
+        if (!seenUrls.has(child.url)) {
+            mergedChildren.push(child);
+            seenUrls.add(child.url);
+        }
+    }
+
+    return mergedChildren;
+}
+
 export async function fetchData() {
-    const [configData, teachingSubpages, recreationFuturesSubpages] = await Promise.all([
+    const [configData, teachingSubpages, recreationFuturesSubpages, foodSubpages, aboutNathanSubpages] = await Promise.all([
         client.fetch(`*[_type == "siteConfig"][0] ${CONFIG_QUERY_OBJ}`),
         client.fetch(TEACHING_SUBPAGES_QUERY),
-        client.fetch(RECREATION_FUTURES_SUBPAGES_QUERY)
+        client.fetch(RECREATION_FUTURES_SUBPAGES_QUERY),
+        client.fetch(FOOD_SUBPAGES_QUERY),
+        client.fetch(ABOUT_NATHAN_SUBPAGES_QUERY)
     ]);
 
     if (!configData?.header?.navLinks?.length) {
@@ -130,6 +214,18 @@ export async function fetchData() {
                         _type: item._type || 'navigationItem',
                         children: mergeRecreationFuturesChildren(item.children, recreationFuturesSubpages)
                     }
+                  : isFoodNavItem(item)
+                    ? {
+                          ...item,
+                          _type: item._type || 'navigationItem',
+                          children: mergeFoodChildren(item.children, foodSubpages)
+                      }
+                    : isAboutNathanNavItem(item)
+                      ? {
+                            ...item,
+                            _type: item._type || 'navigationItem',
+                            children: mergeAboutNathanChildren(item.children, aboutNathanSubpages)
+                        }
                   : item
         );
 

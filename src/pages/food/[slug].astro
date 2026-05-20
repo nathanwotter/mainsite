@@ -1,0 +1,47 @@
+---
+import { client } from "../../utils/sanity-client";
+import SectionLayout from "../../layouts/SectionLayout.astro";
+import { FOOD_BASE_PATH, fetchFoodSubpages, toSectionNavItems } from "../../data/sectionNav";
+
+export async function getStaticPaths() {
+  const slugs = await client.fetch(
+    `*[_type == "foodSubpage" && defined(slug.current)]{
+      "slug": slug.current
+    }`
+  );
+
+  return slugs.map(({ slug }: { slug: string }) => ({
+    params: { slug },
+  }));
+}
+
+const { slug } = Astro.params;
+
+const [foodSubpage, foodSubpages] = await Promise.all([
+  slug
+    ? client.fetch(
+        `*[_type == "foodSubpage" && slug.current == $slug][0]{
+          title,
+          intro,
+          body
+        }`,
+        { slug }
+      )
+    : null,
+  fetchFoodSubpages(),
+]);
+
+const title = foodSubpage?.title ?? "Food";
+const intro = foodSubpage?.intro ?? "";
+const body = foodSubpage?.body ?? [];
+const secondaryNavItems = toSectionNavItems(foodSubpages, FOOD_BASE_PATH);
+---
+
+<SectionLayout
+  title={title}
+  intro={intro}
+  body={body}
+  secondaryNavTitle="Food"
+  secondaryNavItems={secondaryNavItems}
+  currentPath={`${FOOD_BASE_PATH}/${slug}`}
+/>

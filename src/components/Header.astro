@@ -5,15 +5,32 @@ import ResponsiveImage from '@components/ResponsiveImage.astro';
 
 interface Props extends Header {
     'data-sb-field-path'?: string;
+    currentPath?: string;
 }
 
 type HeaderNavItem = NonNullable<Header['navLinks']>[number];
 
-const { title, logo, navLinks, 'data-sb-field-path': fieldPath } = Astro.props;
+const { title, logo, navLinks, currentPath = '', 'data-sb-field-path': fieldPath } = Astro.props;
 const hasLogo = Boolean(logo?.src);
 const logoAlt = logo?.alt || title || 'Otter Adventures';
 const isNavigationItem = (item: HeaderNavItem) => item?._type === 'navigationItem';
 const hasChildren = (item: HeaderNavItem) => Array.isArray((item as NavigationItem)?.children) && (item as NavigationItem).children.length > 0;
+const normalizePath = (value?: string) => (value ? value.replace(/\/$/, '') || '/' : '');
+const normalizedCurrentPath = normalizePath(currentPath);
+
+function isActiveNavItem(item: HeaderNavItem) {
+    const normalizedItemPath = normalizePath(item?.url);
+
+    if (!normalizedItemPath) {
+        return false;
+    }
+
+    if (normalizedItemPath === '/') {
+        return normalizedCurrentPath === '/';
+    }
+
+    return normalizedCurrentPath === normalizedItemPath || normalizedCurrentPath.startsWith(`${normalizedItemPath}/`);
+}
 ---
 
 <nav class="p-4 sm:p-5" data-sb-field-path={fieldPath}>
@@ -63,16 +80,18 @@ const hasChildren = (item: HeaderNavItem) => Array.isArray((item as NavigationIt
                     <ul class="hidden lg:flex lg:flex-wrap lg:items-center lg:gap-6 header-nav-list" data-sb-field-path=".navLinks">
                         {navLinks.map((item, index) => {
                             const itemHasChildren = hasChildren(item);
+                            const itemIsActive = isActiveNavItem(item);
 
                             return (
-                                <li class:list={['header-nav-item', itemHasChildren && 'header-nav-item-has-children']}>
+                                <li class:list={['header-nav-item', itemHasChildren && 'header-nav-item-has-children', itemIsActive && 'header-nav-item-active']}>
                                     {
                                         itemHasChildren ? (
                                             <>
                                                 <a
-                                                    class="header-nav-link text-neutral no-underline"
+                                                    class:list={['header-nav-link', 'text-neutral', 'no-underline', itemIsActive && 'is-active']}
                                                     href={item.url || '#'}
                                                     aria-label={item.ariaLabel}
+                                                    aria-current={itemIsActive ? 'page' : undefined}
                                                     data-sb-field-path={`.${index}`}
                                                 >
                                                     <span data-sb-field-path=".label">{item.label}</span>
@@ -96,9 +115,10 @@ const hasChildren = (item: HeaderNavItem) => Array.isArray((item as NavigationIt
                                         ) : (
                                             isNavigationItem(item) ? (
                                                 <a
-                                                    class="text-neutral no-underline hover:underline"
+                                                    class:list={['text-neutral', 'no-underline', 'hover:underline', itemIsActive && 'header-nav-standalone-link-active']}
                                                     href={item.url || '#'}
                                                     aria-label={item.ariaLabel}
+                                                    aria-current={itemIsActive ? 'page' : undefined}
                                                     data-sb-field-path={`.${index}`}
                                                 >
                                                     <span data-sb-field-path=".label">{item.label}</span>
@@ -129,15 +149,17 @@ const hasChildren = (item: HeaderNavItem) => Array.isArray((item as NavigationIt
                             <ul class="flex flex-col px-4 pb-6 pt-14" data-sb-field-path=".navLinks">
                                 {navLinks.map((item, index) => {
                                     const itemHasChildren = hasChildren(item);
+                                    const itemIsActive = isActiveNavItem(item);
 
                                     return (
                                         <li class:list={[itemHasChildren && 'mobile-nav-item-has-children']}>
                                             {
                                                 isNavigationItem(item) ? (
                                                     <a
-                                                        class="text-neutral block py-2 no-underline hover:underline"
+                                                        class:list={['text-neutral', 'block', 'py-2', 'no-underline', 'hover:underline', itemIsActive && 'mobile-nav-link-active']}
                                                         href={item.url || '#'}
                                                         aria-label={item.ariaLabel}
+                                                        aria-current={itemIsActive ? 'page' : undefined}
                                                         data-sb-field-path={`.${index}`}
                                                     >
                                                         <span data-sb-field-path=".label">{item.label}</span>
@@ -190,11 +212,11 @@ const hasChildren = (item: HeaderNavItem) => Array.isArray((item as NavigationIt
         height: clamp(5.75rem, 8.75vw, 7rem) !important;
         max-width: none;
         margin-top: -0.75rem;
-        margin-left: clamp(8rem, 22vw, 18rem);
+        margin-left: clamp(6rem, 18vw, 14rem);
     }
     .header-nav-list {
         margin-top: clamp(2.5rem, 5vw, 3.75rem);
-        margin-right: clamp(10rem, 22vw, 18rem);
+        margin-right: clamp(8rem, 18vw, 14rem);
     }
     .header-nav-item {
         position: relative;
@@ -208,6 +230,21 @@ const hasChildren = (item: HeaderNavItem) => Array.isArray((item as NavigationIt
     .header-nav-link:hover,
     .header-nav-link:focus-visible {
         text-decoration: underline;
+    }
+    .header-nav-link.is-active,
+    .header-nav-standalone-link-active {
+        padding: 0.55rem 1rem;
+        border: 1px solid color-mix(in oklab, var(--color-primary) 65%, transparent);
+        border-radius: var(--radius-box);
+        background: color-mix(in oklab, var(--color-primary) 14%, var(--color-base-100));
+        font-weight: 700;
+        text-decoration: none;
+    }
+    .header-nav-link.is-active:hover,
+    .header-nav-link.is-active:focus-visible,
+    .header-nav-standalone-link-active:hover,
+    .header-nav-standalone-link-active:focus-visible {
+        text-decoration: none;
     }
     .header-nav-caret {
         display: inline-block;
@@ -268,6 +305,9 @@ const hasChildren = (item: HeaderNavItem) => Array.isArray((item as NavigationIt
     .mobile-subnav-link {
         display: block;
         padding: 0.45rem 0;
+    }
+    .mobile-nav-link-active {
+        font-weight: 700;
     }
     .nav-panel {
         @apply max-w-72 opacity-0 scale-90 origin-top-right invisible;

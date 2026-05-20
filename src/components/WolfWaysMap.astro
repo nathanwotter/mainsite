@@ -1,0 +1,322 @@
+---
+import "maplibre-gl/dist/maplibre-gl.css";
+
+interface WolfWaysLocation {
+  id: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+  category: string;
+  shortDescription: string;
+  ncStateOfRecreation360Url: string;
+  recxrUrl?: string;
+  recxrSlug?: string;
+  externalInfoUrl: string;
+  contributor: string;
+  images: string[];
+}
+
+interface Props {
+  maptilerKey?: string;
+  locations: WolfWaysLocation[];
+}
+
+const { maptilerKey = "", locations } = Astro.props;
+const hasMaptilerKey = Boolean(maptilerKey);
+const styleUrl = hasMaptilerKey
+  ? `https://api.maptiler.com/maps/streets-v2/style.json?key=${encodeURIComponent(maptilerKey)}`
+  : "";
+---
+
+{
+  hasMaptilerKey ? (
+    <section class="wolfways-map-section" aria-label="WolfWays campus map">
+      <div
+        class="wolfways-map"
+        data-wolfways-map
+        data-style-url={styleUrl}
+        data-locations={JSON.stringify(locations)}
+      />
+    </section>
+  ) : (
+    <section class="wolfways-map-fallback" aria-label="WolfWays map setup required">
+      <p class="wolfways-map-fallback-kicker">Map setup required</p>
+      <h2>WolfWays map preview is waiting for a MapTiler key.</h2>
+      <p>
+        Add <code>PUBLIC_MAPTILER_KEY</code> to your local environment to load
+        the campus map. The prototype locations are still listed below.
+      </p>
+    </section>
+  )
+}
+
+<script>
+  import maplibregl from "maplibre-gl";
+
+  const escapeHtml = (value) =>
+    String(value ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+
+  const renderAction = (href, label, kind = "primary") => {
+    if (!href) {
+      return `<span class="wolfways-popup-action is-disabled">${escapeHtml(label)}</span>`;
+    }
+
+    return `<a class="wolfways-popup-action is-${kind}" href="${escapeHtml(href)}">${escapeHtml(label)}</a>`;
+  };
+
+  const renderPopup = (location) => {
+    const recxrHref = location.recxrSlug
+      ? `/recreation-futures-lab/recxr/${encodeURIComponent(location.recxrSlug)}`
+      : location.recxrUrl;
+    const imagePlaceholder = location.images?.length
+      ? `<img class="wolfways-popup-image" src="${escapeHtml(location.images[0])}" alt="${escapeHtml(location.name)}" loading="lazy" />`
+      : `<div class="wolfways-popup-image-placeholder">Pictures placeholder</div>`;
+
+    return `
+      <article class="wolfways-popup-card">
+        ${imagePlaceholder}
+        <div class="wolfways-popup-body">
+          <p class="wolfways-popup-category">${escapeHtml(location.category)}</p>
+          <h3>${escapeHtml(location.name)}</h3>
+          <p>${escapeHtml(location.shortDescription)}</p>
+          <div class="wolfways-popup-actions">
+            ${renderAction(location.ncStateOfRecreation360Url, "NC:State 360 Video")}
+            ${renderAction(recxrHref, recxrHref ? "Open RecXR" : "RecXR coming soon", recxrHref ? "secondary" : "disabled")}
+            ${renderAction(location.externalInfoUrl === "#" ? "" : location.externalInfoUrl, "Organization info", "secondary")}
+          </div>
+          <p class="wolfways-popup-contributor">Contributor: ${escapeHtml(location.contributor)}</p>
+        </div>
+      </article>
+    `;
+  };
+
+  document.querySelectorAll("[data-wolfways-map]").forEach((mapElement) => {
+    const styleUrl = mapElement.getAttribute("data-style-url");
+    const locations = JSON.parse(mapElement.getAttribute("data-locations") || "[]");
+
+    if (!styleUrl || locations.length === 0) {
+      return;
+    }
+
+    const map = new maplibregl.Map({
+      container: mapElement,
+      style: styleUrl,
+      center: [-78.675, 35.779],
+      zoom: 13.1,
+      cooperativeGestures: true,
+      attributionControl: true
+    });
+
+    map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "top-right");
+
+    const bounds = new maplibregl.LngLatBounds();
+
+    locations.forEach((location, index) => {
+      const markerElement = document.createElement("button");
+      markerElement.type = "button";
+      markerElement.className = "wolfways-marker";
+      markerElement.setAttribute("aria-label", `Open ${location.name}`);
+      markerElement.textContent = String(index + 1);
+
+      new maplibregl.Marker({ element: markerElement, anchor: "bottom" })
+        .setLngLat([location.longitude, location.latitude])
+        .setPopup(
+          new maplibregl.Popup({
+            offset: 26,
+            maxWidth: "340px",
+            closeButton: true,
+            closeOnClick: true
+          }).setHTML(renderPopup(location))
+        )
+        .addTo(map);
+
+      bounds.extend([location.longitude, location.latitude]);
+    });
+
+    map.once("load", () => {
+      map.fitBounds(bounds, {
+        padding: { top: 72, right: 42, bottom: 54, left: 42 },
+        maxZoom: 13.7,
+        duration: 0
+      });
+    });
+  });
+</script>
+
+<style>
+  .wolfways-map-section {
+    margin: 1.5rem 0 2rem;
+  }
+
+  .wolfways-map {
+    width: 100%;
+    height: min(68vh, 680px);
+    min-height: 430px;
+    border: 1px solid color-mix(in oklab, var(--color-base-200) 72%, transparent);
+    border-radius: 8px;
+    overflow: hidden;
+    background: #eef2f1;
+  }
+
+  .wolfways-map-fallback {
+    margin: 1.5rem 0 2rem;
+    padding: 1.25rem;
+    border: 1px solid color-mix(in oklab, var(--color-base-200) 80%, transparent);
+    border-radius: 8px;
+    background: #f7faf8;
+  }
+
+  .wolfways-map-fallback-kicker {
+    margin: 0 0 0.45rem;
+    color: #b42318;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .wolfways-map-fallback h2 {
+    margin: 0 0 0.5rem;
+    font-size: 1.3rem;
+  }
+
+  .wolfways-map-fallback p {
+    margin: 0;
+    line-height: 1.65;
+  }
+
+  .wolfways-map :global(.maplibregl-popup-content) {
+    padding: 0;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 16px 40px rgba(20, 20, 20, 0.18);
+  }
+
+  .wolfways-map :global(.maplibregl-popup-close-button) {
+    display: grid;
+    place-items: center;
+    width: 2rem;
+    height: 2rem;
+    color: #171227;
+    font-size: 1.35rem;
+  }
+
+  .wolfways-map :global(.wolfways-marker) {
+    display: grid;
+    place-items: center;
+    width: 2.35rem;
+    height: 2.35rem;
+    border: 2px solid #ffffff;
+    border-radius: 999px;
+    background: #cc0000;
+    color: #ffffff;
+    font: inherit;
+    font-weight: 900;
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.22);
+    cursor: pointer;
+  }
+
+  .wolfways-map :global(.wolfways-marker:hover),
+  .wolfways-map :global(.wolfways-marker:focus-visible) {
+    background: #171227;
+    outline: 3px solid rgba(204, 0, 0, 0.28);
+    outline-offset: 3px;
+  }
+
+  .wolfways-map :global(.wolfways-popup-card) {
+    width: min(82vw, 340px);
+    color: #171227;
+    background: #ffffff;
+  }
+
+  .wolfways-map :global(.wolfways-popup-image),
+  .wolfways-map :global(.wolfways-popup-image-placeholder) {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    aspect-ratio: 16 / 8;
+    background: #e7efea;
+    color: #4b5563;
+    font-size: 0.85rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    object-fit: cover;
+  }
+
+  .wolfways-map :global(.wolfways-popup-body) {
+    padding: 1rem;
+  }
+
+  .wolfways-map :global(.wolfways-popup-category) {
+    margin: 0 0 0.35rem;
+    color: #5d6b31;
+    font-size: 0.75rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .wolfways-map :global(.wolfways-popup-card h3) {
+    margin: 0 1.5rem 0.45rem 0;
+    font-size: 1.1rem;
+    line-height: 1.2;
+  }
+
+  .wolfways-map :global(.wolfways-popup-card p) {
+    margin: 0;
+    line-height: 1.5;
+  }
+
+  .wolfways-map :global(.wolfways-popup-actions) {
+    display: grid;
+    gap: 0.5rem;
+    margin: 0.85rem 0;
+  }
+
+  .wolfways-map :global(.wolfways-popup-action) {
+    display: inline-flex;
+    min-height: 2.55rem;
+    align-items: center;
+    justify-content: center;
+    padding: 0.65rem 0.85rem;
+    border: 1px solid #171227;
+    border-radius: 999px;
+    color: #171227;
+    font-size: 0.9rem;
+    font-weight: 800;
+    text-align: center;
+    text-decoration: none;
+  }
+
+  .wolfways-map :global(.wolfways-popup-action.is-primary) {
+    background: #cc0000;
+    border-color: #cc0000;
+    color: #ffffff;
+  }
+
+  .wolfways-map :global(.wolfways-popup-action.is-disabled) {
+    border-color: #d7d8e4;
+    background: #f3f4f6;
+    color: #6b7280;
+    cursor: not-allowed;
+  }
+
+  .wolfways-map :global(.wolfways-popup-contributor) {
+    color: #60656f;
+    font-size: 0.82rem;
+  }
+
+  @media (max-width: 45rem) {
+    .wolfways-map {
+      height: 72vh;
+      min-height: 380px;
+      border-radius: 8px;
+    }
+  }
+</style>

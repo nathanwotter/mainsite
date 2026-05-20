@@ -1,0 +1,28 @@
+---
+import { PortableText } from 'astro-portabletext';
+import type { ActionLink } from 'types';
+import Layout from './Layout.astro';
+import SecondaryNav from '@components/SecondaryNav.astro';
+
+interface Props {
+    title: string;
+    intro?: string;
+    body?: any[];
+    secondaryNavTitle: string;
+    secondaryNavItems?: ActionLink[];
+    currentPath: string;
+    description?: string;
+}
+
+const { title, intro = '', body = [], secondaryNavTitle, secondaryNavItems = [], currentPath, description } = Astro.props;
+---
+
+<Layout title={title} description={description}>
+    <SecondaryNav slot="secondary-nav" title={secondaryNavTitle} items={secondaryNavItems} currentPath={currentPath} />
+
+    <h1>{title}</h1>
+
+    {intro && <p>{intro}</p>}
+
+    {body.length > 0 ? <PortableText value={body} /> : <slot />}
+</Layout>

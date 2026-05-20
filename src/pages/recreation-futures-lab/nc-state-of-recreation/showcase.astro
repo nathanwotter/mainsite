@@ -1,0 +1,32 @@
+---
+import NcStateOfRecreationLayout from "../../../layouts/NcStateOfRecreationLayout.astro";
+import {
+  NC_STATE_BASE_PATH,
+  fetchNcStateOfRecreationSubpage,
+  fetchNcStateOfRecreationSubpages,
+  toNcStateSecondaryNavItems
+} from "../../../data/ncStateOfRecreation";
+
+const slug = "showcase";
+const [page, subpages] = await Promise.all([
+  fetchNcStateOfRecreationSubpage(slug),
+  fetchNcStateOfRecreationSubpages()
+]);
+
+const title = page?.title ?? "This Semester's Showcase";
+const intro =
+  page?.intro ??
+  "This page is a placeholder for This Semester's Showcase within NC:State of Recreation.";
+const body = page?.body ?? [];
+const secondaryNavItems = toNcStateSecondaryNavItems(subpages);
+---
+
+<NcStateOfRecreationLayout
+  title={title}
+  intro={intro}
+  body={body}
+  currentPath={`${NC_STATE_BASE_PATH}/${slug}`}
+  secondaryNavItems={secondaryNavItems}
+>
+  {body.length === 0 && <p>Showcase details can be added here.</p>}
+</NcStateOfRecreationLayout>

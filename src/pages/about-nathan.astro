@@ -1,27 +1,27 @@
 ---
 import { client } from "../utils/sanity-client";
-import { PortableText } from "astro-portabletext";
-import Layout from "../layouts/Layout.astro";
+import SectionLayout from "../layouts/SectionLayout.astro";
+import { ABOUT_NATHAN_BASE_PATH, fetchAboutNathanSubpages, toSectionNavItems } from "../data/sectionNav";
 
-const aboutNathanPage = await client.fetch(
-  `*[_type == "aboutNathanPage"][0]`
-);
+const [aboutNathanPage, aboutNathanSubpages] = await Promise.all([client.fetch(
+  `*[_type == "aboutNathanPage"][0]{
+    title,
+    intro,
+    body
+  }`
+), fetchAboutNathanSubpages()]);
 
 const title = aboutNathanPage?.title ?? "About Nathan";
 const intro = aboutNathanPage?.intro ?? "";
 const body = aboutNathanPage?.body ?? [];
+const secondaryNavItems = toSectionNavItems(aboutNathanSubpages, ABOUT_NATHAN_BASE_PATH);
 ---
 
-<Layout title={title}>
-
-<h1>{title}</h1>
-
-{intro && (
-  <p>{intro}</p>
-)}
-
-{body.length > 0 && (
-  <PortableText value={body} />
-)}
-
-</Layout>
+<SectionLayout
+  title={title}
+  intro={intro}
+  body={body}
+  secondaryNavTitle="About Nathan"
+  secondaryNavItems={secondaryNavItems}
+  currentPath={ABOUT_NATHAN_BASE_PATH}
+/>

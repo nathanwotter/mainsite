@@ -21,6 +21,7 @@ const titleSuffix = configData.titleSuffix && addTitleSuffix !== false ? configD
 const title = [Astro.props.title, titleSuffix].filter(Boolean).join(' | ');
 const resolvedImage = image?.src ? { src: new URL(image.src, Astro.site).toString() } : undefined;
 const canonicalURL = new URL(Astro.request.url, Astro.site);
+const currentPath = Astro.url.pathname;
 
 /**
  * Enforce some standard canonical URL formatting across the site.
@@ -75,7 +76,12 @@ function formatCanonicalURL(url: string | URL) {
     <body class="antialiased">
         <MarginImageLayer />
         <div class="site-frame">
-            <Header {...configData.header} data-sb-field-path={`${configData._id}:header`} />
+            <Header {...configData.header} currentPath={currentPath} data-sb-field-path={`${configData._id}:header`} />
+            <div class="w-full px-4 sm:px-5">
+                <div class="page-shell mx-auto w-full max-w-7xl">
+                    <slot name="secondary-nav" />
+                </div>
+            </div>
             <main class="w-full px-4 sm:px-5">
                 <div class="page-shell mx-auto w-full max-w-7xl">
                     <slot />
@@ -103,8 +109,8 @@ function formatCanonicalURL(url: string | URL) {
     }
     @media (min-width: 64rem) {
         .page-shell {
-            padding-left: clamp(8rem, 22vw, 18rem);
-            padding-right: clamp(10rem, 22vw, 18rem);
+            padding-left: clamp(6rem, 18vw, 14rem);
+            padding-right: clamp(8rem, 18vw, 14rem);
         }
     }
 </style>

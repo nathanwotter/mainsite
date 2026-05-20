@@ -1,0 +1,98 @@
+---
+import type { ActionLink } from 'types';
+
+interface Props {
+    items?: ActionLink[];
+    currentPath?: string;
+    title?: string;
+}
+
+const { items = [], currentPath = '', title = '' } = Astro.props;
+const normalizedCurrentPath = currentPath.replace(/\/$/, '') || currentPath;
+---
+
+{
+    (title || items.length > 0) && (
+        <nav class="secondary-nav" aria-label="Section navigation">
+            <div class="secondary-nav-shell">
+                <ul class="secondary-nav-list">
+                    {
+                        title && (
+                            <li class="secondary-nav-title">
+                                <span>{title}</span>
+                            </li>
+                        )
+                    }
+                    {items.map((item) => {
+                        const normalizedItemPath = item.url?.replace(/\/$/, '') || item.url || '';
+                        const isActive = Boolean(normalizedItemPath) && normalizedItemPath === normalizedCurrentPath;
+
+                        return (
+                            <li>
+                                <a
+                                    class:list={['secondary-nav-link', isActive && 'is-active']}
+                                    href={item.url}
+                                    aria-label={item.ariaLabel || item.label}
+                                    aria-current={isActive ? 'page' : undefined}
+                                >
+                                    {item.label}
+                                </a>
+                            </li>
+                        );
+                    })}
+                </ul>
+            </div>
+        </nav>
+    )
+}
+
+<style>
+    .secondary-nav {
+        border-top: 1px solid color-mix(in oklab, var(--color-base-200) 70%, transparent);
+        border-bottom: 1px solid color-mix(in oklab, var(--color-base-200) 70%, transparent);
+        background: color-mix(in oklab, var(--color-base-100) 96%, transparent);
+    }
+
+    .secondary-nav-shell {
+        width: 100%;
+    }
+
+    .secondary-nav-list {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem 2rem;
+        overflow-x: auto;
+        padding: 0.85rem 0;
+        list-style: none;
+        margin: 0;
+        white-space: nowrap;
+        scrollbar-width: thin;
+    }
+
+    .secondary-nav-title {
+        flex: 0 0 auto;
+        font-weight: 800;
+        color: var(--color-neutral);
+    }
+
+    .secondary-nav-link {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.35rem 0;
+        border-bottom: 2px solid transparent;
+        color: var(--color-neutral);
+        text-decoration: none;
+    }
+
+    .secondary-nav-link:hover,
+    .secondary-nav-link:focus-visible {
+        text-decoration: underline;
+    }
+
+    .secondary-nav-link.is-active {
+        border-bottom-color: currentColor;
+        font-weight: 700;
+        text-decoration: none;
+    }
+
+</style>

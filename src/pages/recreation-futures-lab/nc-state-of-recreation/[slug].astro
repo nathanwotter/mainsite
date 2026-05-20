@@ -1,0 +1,39 @@
+---
+import NcStateOfRecreationLayout from "../../../layouts/NcStateOfRecreationLayout.astro";
+import {
+  NC_STATE_BASE_PATH,
+  fetchNcStateOfRecreationSubpage,
+  fetchNcStateOfRecreationSubpageSlugs,
+  fetchNcStateOfRecreationSubpages,
+  toNcStateSecondaryNavItems
+} from "../../../data/ncStateOfRecreation";
+
+export async function getStaticPaths() {
+  const slugs = await fetchNcStateOfRecreationSubpageSlugs();
+
+  return slugs.map((slug) => ({
+    params: { slug }
+  }));
+}
+
+const { slug } = Astro.params;
+
+const [page, subpages] = await Promise.all([
+  slug ? fetchNcStateOfRecreationSubpage(slug) : null,
+  fetchNcStateOfRecreationSubpages()
+]);
+
+if (!page || !slug) {
+  throw new Error(`NC:State of Recreation subpage not found for slug "${slug}"`);
+}
+
+const secondaryNavItems = toNcStateSecondaryNavItems(subpages);
+---
+
+<NcStateOfRecreationLayout
+  title={page.title}
+  intro={page.intro}
+  body={page.body}
+  currentPath={`${NC_STATE_BASE_PATH}/${slug}`}
+  secondaryNavItems={secondaryNavItems}
+/>
