@@ -2,6 +2,7 @@
 import Layout from "../../layouts/Layout.astro";
 import { client } from "../../utils/sanity-client";
 import { PortableText } from "astro-portabletext";
+import { NC_STATE_PARENT_SLUG } from "../../data/ncStateOfRecreation";
 
 export async function getStaticPaths() {
   const slugs = await client.fetch(
@@ -10,9 +11,11 @@ export async function getStaticPaths() {
     }`
   );
 
-  return slugs.map(({ slug }: { slug: string }) => ({
-    params: { slug },
-  }));
+  return slugs
+    .filter(({ slug }: { slug: string }) => slug !== NC_STATE_PARENT_SLUG)
+    .map(({ slug }: { slug: string }) => ({
+      params: { slug },
+    }));
 }
 
 const { slug } = Astro.params;
