@@ -1,0 +1,118 @@
+---
+import { PortableText } from 'astro-portabletext';
+
+interface Props {
+    value?: any[];
+}
+
+const { value = [] } = Astro.props;
+---
+
+{value.length > 0 && (
+    <div class="portable-text-content">
+        <PortableText value={value} />
+    </div>
+)}
+
+<style>
+    .portable-text-content {
+        max-width: 72ch;
+        color: var(--color-base-content);
+        font-size: 1rem;
+        line-height: 1.75;
+    }
+
+    .portable-text-content :global(*) {
+        overflow-wrap: break-word;
+    }
+
+    .portable-text-content :global(* + *) {
+        margin-top: 1rem;
+    }
+
+    .portable-text-content :global(p) {
+        margin-bottom: 0;
+        white-space: pre-line;
+    }
+
+    .portable-text-content :global(h1),
+    .portable-text-content :global(h2),
+    .portable-text-content :global(h3),
+    .portable-text-content :global(h4),
+    .portable-text-content :global(h5),
+    .portable-text-content :global(h6) {
+        color: var(--color-neutral);
+        font-weight: 900;
+        line-height: 1.2;
+    }
+
+    .portable-text-content :global(h1) {
+        margin-top: 2.5rem;
+        font-size: clamp(1.85rem, 4vw, 2.75rem);
+    }
+
+    .portable-text-content :global(h2) {
+        margin-top: 2.25rem;
+        font-size: clamp(1.65rem, 3vw, 2.25rem);
+    }
+
+    .portable-text-content :global(h3) {
+        margin-top: 1.75rem;
+        font-size: clamp(1.3rem, 2vw, 1.65rem);
+    }
+
+    .portable-text-content :global(h4) {
+        margin-top: 1.5rem;
+        font-size: 1.15rem;
+    }
+
+    .portable-text-content :global(ul),
+    .portable-text-content :global(ol) {
+        padding-left: 1.5rem;
+    }
+
+    .portable-text-content :global(ul) {
+        list-style: disc;
+    }
+
+    .portable-text-content :global(ol) {
+        list-style: decimal;
+    }
+
+    .portable-text-content :global(li) {
+        padding-left: 0.25rem;
+        white-space: pre-line;
+    }
+
+    .portable-text-content :global(li + li) {
+        margin-top: 0.5rem;
+    }
+
+    .portable-text-content :global(a) {
+        color: var(--color-neutral);
+        font-weight: 700;
+        text-decoration: underline;
+        text-decoration-thickness: 0.08em;
+        text-underline-offset: 0.18em;
+    }
+
+    .portable-text-content :global(a:hover),
+    .portable-text-content :global(a:focus-visible) {
+        color: color-mix(in oklab, var(--color-neutral) 80%, var(--color-primary));
+    }
+
+    .portable-text-content :global(strong) {
+        font-weight: 800;
+    }
+
+    .portable-text-content :global(em) {
+        font-style: italic;
+    }
+
+    .portable-text-content :global(blockquote) {
+        border-left: 0.25rem solid var(--color-primary);
+        padding-left: 1rem;
+        color: color-mix(in oklab, var(--color-base-content) 82%, transparent);
+        font-style: italic;
+    }
+</style>

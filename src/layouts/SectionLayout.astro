@@ -1,8 +1,8 @@
 ---
-import { PortableText } from 'astro-portabletext';
 import type { ActionLink } from 'types';
 import Layout from './Layout.astro';
 import SecondaryNav from '@components/SecondaryNav.astro';
+import PortableTextContent from '@components/PortableTextContent.astro';
 
 interface Props {
     title: string;
@@ -24,5 +24,5 @@ const { title, intro = '', body = [], secondaryNavTitle, secondaryNavItems = [],
 
     {intro && <p>{intro}</p>}
 
-    {body.length > 0 ? <PortableText value={body} /> : <slot />}
+    {body.length > 0 ? <PortableTextContent value={body} /> : <slot />}
 </Layout>
