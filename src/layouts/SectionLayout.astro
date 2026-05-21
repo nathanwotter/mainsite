@@ -12,15 +12,25 @@ interface Props {
     secondaryNavItems?: ActionLink[];
     currentPath: string;
     description?: string;
+    showTitleHeading?: boolean;
 }
 
-const { title, intro = '', body = [], secondaryNavTitle, secondaryNavItems = [], currentPath, description } = Astro.props;
+const {
+    title,
+    intro = '',
+    body = [],
+    secondaryNavTitle,
+    secondaryNavItems = [],
+    currentPath,
+    description,
+    showTitleHeading = true
+} = Astro.props;
 ---
 
 <Layout title={title} description={description}>
     <SecondaryNav slot="secondary-nav" title={secondaryNavTitle} items={secondaryNavItems} currentPath={currentPath} />
 
-    <h1>{title}</h1>
+    {showTitleHeading && <h1>{title}</h1>}
 
     {intro && <p>{intro}</p>}
 

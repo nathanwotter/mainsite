@@ -20,6 +20,11 @@ const normalizedCurrentPath = currentPath.replace(/\/$/, '') || currentPath;
                         title && (
                             <li class="secondary-nav-title">
                                 <span>{title}</span>
+                                {items.length > 0 && (
+                                    <span class="secondary-nav-separator" aria-hidden="true">
+                                        &gt;
+                                    </span>
+                                )}
                             </li>
                         )
                     }
@@ -60,7 +65,7 @@ const normalizedCurrentPath = currentPath.replace(/\/$/, '') || currentPath;
     .secondary-nav-list {
         display: flex;
         align-items: center;
-        gap: 0.5rem 2rem;
+        gap: 0.5rem 1.75rem;
         overflow-x: auto;
         padding: 0.85rem 0;
         list-style: none;
@@ -71,8 +76,19 @@ const normalizedCurrentPath = currentPath.replace(/\/$/, '') || currentPath;
 
     .secondary-nav-title {
         flex: 0 0 auto;
+        display: inline-flex;
+        align-items: center;
         font-weight: 800;
         color: var(--color-neutral);
+    }
+
+    .secondary-nav-separator {
+        display: inline-flex;
+        align-items: center;
+        margin-left: 1rem;
+        color: color-mix(in oklab, var(--color-neutral) 55%, transparent);
+        font-weight: 600;
+        line-height: 1;
     }
 
     .secondary-nav-link {

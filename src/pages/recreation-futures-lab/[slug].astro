@@ -1,8 +1,12 @@
 ---
-import Layout from "../../layouts/Layout.astro";
 import { client } from "../../utils/sanity-client";
-import { PortableText } from "astro-portabletext";
+import SectionLayout from "../../layouts/SectionLayout.astro";
 import { NC_STATE_PARENT_SLUG } from "../../data/ncStateOfRecreation";
+import {
+  fetchRecreationFuturesSubpages,
+  RECREATION_FUTURES_BASE_PATH,
+  toSectionNavItems
+} from "../../data/sectionNav";
 
 export async function getStaticPaths() {
   const slugs = await client.fetch(
@@ -20,26 +24,32 @@ export async function getStaticPaths() {
 
 const { slug } = Astro.params;
 
-const recreationFuturesSubpage = slug
-  ? await client.fetch(
-      `*[_type == "recreationFuturesSubpage" && slug.current == $slug][0]{
-        title,
-        intro,
-        body
-      }`,
-      { slug }
-    )
-  : null;
+const [recreationFuturesSubpage, recreationFuturesSubpages] = await Promise.all([
+  slug
+    ? client.fetch(
+        `*[_type == "recreationFuturesSubpage" && slug.current == $slug][0]{
+          title,
+          intro,
+          body
+        }`,
+        { slug }
+      )
+    : null,
+  fetchRecreationFuturesSubpages()
+]);
 
 const title = recreationFuturesSubpage?.title ?? "Recreation Futures Lab";
 const intro = recreationFuturesSubpage?.intro ?? "";
 const body = recreationFuturesSubpage?.body ?? [];
+const secondaryNavItems = toSectionNavItems(recreationFuturesSubpages, RECREATION_FUTURES_BASE_PATH);
 ---
 
-<Layout title={title}>
-  <h1>{title}</h1>
-
-  {intro && <p>{intro}</p>}
-
-  {body.length > 0 && <PortableText value={body} />}
-</Layout>
+<SectionLayout
+  title={title}
+  intro={intro}
+  body={body}
+  secondaryNavTitle="Recreation Futures Lab"
+  secondaryNavItems={secondaryNavItems}
+  currentPath={`${RECREATION_FUTURES_BASE_PATH}/${slug}`}
+  showTitleHeading={false}
+/>
