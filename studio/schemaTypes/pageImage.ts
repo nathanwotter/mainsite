@@ -66,6 +66,19 @@ export default defineType({
       },
       initialValue: 'standard',
     }),
+    defineField({
+      name: 'textWrap',
+      title: 'Text wrapping',
+      description: 'Controls whether following text wraps around this image.',
+      type: 'string',
+      options: {
+        list: [
+          {title: 'No wrapping', value: 'none'},
+          {title: 'Wrap text', value: 'wrap'},
+        ],
+      },
+      initialValue: 'none',
+    }),
   ],
   preview: {
     select: {

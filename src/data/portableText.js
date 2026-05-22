@@ -5,6 +5,7 @@ export const PORTABLE_BODY = `body[] {
     displaySize,
     alignment,
     imageStyle,
+    textWrap,
     "src": image.asset->url,
     "dimensions": image.asset->metadata.dimensions
   },

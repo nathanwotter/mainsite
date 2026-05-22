@@ -7,6 +7,7 @@ interface Props {
         displaySize?: string;
         alignment?: string;
         imageStyle?: string;
+        textWrap?: string;
         dimensions?: {
             width?: number;
             height?: number;
@@ -20,17 +21,21 @@ const height = node.dimensions?.height;
 const displaySizes = new Set(['full', 'large', 'medium', 'small']);
 const alignments = new Set(['left', 'center', 'right']);
 const imageStyles = new Set(['standard', 'card', 'circle']);
+const textWraps = new Set(['none', 'wrap']);
 const requestedDisplaySize = node.displaySize || 'full';
 const requestedAlignment = node.alignment || 'center';
 const requestedImageStyle = node.imageStyle || 'standard';
+const requestedTextWrap = node.textWrap || 'none';
 const displaySize = displaySizes.has(requestedDisplaySize) ? requestedDisplaySize : 'full';
 const alignment = alignments.has(requestedAlignment) ? requestedAlignment : 'center';
 const imageStyle = imageStyles.has(requestedImageStyle) ? requestedImageStyle : 'standard';
+const textWrap = textWraps.has(requestedTextWrap) ? requestedTextWrap : 'none';
 const classNames = [
     'page-image-block',
     `page-image-block--${displaySize}`,
     `page-image-block--align-${alignment}`,
-    `page-image-block--style-${imageStyle}`
+    `page-image-block--style-${imageStyle}`,
+    `page-image-block--wrap-${textWrap}`
 ];
 ---
 

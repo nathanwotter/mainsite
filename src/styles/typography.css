@@ -164,6 +164,22 @@
     margin-right: 0;
 }
 
+.page-image-block--wrap-wrap.page-image-block--align-left {
+    float: left;
+    margin: 0.25rem 1.5rem 1rem 0;
+}
+
+.page-image-block--wrap-wrap.page-image-block--align-right {
+    float: right;
+    margin: 0.25rem 0 1rem 1.5rem;
+}
+
+.page-image-block--wrap-wrap.page-image-block--align-center {
+    float: none;
+    margin-left: auto;
+    margin-right: auto;
+}
+
 .site-typography figure img,
 .page-image-block img {
     display: block;
@@ -193,6 +209,14 @@
 
 .page-image-block--style-circle figcaption {
     text-align: center;
+}
+
+@media (max-width: 40rem) {
+    .page-image-block--wrap-wrap.page-image-block--align-left,
+    .page-image-block--wrap-wrap.page-image-block--align-right {
+        float: none;
+        margin: 2rem auto;
+    }
 }
 
 .site-typography figcaption,
