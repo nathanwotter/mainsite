@@ -1,5 +1,6 @@
 import {defineType, defineField} from 'sanity'
 import {shortTitleField} from './shortTitleField'
+import {portableBodyField} from './portableBodyField'
 
 export default defineType({
   name: 'aboutNathanPage',
@@ -16,11 +17,6 @@ export default defineType({
       type: 'array',
       of: [{type: 'actionLink'}],
     }),
-    defineField({
-      name: 'body',
-      title: 'Body',
-      type: 'array',
-      of: [{type: 'block'}],
-    }),
+    portableBodyField(),
   ],
 })

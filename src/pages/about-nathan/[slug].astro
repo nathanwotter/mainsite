@@ -2,6 +2,7 @@
 import { client } from "../../utils/sanity-client";
 import SectionLayout from "../../layouts/SectionLayout.astro";
 import { ABOUT_NATHAN_BASE_PATH, fetchAboutNathanSubpages, toSectionNavItems } from "../../data/sectionNav";
+import { PORTABLE_BODY } from "../../data/portableText";
 
 export async function getStaticPaths() {
   const slugs = await client.fetch(
@@ -24,7 +25,7 @@ const [aboutNathanSubpage, aboutNathanSubpages] = await Promise.all([
           title,
           shortTitle,
           intro,
-          body
+          ${PORTABLE_BODY}
         }`,
         { slug }
       )

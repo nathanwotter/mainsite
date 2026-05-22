@@ -2,13 +2,14 @@
 import { client } from "../utils/sanity-client";
 import SectionLayout from "../layouts/SectionLayout.astro";
 import { ABOUT_NATHAN_BASE_PATH, fetchAboutNathanSubpages, toSectionNavItems } from "../data/sectionNav";
+import { PORTABLE_BODY } from "../data/portableText";
 
 const [aboutNathanPage, aboutNathanSubpages] = await Promise.all([client.fetch(
   `*[_type == "aboutNathanPage"][0]{
     title,
     shortTitle,
     intro,
-    body
+    ${PORTABLE_BODY}
   }`
 ), fetchAboutNathanSubpages()]);
 

@@ -6,6 +6,7 @@ import {
   RECREATION_FUTURES_BASE_PATH,
   toSectionNavItems
 } from "../data/sectionNav";
+import { PORTABLE_BODY } from "../data/portableText";
 
 const [recreationFuturesPage, recreationFuturesSubpages] = await Promise.all([
   client.fetch(
@@ -13,7 +14,7 @@ const [recreationFuturesPage, recreationFuturesSubpages] = await Promise.all([
       title,
       shortTitle,
       intro,
-      body
+      ${PORTABLE_BODY}
     }`
   ),
   fetchRecreationFuturesSubpages()

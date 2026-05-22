@@ -7,6 +7,7 @@ import {
   RECREATION_FUTURES_BASE_PATH,
   toSectionNavItems
 } from "../../data/sectionNav";
+import { PORTABLE_BODY } from "../../data/portableText";
 
 export async function getStaticPaths() {
   const slugs = await client.fetch(
@@ -31,7 +32,7 @@ const [recreationFuturesSubpage, recreationFuturesSubpages] = await Promise.all(
           title,
           shortTitle,
           intro,
-          body
+          ${PORTABLE_BODY}
         }`,
         { slug }
       )

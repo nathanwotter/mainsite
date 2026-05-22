@@ -26,6 +26,8 @@ import heroSection from './heroSection'
 import logosSection from './logosSection'
 import navigationItem from './navigationItem'
 import page from './page'
+import pageFile from './pageFile'
+import pageImage from './pageImage'
 import person from './person'
 import siteConfig from './siteConfig'
 import testimonial from './testimonial'
@@ -47,6 +49,8 @@ export const schemaTypes = [
   logosSection,
   navigationItem,
   page,
+  pageFile,
+  pageImage,
   person,
   siteConfig,
   testimonial,

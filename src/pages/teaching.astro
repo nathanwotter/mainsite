@@ -2,9 +2,15 @@
 import { client } from "../utils/sanity-client";
 import SectionLayout from "../layouts/SectionLayout.astro";
 import { fetchTeachingSubpages, TEACHING_BASE_PATH, toSectionNavItems } from "../data/sectionNav";
+import { PORTABLE_BODY } from "../data/portableText";
 
 const [teachingPage, teachingSubpages] = await Promise.all([client.fetch(
-  `*[_type == "teachingPage"][0]`
+  `*[_type == "teachingPage"][0]{
+    title,
+    shortTitle,
+    intro,
+    ${PORTABLE_BODY}
+  }`
 ), fetchTeachingSubpages()]);
 
 const title = teachingPage?.title ?? "Teaching";

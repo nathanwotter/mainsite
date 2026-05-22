@@ -1,16 +1,25 @@
 ---
 import { PortableText } from 'astro-portabletext';
+import PageFileBlock from './PageFileBlock.astro';
+import PageImageBlock from './PageImageBlock.astro';
 
 interface Props {
     value?: any[];
 }
 
 const { value = [] } = Astro.props;
+
+const components = {
+    type: {
+        pageFile: PageFileBlock,
+        pageImage: PageImageBlock
+    }
+};
 ---
 
 {value.length > 0 && (
     <div class="portable-text-content">
-        <PortableText value={value} />
+        <PortableText value={value} components={components} />
     </div>
 )}
 

@@ -1,0 +1,89 @@
+---
+interface Props {
+    node: {
+        fileUrl?: string;
+        title?: string;
+        caption?: string;
+        filename?: string;
+        extension?: string;
+        size?: number;
+    };
+}
+
+const { node } = Astro.props;
+
+function formatFileMeta(extension?: string, size?: number) {
+    const parts = [];
+
+    if (extension) {
+        parts.push(extension.toUpperCase());
+    }
+
+    if (typeof size === 'number' && size > 0) {
+        const units = ['B', 'KB', 'MB', 'GB'];
+        let value = size;
+        let unitIndex = 0;
+
+        while (value >= 1024 && unitIndex < units.length - 1) {
+            value = value / 1024;
+            unitIndex += 1;
+        }
+
+        parts.push(`${value >= 10 || unitIndex === 0 ? Math.round(value) : value.toFixed(1)} ${units[unitIndex]}`);
+    }
+
+    return parts.join(' · ');
+}
+
+const fileMeta = formatFileMeta(node.extension, node.size);
+const label = node.title || node.filename || 'Download file';
+---
+
+{
+    node.fileUrl && (
+        <div class="page-file-block">
+            <a class="page-file-link" href={node.fileUrl} download>
+                <span>{label}</span>
+                {fileMeta && <small>{fileMeta}</small>}
+            </a>
+            {node.caption && <p>{node.caption}</p>}
+        </div>
+    )
+}
+
+<style>
+    .page-file-block {
+        margin: 1.5rem 0;
+        padding: 1rem;
+        border: 1px solid color-mix(in oklab, var(--color-base-200) 80%, var(--color-neutral));
+        border-radius: 8px;
+        background: color-mix(in oklab, var(--color-base-100) 94%, var(--color-base-200));
+    }
+
+    .page-file-link {
+        display: inline-flex;
+        align-items: baseline;
+        gap: 0.65rem;
+        color: var(--color-neutral);
+        font-weight: 800;
+        text-decoration: none;
+    }
+
+    .page-file-link:hover,
+    .page-file-link:focus-visible {
+        text-decoration: underline;
+    }
+
+    .page-file-link small {
+        color: color-mix(in oklab, var(--color-base-content) 64%, transparent);
+        font-size: 0.85rem;
+        font-weight: 700;
+    }
+
+    .page-file-block p {
+        margin: 0.5rem 0 0;
+        color: color-mix(in oklab, var(--color-base-content) 76%, transparent);
+        font-size: 0.92rem;
+        line-height: 1.5;
+    }
+</style>

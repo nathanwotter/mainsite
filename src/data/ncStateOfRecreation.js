@@ -1,4 +1,5 @@
 import { client } from '@utils/sanity-client';
+import { PORTABLE_BODY } from './portableText';
 
 export const NC_STATE_PARENT_SLUG = 'nc-state-of-recreation';
 export const NC_STATE_BASE_PATH = `/recreation-futures-lab/${NC_STATE_PARENT_SLUG}`;
@@ -8,7 +9,7 @@ const NC_STATE_SUBPAGES_QUERY = `*[_type == "ncStateOfRecreationSubpage" && defi
   shortTitle,
   menuTitle,
   intro,
-  body,
+  ${PORTABLE_BODY},
   "slug": slug.current
 }`;
 
@@ -17,7 +18,7 @@ const NC_STATE_SUBPAGE_QUERY = `*[_type == "ncStateOfRecreationSubpage" && slug.
   shortTitle,
   menuTitle,
   intro,
-  body,
+  ${PORTABLE_BODY},
   "slug": slug.current
 }`;
 
@@ -25,7 +26,7 @@ const NC_STATE_PARENT_QUERY = `*[_type == "recreationFuturesSubpage" && slug.cur
   title,
   shortTitle,
   intro,
-  body
+  ${PORTABLE_BODY}
 }`;
 
 const FALLBACK_SUBPAGES = [

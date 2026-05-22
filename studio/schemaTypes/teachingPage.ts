@@ -1,6 +1,7 @@
 // studio/schemaTypes/teachingPage.ts
 import {defineType, defineField} from 'sanity'
 import {shortTitleField} from './shortTitleField'
+import {portableBodyField} from './portableBodyField'
 
 export default defineType({
   name: 'teachingPage',
@@ -19,11 +20,6 @@ export default defineType({
       type: 'text',
       rows: 3,
     }),
-    defineField({
-      name: 'body',
-      title: 'Body',
-      type: 'array',
-      of: [{type: 'block'}],
-    }),
+    portableBodyField(),
   ],
 })
