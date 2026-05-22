@@ -2,6 +2,9 @@ export const PORTABLE_BODY = `body[] {
   ...,
   _type == "pageImage" => {
     ...,
+    displaySize,
+    alignment,
+    imageStyle,
     "src": image.asset->url,
     "dimensions": image.asset->metadata.dimensions
   },

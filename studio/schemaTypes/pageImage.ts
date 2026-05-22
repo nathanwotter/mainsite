@@ -26,6 +26,46 @@ export default defineType({
       title: 'Caption',
       type: 'string',
     }),
+    defineField({
+      name: 'displaySize',
+      title: 'Display size',
+      type: 'string',
+      options: {
+        list: [
+          {title: 'Full width', value: 'full'},
+          {title: 'Large', value: 'large'},
+          {title: 'Medium', value: 'medium'},
+          {title: 'Small', value: 'small'},
+        ],
+      },
+      initialValue: 'full',
+    }),
+    defineField({
+      name: 'alignment',
+      title: 'Alignment',
+      type: 'string',
+      options: {
+        list: [
+          {title: 'Left', value: 'left'},
+          {title: 'Center', value: 'center'},
+          {title: 'Right', value: 'right'},
+        ],
+      },
+      initialValue: 'center',
+    }),
+    defineField({
+      name: 'imageStyle',
+      title: 'Image style',
+      type: 'string',
+      options: {
+        list: [
+          {title: 'Standard', value: 'standard'},
+          {title: 'Rounded card', value: 'card'},
+          {title: 'Circle / avatar', value: 'circle'},
+        ],
+      },
+      initialValue: 'standard',
+    }),
   ],
   preview: {
     select: {

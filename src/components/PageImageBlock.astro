@@ -4,6 +4,9 @@ interface Props {
         src?: string;
         alt?: string;
         caption?: string;
+        displaySize?: string;
+        alignment?: string;
+        imageStyle?: string;
         dimensions?: {
             width?: number;
             height?: number;
@@ -14,11 +17,26 @@ interface Props {
 const { node } = Astro.props;
 const width = node.dimensions?.width;
 const height = node.dimensions?.height;
+const displaySizes = new Set(['full', 'large', 'medium', 'small']);
+const alignments = new Set(['left', 'center', 'right']);
+const imageStyles = new Set(['standard', 'card', 'circle']);
+const requestedDisplaySize = node.displaySize || 'full';
+const requestedAlignment = node.alignment || 'center';
+const requestedImageStyle = node.imageStyle || 'standard';
+const displaySize = displaySizes.has(requestedDisplaySize) ? requestedDisplaySize : 'full';
+const alignment = alignments.has(requestedAlignment) ? requestedAlignment : 'center';
+const imageStyle = imageStyles.has(requestedImageStyle) ? requestedImageStyle : 'standard';
+const classNames = [
+    'page-image-block',
+    `page-image-block--${displaySize}`,
+    `page-image-block--align-${alignment}`,
+    `page-image-block--style-${imageStyle}`
+];
 ---
 
 {
     node.src && (
-        <figure class="page-image-block">
+        <figure class:list={classNames}>
             <img src={node.src} alt={node.alt || ''} width={width} height={height} loading="lazy" decoding="async" />
             {node.caption && <figcaption>{node.caption}</figcaption>}
         </figure>
