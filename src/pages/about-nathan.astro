@@ -6,6 +6,7 @@ import { ABOUT_NATHAN_BASE_PATH, fetchAboutNathanSubpages, toSectionNavItems } f
 const [aboutNathanPage, aboutNathanSubpages] = await Promise.all([client.fetch(
   `*[_type == "aboutNathanPage"][0]{
     title,
+    shortTitle,
     intro,
     body
   }`

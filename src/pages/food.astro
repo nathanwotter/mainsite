@@ -6,6 +6,7 @@ import { FOOD_BASE_PATH, fetchFoodSubpages, toSectionNavItems } from "../data/se
 const [foodPage, foodSubpages] = await Promise.all([client.fetch(
   `*[_type == "foodPage"][0]{
     title,
+    shortTitle,
     intro,
     body
   }`

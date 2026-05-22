@@ -22,6 +22,7 @@ const [teachingSubpage, teachingSubpages] = await Promise.all([
   ? client.fetch(
       `*[_type == "teachingSubpage" && slug.current == $slug][0]{
         title,
+        shortTitle,
         intro,
         body
       }`,

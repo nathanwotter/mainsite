@@ -1,4 +1,5 @@
 import {defineField, defineType} from 'sanity'
+import {shortTitleField} from './shortTitleField'
 
 export default defineType({
   name: 'homePage',
@@ -10,6 +11,7 @@ export default defineType({
       title: 'Title',
       type: 'string',
     }),
+    shortTitleField(),
     defineField({
       name: 'intro',
       title: 'Intro',

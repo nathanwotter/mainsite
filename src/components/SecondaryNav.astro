@@ -31,16 +31,19 @@ const normalizedCurrentPath = currentPath.replace(/\/$/, '') || currentPath;
                     {items.map((item) => {
                         const normalizedItemPath = item.url?.replace(/\/$/, '') || item.url || '';
                         const isActive = Boolean(normalizedItemPath) && normalizedItemPath === normalizedCurrentPath;
+                        const visibleLabel = item.shortTitle || item.title || item.label;
+                        const fullTitle = item.title || item.ariaLabel || item.label || visibleLabel;
 
                         return (
                             <li>
                                 <a
                                     class:list={['secondary-nav-link', isActive && 'is-active']}
                                     href={item.url}
-                                    aria-label={item.ariaLabel || item.label}
+                                    aria-label={item.ariaLabel || fullTitle}
                                     aria-current={isActive ? 'page' : undefined}
+                                    title={fullTitle !== visibleLabel ? fullTitle : undefined}
                                 >
-                                    {item.label}
+                                    {visibleLabel}
                                 </a>
                             </li>
                         );
@@ -86,8 +89,9 @@ const normalizedCurrentPath = currentPath.replace(/\/$/, '') || currentPath;
         display: inline-flex;
         align-items: center;
         margin-left: 1rem;
-        color: color-mix(in oklab, var(--color-neutral) 55%, transparent);
-        font-weight: 600;
+        color: color-mix(in oklab, var(--color-neutral) 72%, transparent);
+        font-size: 1.25em;
+        font-weight: 800;
         line-height: 1;
     }
 

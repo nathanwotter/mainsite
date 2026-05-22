@@ -1,4 +1,5 @@
 import {defineField, defineType} from 'sanity'
+import {shortTitleField} from './shortTitleField'
 
 export default defineType({
   name: 'ncStateOfRecreationSubpage',
@@ -11,6 +12,7 @@ export default defineType({
       type: 'string',
       validation: (Rule) => Rule.required(),
     }),
+    shortTitleField(),
     defineField({
       name: 'slug',
       title: 'Slug',

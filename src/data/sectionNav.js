@@ -7,24 +7,28 @@ export const RECREATION_FUTURES_BASE_PATH = '/recreation-futures-lab';
 
 const TEACHING_SUBPAGES_QUERY = `*[_type == "teachingSubpage" && defined(slug.current)] | order(order asc, title asc) {
   title,
+  shortTitle,
   menuTitle,
   "slug": slug.current
 }`;
 
 const FOOD_SUBPAGES_QUERY = `*[_type == "foodSubpage" && defined(slug.current)] | order(order asc, title asc) {
   title,
+  shortTitle,
   menuTitle,
   "slug": slug.current
 }`;
 
 const ABOUT_NATHAN_SUBPAGES_QUERY = `*[_type == "aboutNathanSubpage" && defined(slug.current)] | order(order asc, title asc) {
   title,
+  shortTitle,
   menuTitle,
   "slug": slug.current
 }`;
 
 const RECREATION_FUTURES_SUBPAGES_QUERY = `*[_type == "recreationFuturesSubpage" && defined(slug.current)] | order(order asc, title asc) {
   title,
+  shortTitle,
   menuTitle,
   "slug": slug.current
 }`;
@@ -50,19 +54,23 @@ export function toSectionNavItems(items = [], basePath = '') {
 
     return safeItems
         .map((item) => {
-            const label = item?.menuTitle || item?.label || item?.title;
+            const title = item?.title || item?.label;
+            const shortTitle = item?.shortTitle || item?.menuTitle;
+            const label = shortTitle || title;
             const slug = item?.slug;
             const url = item?.url || (slug && basePath ? `${basePath}/${slug}` : undefined);
 
-            if (!label || !url) {
+            if (!title || !url) {
                 return null;
             }
 
             return {
                 _type: 'actionLink',
                 label,
+                title,
+                shortTitle,
                 url,
-                ariaLabel: item?.ariaLabel || label
+                ariaLabel: item?.ariaLabel || title
             };
         })
         .filter(Boolean);

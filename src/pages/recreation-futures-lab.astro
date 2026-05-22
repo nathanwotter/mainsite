@@ -11,6 +11,7 @@ const [recreationFuturesPage, recreationFuturesSubpages] = await Promise.all([
   client.fetch(
     `*[_type == "recreationFuturesPage"][0]{
       title,
+      shortTitle,
       intro,
       body
     }`
@@ -31,6 +32,7 @@ const secondaryNavItems = toSectionNavItems(recreationFuturesSubpages, RECREATIO
   secondaryNavTitle="Recreation Futures Lab"
   secondaryNavItems={secondaryNavItems}
   currentPath={RECREATION_FUTURES_BASE_PATH}
+  showTitleHeading={false}
 >
   <p>Recreation Futures Lab content can be added in Sanity Studio.</p>
 </SectionLayout>

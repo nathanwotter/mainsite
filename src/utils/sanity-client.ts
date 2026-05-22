@@ -31,7 +31,21 @@ export const client = createClient(sanityConfig);
 [
     {
         client: client,
-        types: ['page', 'recxrSite', 'recreationFuturesPage', 'recreationFuturesSubpage', 'ncStateOfRecreationSubpage', 'teachingPage', 'teachingSubpage', 'foodPage', 'foodSubpage', 'aboutNathanPage', 'aboutNathanSubpage']
+        types: [
+            'page',
+            'homePage',
+            'coachingPage',
+            'recxrSite',
+            'recreationFuturesPage',
+            'recreationFuturesSubpage',
+            'ncStateOfRecreationSubpage',
+            'teachingPage',
+            'teachingSubpage',
+            'foodPage',
+            'foodSubpage',
+            'aboutNathanPage',
+            'aboutNathanSubpage'
+        ]
     }
 ].forEach(({ client, types }: { client: SanityClient; types: Array<String> }) =>
     client.listen(`*[_type in ${JSON.stringify(types)}]`, {}, { visibility: 'query' }).subscribe(async (_event: any) => {

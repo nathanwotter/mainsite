@@ -1,5 +1,6 @@
 import {defineField, defineType} from 'sanity'
 import {ComposeIcon} from '@sanity/icons'
+import {shortTitleField} from './shortTitleField'
 
 export default defineType({
   name: 'page',
@@ -26,6 +27,7 @@ export default defineType({
       validation: (Rule) => Rule.required(),
       group: 'content',
     }),
+    shortTitleField({group: 'content'}),
     defineField({
       name: 'slug',
       title: 'Slug',

@@ -29,6 +29,7 @@ const [recreationFuturesSubpage, recreationFuturesSubpages] = await Promise.all(
     ? client.fetch(
         `*[_type == "recreationFuturesSubpage" && slug.current == $slug][0]{
           title,
+          shortTitle,
           intro,
           body
         }`,

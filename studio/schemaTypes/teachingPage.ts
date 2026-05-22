@@ -1,5 +1,6 @@
 // studio/schemaTypes/teachingPage.ts
 import {defineType, defineField} from 'sanity'
+import {shortTitleField} from './shortTitleField'
 
 export default defineType({
   name: 'teachingPage',
@@ -11,6 +12,7 @@ export default defineType({
       title: 'Title',
       type: 'string',
     }),
+    shortTitleField(),
     defineField({
       name: 'intro',
       title: 'Intro',

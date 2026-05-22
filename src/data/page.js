@@ -5,6 +5,7 @@ const PAGE_QUERY_OBJ = `{
   _id,
   slug,
   title,
+  shortTitle,
   metaTitle,
   metaDescription,
   "socialImage": {

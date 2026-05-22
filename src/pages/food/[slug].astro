@@ -22,6 +22,7 @@ const [foodSubpage, foodSubpages] = await Promise.all([
     ? client.fetch(
         `*[_type == "foodSubpage" && slug.current == $slug][0]{
           title,
+          shortTitle,
           intro,
           body
         }`,

@@ -5,6 +5,7 @@ export const NC_STATE_BASE_PATH = `/recreation-futures-lab/${NC_STATE_PARENT_SLU
 
 const NC_STATE_SUBPAGES_QUERY = `*[_type == "ncStateOfRecreationSubpage" && defined(slug.current)] | order(order asc, title asc) {
   title,
+  shortTitle,
   menuTitle,
   intro,
   body,
@@ -13,6 +14,7 @@ const NC_STATE_SUBPAGES_QUERY = `*[_type == "ncStateOfRecreationSubpage" && defi
 
 const NC_STATE_SUBPAGE_QUERY = `*[_type == "ncStateOfRecreationSubpage" && slug.current == $slug][0]{
   title,
+  shortTitle,
   menuTitle,
   intro,
   body,
@@ -21,6 +23,7 @@ const NC_STATE_SUBPAGE_QUERY = `*[_type == "ncStateOfRecreationSubpage" && slug.
 
 const NC_STATE_PARENT_QUERY = `*[_type == "recreationFuturesSubpage" && slug.current == $slug][0]{
   title,
+  shortTitle,
   intro,
   body
 }`;
@@ -28,11 +31,13 @@ const NC_STATE_PARENT_QUERY = `*[_type == "recreationFuturesSubpage" && slug.cur
 const FALLBACK_SUBPAGES = [
     {
         title: "This Semester's Showcase",
+        shortTitle: 'Showcase',
         menuTitle: "This Semester's Showcase",
         slug: 'showcase'
     },
     {
         title: 'NC:State of Recreation Map',
+        shortTitle: 'Map',
         menuTitle: 'NC:State of Recreation Map',
         slug: 'map'
     }
@@ -63,18 +68,22 @@ export async function fetchNcStateOfRecreationSubpageSlugs() {
 export function toNcStateSecondaryNavItems(subpages = []) {
     return subpages
         .map((subpage) => {
-            const label = subpage?.menuTitle || subpage?.title;
+            const title = subpage?.title;
+            const shortTitle = subpage?.shortTitle || subpage?.menuTitle;
+            const label = shortTitle || title;
             const slug = subpage?.slug;
 
-            if (!label || !slug) {
+            if (!title || !slug) {
                 return null;
             }
 
             return {
                 _type: 'actionLink',
                 label,
+                title,
+                shortTitle,
                 url: `${NC_STATE_BASE_PATH}/${slug}`,
-                ariaLabel: label
+                ariaLabel: title
             };
         })
         .filter(Boolean);

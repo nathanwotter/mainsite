@@ -1,6 +1,8 @@
 export interface Action {
     _type?: string;
     label: string;
+    title?: string;
+    shortTitle?: string;
     url?: string;
     ariaLabel?: string;
 }

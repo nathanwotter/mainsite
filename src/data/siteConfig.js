@@ -16,24 +16,28 @@ const CONFIG_QUERY_OBJ = `{
 
 const TEACHING_SUBPAGES_QUERY = `*[_type == "teachingSubpage" && defined(slug.current)] | order(order asc, title asc) {
   title,
+  shortTitle,
   menuTitle,
   "slug": slug.current
 }`;
 
 const RECREATION_FUTURES_SUBPAGES_QUERY = `*[_type == "recreationFuturesSubpage" && defined(slug.current)] | order(order asc, title asc) {
   title,
+  shortTitle,
   menuTitle,
   "slug": slug.current
 }`;
 
 const FOOD_SUBPAGES_QUERY = `*[_type == "foodSubpage" && defined(slug.current)] | order(order asc, title asc) {
   title,
+  shortTitle,
   menuTitle,
   "slug": slug.current
 }`;
 
 const ABOUT_NATHAN_SUBPAGES_QUERY = `*[_type == "aboutNathanSubpage" && defined(slug.current)] | order(order asc, title asc) {
   title,
+  shortTitle,
   menuTitle,
   "slug": slug.current
 }`;
@@ -63,18 +67,22 @@ function isAboutNathanNavItem(item) {
 }
 
 function toTeachingChildLink(item) {
-    const label = item?.menuTitle || item?.title;
+    const title = item?.title;
+    const shortTitle = item?.shortTitle || item?.menuTitle;
+    const label = shortTitle || title;
     const slug = item?.slug;
 
-    if (!label || !slug) {
+    if (!title || !slug) {
         return null;
     }
 
     return {
         _type: 'actionLink',
         label,
+        title,
+        shortTitle,
         url: `/teaching/${slug}`,
-        ariaLabel: label
+        ariaLabel: title
     };
 }
 
@@ -94,18 +102,22 @@ function mergeTeachingChildren(existingChildren = [], teachingSubpages = []) {
 }
 
 function toRecreationFuturesChildLink(item) {
-    const label = item?.menuTitle || item?.title;
+    const title = item?.title;
+    const shortTitle = item?.shortTitle || item?.menuTitle;
+    const label = shortTitle || title;
     const slug = item?.slug;
 
-    if (!label || !slug) {
+    if (!title || !slug) {
         return null;
     }
 
     return {
         _type: 'actionLink',
         label,
+        title,
+        shortTitle,
         url: `/recreation-futures-lab/${slug}`,
-        ariaLabel: label
+        ariaLabel: title
     };
 }
 
@@ -125,18 +137,22 @@ function mergeRecreationFuturesChildren(existingChildren = [], subpages = []) {
 }
 
 function toFoodChildLink(item) {
-    const label = item?.menuTitle || item?.title;
+    const title = item?.title;
+    const shortTitle = item?.shortTitle || item?.menuTitle;
+    const label = shortTitle || title;
     const slug = item?.slug;
 
-    if (!label || !slug) {
+    if (!title || !slug) {
         return null;
     }
 
     return {
         _type: 'actionLink',
         label,
+        title,
+        shortTitle,
         url: `/food/${slug}`,
-        ariaLabel: label
+        ariaLabel: title
     };
 }
 
@@ -156,18 +172,22 @@ function mergeFoodChildren(existingChildren = [], subpages = []) {
 }
 
 function toAboutNathanChildLink(item) {
-    const label = item?.menuTitle || item?.title;
+    const title = item?.title;
+    const shortTitle = item?.shortTitle || item?.menuTitle;
+    const label = shortTitle || title;
     const slug = item?.slug;
 
-    if (!label || !slug) {
+    if (!title || !slug) {
         return null;
     }
 
     return {
         _type: 'actionLink',
         label,
+        title,
+        shortTitle,
         url: `/about-nathan/${slug}`,
-        ariaLabel: label
+        ariaLabel: title
     };
 }
 
