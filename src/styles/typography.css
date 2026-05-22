@@ -13,10 +13,6 @@
     margin-top: 1rem;
 }
 
-.site-typography> :first-child {
-    margin-top: 0;
-}
-
 .site-typography p {
     margin-bottom: 0;
     white-space: pre-line;

@@ -1,7 +1,7 @@
 ---
 import { client } from "../utils/sanity-client";
-import { PortableText } from "astro-portabletext";
 import Layout from "../layouts/Layout.astro";
+import PortableTextContent from "../components/PortableTextContent.astro";
 
 const coachingPage = await client.fetch(
   `*[_type == "coachingPage"][0]`
@@ -15,11 +15,11 @@ const body = coachingPage?.body ?? [];
 <Layout title={title}>
 
 {intro && (
-  <p>{intro}</p>
+  <p class="section-intro">{intro}</p>
 )}
 
 {body.length > 0 && (
-  <PortableText value={body} />
+  <PortableTextContent value={body} />
 )}
 
 </Layout>

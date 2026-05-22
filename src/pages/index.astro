@@ -1,7 +1,7 @@
 ---
 import Layout from "../layouts/Layout.astro";
 import { client } from "../utils/sanity-client";
-import { PortableText } from "astro-portabletext";
+import PortableTextContent from "../components/PortableTextContent.astro";
 
 const homePage = await client.fetch(`*[_type == "homePage"][0]`);
 
@@ -101,8 +101,8 @@ const body = homePage?.body ?? [];
 
   {body.length > 0 && (
     <section style="padding: 0 0 3rem 0;">
-      <div style="max-width: 900px; margin: 0 auto; line-height: 1.7;">
-        <PortableText value={body} />
+      <div style="max-width: 900px; margin: 0 auto;">
+        <PortableTextContent value={body} />
       </div>
     </section>
   )}

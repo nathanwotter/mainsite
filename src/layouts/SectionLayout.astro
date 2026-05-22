@@ -32,7 +32,7 @@ const {
 
     {showTitleHeading && <h1>{title}</h1>}
 
-    {intro && <p>{intro}</p>}
+    {intro && <p class="section-intro">{intro}</p>}
 
     {body.length > 0 ? <PortableTextContent value={body} /> : <slot />}
 </Layout>
