@@ -358,7 +358,9 @@
 
   function buildPlacementSpec(stop) {
     const width = getGuideWorldWidth(stop);
-    const guideHeight = width / 0.5625;
+    const guideHeight = getResolvedGuideMode(stop) === 'packedAlpha'
+      ? width * 0.5625
+      : width / 0.5625;
     const uprightPlacement = getUprightGuidePlacement(stop || {}, guideHeight);
 
     return {

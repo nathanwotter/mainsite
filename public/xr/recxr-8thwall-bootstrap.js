@@ -560,8 +560,12 @@
       setTimeout(resolve, 1200)
     })
 
+    const guideMode = state.config?.guide?.videoMode || 'standard'
+    const isPackedAlpha = guideMode === 'packedAlpha' && state.config?.guide?.arGuideHlsUrl
+    const visibleVideoHeight = isPackedAlpha ? video.videoHeight / 2 : video.videoHeight
     const width = state.config?.placement?.imageTargetWidth || state.config?.guide?.imageTargetWidth || 0.82
-    const aspect = video.videoHeight > 0 ? video.videoWidth / video.videoHeight : 0.5625
+    const fallbackAspect = isPackedAlpha ? (16 / 9) : 0.5625
+    const aspect = visibleVideoHeight > 0 ? video.videoWidth / visibleVideoHeight : fallbackAspect
     const height = width / Math.max(aspect, 0.01)
     const geometry = new THREE.PlaneGeometry(width, height)
     const texture = new THREE.VideoTexture(video)
@@ -583,7 +587,7 @@
     mesh.visible = false
 
     debugStatus(
-      `Guide mesh created. transform position=(${mesh.position.x.toFixed(3)}, ${mesh.position.y.toFixed(3)}, ${mesh.position.z.toFixed(3)}) rotation=(${mesh.rotation.x.toFixed(3)}, ${mesh.rotation.y.toFixed(3)}, ${mesh.rotation.z.toFixed(3)}) width=${width.toFixed(3)}m height=${height.toFixed(3)}m aspect=${aspect.toFixed(3)} video=${video.videoWidth || 0}x${video.videoHeight || 0}`
+      `Guide mesh created. transform position=(${mesh.position.x.toFixed(3)}, ${mesh.position.y.toFixed(3)}, ${mesh.position.z.toFixed(3)}) rotation=(${mesh.rotation.x.toFixed(3)}, ${mesh.rotation.y.toFixed(3)}, ${mesh.rotation.z.toFixed(3)}) width=${width.toFixed(3)}m height=${height.toFixed(3)}m aspect=${aspect.toFixed(3)} video=${video.videoWidth || 0}x${video.videoHeight || 0} visibleHeight=${visibleVideoHeight || 0} packedAlpha=${isPackedAlpha ? 'yes' : 'no'}`
     )
 
     state.guideMesh = mesh
