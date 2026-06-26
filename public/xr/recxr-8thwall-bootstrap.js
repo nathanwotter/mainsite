@@ -394,7 +394,7 @@
         fragmentShader: packedAlphaGuideFragmentShader,
         transparent: true,
         opacity: 1,
-        alphaTest: 0,
+        alphaTest: 0.01,
         premultipliedAlpha: false,
         blending: THREE.NormalBlending,
         side: THREE.FrontSide,
