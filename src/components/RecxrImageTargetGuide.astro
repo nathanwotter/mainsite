@@ -45,6 +45,14 @@
           Preparing surface placement...
         </h2>
       </div>
+      <div id="recxr-image-target-scale-panel" style="display: inline-grid; gap: 0.2rem; width: min(19rem, 100%); padding: 0.65rem 0.75rem; border-radius: 16px; border: 1px solid rgba(147,197,253,0.22); background: rgba(8, 12, 18, 0.66); backdrop-filter: blur(10px);">
+        <p style="margin: 0; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #93c5fd;">
+          Temp AR Scale Debug
+        </p>
+        <p id="recxr-image-target-scale-readout" style="margin: 0; color: #dbeafe; line-height: 1.35; font-size: 0.72rem;">
+          waiting for placement
+        </p>
+      </div>
     </div>
 
     <div style="margin-top: auto; padding-top: 1rem; padding-bottom: calc(0.25rem + env(safe-area-inset-bottom));">
@@ -73,7 +81,8 @@
         <p id="recxr-image-target-debug-injected" style="margin: 0 0 0.2rem 0; color: #dbeafe;">foreign XR layers in body: none</p>
         <p id="recxr-image-target-debug-modules" style="margin: 0 0 0.2rem 0; color: #dbeafe;">active pipeline modules: unknown</p>
         <p id="recxr-image-target-debug-frames" style="margin: 0 0 0.2rem 0; color: #dbeafe;">visible canvas draw frames: 0</p>
-        <p id="recxr-image-target-debug-alpha" style="margin: 0; color: #dbeafe;">renderer alpha/composition: unknown</p>
+        <p id="recxr-image-target-debug-alpha" style="margin: 0 0 0.2rem 0; color: #dbeafe;">renderer alpha/composition: unknown</p>
+        <p id="recxr-image-target-debug-scale" style="margin: 0; color: #dbeafe;">AR scale: unknown</p>
       </div>
     </div>
 
@@ -111,6 +120,7 @@
   const imageTargetDebugGrid = document.getElementById('recxr-image-target-debug-grid');
   const imageTargetDebugCard = document.getElementById('recxr-image-target-debug-card');
   const imageTargetConfigPanel = document.getElementById('recxr-image-target-config-panel');
+  const imageTargetScaleReadout = document.getElementById('recxr-image-target-scale-readout');
   const imageTargetCloseButton = document.getElementById('recxr-image-target-close');
   const imageTargetResetPlacementButton = document.getElementById('recxr-image-target-reset-placement');
   const imageTargetOpenCameraFallbackButton = document.getElementById('recxr-image-target-open-camera-fallback');
@@ -128,6 +138,7 @@
   const imageTargetDebugModules = document.getElementById('recxr-image-target-debug-modules');
   const imageTargetDebugFrames = document.getElementById('recxr-image-target-debug-frames');
   const imageTargetDebugAlpha = document.getElementById('recxr-image-target-debug-alpha');
+  const imageTargetDebugScale = document.getElementById('recxr-image-target-debug-scale');
 
   let currentStop = null;
   let currentSurfaceAvailable = false;
@@ -145,6 +156,7 @@
   let currentPipelineModulesDebug = 'unknown';
   let currentVisibleCanvasFrameCount = 0;
   let currentRendererAlphaDebug = 'unknown';
+  let currentScaleDebug = 'unknown';
   let surfaceGuideOpening = false;
   let surfaceGuideOpen = false;
   const surfaceGuideDebugEnabled = false;
@@ -296,6 +308,12 @@
     if (imageTargetDebugAlpha) {
       imageTargetDebugAlpha.textContent = `renderer alpha/composition: ${currentRendererAlphaDebug}`;
     }
+    if (imageTargetDebugScale) {
+      imageTargetDebugScale.textContent = `AR scale: ${currentScaleDebug}`;
+    }
+    if (imageTargetScaleReadout) {
+      imageTargetScaleReadout.textContent = currentScaleDebug;
+    }
   }
 
   if (!surfaceGuideDebugEnabled) {
@@ -326,6 +344,7 @@
     currentPipelineModulesDebug = 'unknown';
     currentVisibleCanvasFrameCount = 0;
     currentRendererAlphaDebug = 'unknown';
+    currentScaleDebug = 'unknown';
     setDebugState();
     logSurfaceGuide('camera fallback button rendered', {
       visible: Boolean(imageTargetOpenCameraFallbackButton),
@@ -366,6 +385,11 @@
     const worldWidth = getGuideWorldWidth(stop);
     const resolvedGuideMode = getResolvedGuideMode(stop);
     const presenterWorldHeightMeters = getPresenterWorldHeightMeters(stop);
+    logSurfaceGuide('buildGuideSpec presenter height payload', {
+      rawPresenterWorldHeightMeters: stop?.presenterWorldHeightMeters ?? null,
+      resolvedPresenterWorldHeightMeters: presenterWorldHeightMeters,
+      resolvedGuideMode,
+    });
     return {
       title: stop?.title || 'RecXR Guide',
       guideVideoUrl: getGuideVideoUrl(stop),
@@ -494,6 +518,9 @@
         }
         if (detail?.rendererAlphaDebug) {
           currentRendererAlphaDebug = detail.rendererAlphaDebug;
+        }
+        if (detail?.scaleDebug) {
+          currentScaleDebug = detail.scaleDebug;
         }
         if (detail?.event === 'tracking' && imageTargetStatus && currentTrackingStatus !== 'unknown') {
           imageTargetStatus.textContent = `Scanning for surface... Tracking state: ${currentTrackingStatus}`;

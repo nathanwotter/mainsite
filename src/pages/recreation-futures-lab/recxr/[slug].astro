@@ -240,6 +240,9 @@ const experienceStops = [...(recxrSite?.experienceStops ?? [])]
               <p id="recxr-active-stop-debug-guide" style="margin: 0 0 0.2rem 0; font-size: 0.8rem; line-height: 1.35; color: #7c2d12;">
                 arGuideVideo playbackId exists: no
               </p>
+              <p id="recxr-active-stop-debug-height" style="margin: 0 0 0.2rem 0; font-size: 0.8rem; line-height: 1.35; color: #7c2d12;">
+                presenterWorldHeightMeters: unset
+              </p>
               <p id="recxr-active-stop-debug-legacy" style="margin: 0 0 0.2rem 0; font-size: 0.8rem; line-height: 1.35; color: #7c2d12;">
                 legacy video playbackId exists: no
               </p>
@@ -443,6 +446,7 @@ const experienceStops = [...(recxrSite?.experienceStops ?? [])]
   const activeStopDebugVideoMode = document.getElementById('recxr-active-stop-debug-video-mode');
   const activeStopDebugStandard = document.getElementById('recxr-active-stop-debug-standard');
   const activeStopDebugGuide = document.getElementById('recxr-active-stop-debug-guide');
+  const activeStopDebugHeight = document.getElementById('recxr-active-stop-debug-height');
   const activeStopDebugLegacy = document.getElementById('recxr-active-stop-debug-legacy');
   const activeStopDebugResolved = document.getElementById('recxr-active-stop-debug-resolved');
   const activeStopVideo = document.getElementById('recxr-active-stop-video');
@@ -469,6 +473,9 @@ const experienceStops = [...(recxrSite?.experienceStops ?? [])]
     }
     if (activeStopDebugGuide) {
       activeStopDebugGuide.textContent = `arGuideVideo playbackId exists: ${stop?.arGuidePlaybackId ? 'yes' : 'no'}`;
+    }
+    if (activeStopDebugHeight) {
+      activeStopDebugHeight.textContent = `presenterWorldHeightMeters: ${typeof stop?.presenterWorldHeightMeters === 'number' ? stop.presenterWorldHeightMeters : 'unset'}`;
     }
     if (activeStopDebugLegacy) {
       const legacyPlaybackId = stop?.video?.asset?.playbackId || stop?.playbackId;

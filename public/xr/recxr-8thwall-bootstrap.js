@@ -61,6 +61,40 @@
     return DEFAULT_PRESENTER_WORLD_HEIGHT_METERS
   }
 
+  function getObjectScale(object, THREE) {
+    if (!object || !THREE?.Vector3) return null
+
+    const scale = new THREE.Vector3()
+    if (typeof object.getWorldScale === 'function') {
+      object.updateMatrixWorld?.(true)
+      object.getWorldScale(scale)
+      return scale
+    }
+
+    return object.scale || null
+  }
+
+  function formatScale(scale) {
+    if (!scale) return 'unknown'
+    return `(${Number(scale.x || 0).toFixed(3)}, ${Number(scale.y || 0).toFixed(3)}, ${Number(scale.z || 0).toFixed(3)})`
+  }
+
+  function emitScaleDebug(details) {
+    const scaleDebug =
+      `configured=${Number(details.presenterWorldHeightMeters || 0).toFixed(3)}m | ` +
+      `plane=${Number(details.planeWidth || 0).toFixed(3)}x${Number(details.planeHeight || 0).toFixed(3)}m | ` +
+      `meshScale=${formatScale(details.meshScale)} | parentScale=${formatScale(details.parentScale)} | worldScale=${formatScale(details.worldScale)}`
+
+    console.info('[RecXR][8thWall][ScaleDebug]', scaleDebug)
+
+    emitDebug({
+      event: details.event || 'scale-debug',
+      scaleDebug,
+    })
+
+    return scaleDebug
+  }
+
   function getXR8() {
     return global.XR8
   }
@@ -595,6 +629,9 @@
       ? presenterWorldHeightMeters
       : configuredWidth / Math.max(aspect, 0.01)
     const width = height * Math.max(aspect, 0.01)
+    const geometryDebugMessage = `Before PlaneGeometry: videoMode=${guideMode} presenterWorldHeightMeters=${presenterWorldHeightMeters.toFixed(3)}m planeHeight=${height.toFixed(3)}m planeWidth=${width.toFixed(3)}m visibleAspect=${aspect.toFixed(3)}`
+    console.info('[RecXR][8thWall][ScaleDebug]', geometryDebugMessage)
+    debugStatus(geometryDebugMessage)
     const geometry = new THREE.PlaneGeometry(width, height)
     const texture = new THREE.VideoTexture(video)
     texture.minFilter = THREE.LinearFilter
@@ -613,9 +650,11 @@
     mesh.position.set(position.x ?? 0, position.y ?? (height / 2), position.z ?? 0)
     mesh.rotation.set(rotation.x ?? 0, rotation.y ?? 0, rotation.z ?? 0)
     mesh.visible = false
+    mesh.updateMatrixWorld?.(true)
+    const meshWorldScale = getObjectScale(mesh, THREE)
 
     debugStatus(
-      `Guide mesh created. videoMode=${guideMode} packedAlpha=${isPackedAlpha ? 'yes' : 'no'} selectedWorldHeight=${presenterWorldHeightMeters.toFixed(3)}m plane=${width.toFixed(3)}x${height.toFixed(3)}m transform position=(${mesh.position.x.toFixed(3)}, ${mesh.position.y.toFixed(3)}, ${mesh.position.z.toFixed(3)}) rotation=(${mesh.rotation.x.toFixed(3)}, ${mesh.rotation.y.toFixed(3)}, ${mesh.rotation.z.toFixed(3)}) configuredWidth=${Number(configuredWidth || 0).toFixed(3)}m visibleAspect=${aspect.toFixed(3)} video=${video.videoWidth || 0}x${video.videoHeight || 0} visibleHeight=${visibleVideoHeight || 0}`
+      `Guide mesh created. videoMode=${guideMode} packedAlpha=${isPackedAlpha ? 'yes' : 'no'} selectedWorldHeight=${presenterWorldHeightMeters.toFixed(3)}m plane=${width.toFixed(3)}x${height.toFixed(3)}m transform position=(${mesh.position.x.toFixed(3)}, ${mesh.position.y.toFixed(3)}, ${mesh.position.z.toFixed(3)}) rotation=(${mesh.rotation.x.toFixed(3)}, ${mesh.rotation.y.toFixed(3)}, ${mesh.rotation.z.toFixed(3)}) localScale=${formatScale(mesh.scale)} worldScale=${formatScale(meshWorldScale)} configuredWidth=${Number(configuredWidth || 0).toFixed(3)}m visibleAspect=${aspect.toFixed(3)} video=${video.videoWidth || 0}x${video.videoHeight || 0} visibleHeight=${visibleVideoHeight || 0}`
     )
 
     state.guideMesh = mesh
@@ -638,6 +677,8 @@
 
     xrScene.scene.add(mesh)
     mesh.visible = true
+    xrScene.scene.updateMatrixWorld?.(true)
+    const THREE = global.THREE
 
     const placement = state.config?.placement || {}
     const basePosition = hit?.position || { x: 0, y: 0, z: 0 }
@@ -669,8 +710,20 @@
     state.guideWorldPlaced = true
     setSurfaceCandidate(hit)
     const geometryParams = mesh.geometry?.parameters || {}
+    mesh.updateMatrixWorld?.(true)
+    const meshWorldScale = getObjectScale(mesh, THREE)
+    const parentWorldScale = getObjectScale(mesh.parent, THREE)
+    const scaleDebug = emitScaleDebug({
+      event: 'guide-placement-scale',
+      presenterWorldHeightMeters: getPresenterWorldHeightMeters(state.config),
+      planeWidth: geometryParams.width || 0,
+      planeHeight: geometryParams.height || 0,
+      meshScale: mesh.scale,
+      parentScale: parentWorldScale,
+      worldScale: meshWorldScale,
+    })
     debugStatus(
-      `Final mesh transform videoMode=${state.config?.guide?.videoMode || 'standard'} hitPoint=(${Number(basePosition.x || 0).toFixed(3)}, ${Number(basePosition.y || 0).toFixed(3)}, ${Number(basePosition.z || 0).toFixed(3)}) finalPosition=(${mesh.position.x.toFixed(3)}, ${mesh.position.y.toFixed(3)}, ${mesh.position.z.toFixed(3)}) bottomAnchoring=${bottomAnchorApplied ? 'yes' : 'no'} bottomAnchorYOffset=${bottomAnchorYOffset.toFixed(3)}m rotation=(${mesh.rotation.x.toFixed(3)}, ${mesh.rotation.y.toFixed(3)}, ${mesh.rotation.z.toFixed(3)}) plane=${Number(geometryParams.width || 0).toFixed(3)}x${Number(geometryParams.height || 0).toFixed(3)}m scale=(${mesh.scale.x.toFixed(3)}, ${mesh.scale.y.toFixed(3)}, ${mesh.scale.z.toFixed(3)})`
+      `Final mesh transform videoMode=${state.config?.guide?.videoMode || 'standard'} hitPoint=(${Number(basePosition.x || 0).toFixed(3)}, ${Number(basePosition.y || 0).toFixed(3)}, ${Number(basePosition.z || 0).toFixed(3)}) finalPosition=(${mesh.position.x.toFixed(3)}, ${mesh.position.y.toFixed(3)}, ${mesh.position.z.toFixed(3)}) bottomAnchoring=${bottomAnchorApplied ? 'yes' : 'no'} bottomAnchorYOffset=${bottomAnchorYOffset.toFixed(3)}m rotation=(${mesh.rotation.x.toFixed(3)}, ${mesh.rotation.y.toFixed(3)}, ${mesh.rotation.z.toFixed(3)}) plane=${Number(geometryParams.width || 0).toFixed(3)}x${Number(geometryParams.height || 0).toFixed(3)}m meshScale=${formatScale(mesh.scale)} parentWorldScale=${formatScale(parentWorldScale)} worldMatrixScale=${formatScale(meshWorldScale)} ${scaleDebug}`
     )
     debugStatus(`Nathan placed in world space using ${hit?.type || 'unknown'} hit.`)
 
