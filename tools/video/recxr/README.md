@@ -20,21 +20,22 @@ Packed export: W x 2H
 - Bottom half: grayscale alpha matte.
 - Alpha matte: white is opaque, black is transparent, gray is partial transparency.
 - The shader reads luma from the bottom-half RGB channels. It does not read a file alpha channel.
+- The top half should already be the final RGB image. No green background or chroma key is required for packed-alpha playback.
 - Packing is top/bottom, not left/right.
 
 ## Production Presets
 
-The current requested packed presenter preset is:
+The recommended default for the current 16:9 WebXR plane is:
 
-- Visible presenter half: `1080 x 960`
-- Packed export: `1080 x 1920`
+- Visible presenter half: `1280 x 720`
+- Packed export: `1280 x 1440`
 
-Note: `1080 x 960` is not mathematically 16:9. The current WebXR panel geometry is 16:9, so a non-16:9 visible half may be stretched in that path. The validator reports the visible-half aspect ratio explicitly so this is easy to catch.
-
-For a true 16:9 visible half, use dimensions such as:
+For a high-quality 16:9 packed export, use:
 
 - Visible presenter half: `1920 x 1080`
 - Packed export: `1920 x 2160`
+
+Avoid using `1080 x 1920` as the default for the current WebXR plane. That export has `1080 x 960` visible halves, which are portrait-packed and not 16:9, so the visible presenter will stretch unless the WebXR plane geometry is changed to match.
 
 ## Current Player References
 
@@ -65,4 +66,3 @@ It reports:
 - duration, if available
 
 Use the report as a pre-upload sanity check. It does not inspect the actual matte pixels yet.
-

@@ -7,22 +7,27 @@
 - File alpha: none required.
 - Pixel aspect ratio: square pixels.
 - Frame size: packed top/bottom layout, `W x 2H`.
+- Chroma key: not used for packed-alpha playback.
 
-## Current Requested Preset
+## Recommended Default Preset
 
-- Visible RGB presenter: `1080 x 960`
-- Visible alpha matte: `1080 x 960`
-- Final packed export: `1080 x 1920`
+- Visible RGB presenter: `1280 x 720`
+- Visible alpha matte: `1280 x 720`
+- Final packed export: `1280 x 1440`
 
-The validator will report that the visible half is not 16:9, because `1080 / 960 = 1.125`. Use this preset only when the portrait packed export is the desired production target.
+This is the default recommendation for the current 16:9 WebXR plane.
 
-## True 16:9 Alternative
+## High-Quality 16:9 Preset
 
-If the visible presenter half should be true 16:9:
+For a higher-quality export:
 
 - Visible RGB presenter: `1920 x 1080`
 - Visible alpha matte: `1920 x 1080`
 - Final packed export: `1920 x 2160`
+
+## Portrait-Packed Legacy / Special Case
+
+`1080 x 1920` exports use `1080 x 960` visible halves. That visible half is not 16:9, because `1080 / 960 = 1.125`. Use this only when portrait-packed output is intentional or the WebXR plane geometry has been changed to match; otherwise the presenter will stretch.
 
 ## Matte Encoding
 
@@ -31,6 +36,7 @@ The alpha matte must be encoded as RGB grayscale in the bottom half:
 - white subject = opaque
 - black background = transparent
 - gray edges = partial transparency
+- not inverted
 
 The player computes alpha from RGB luma:
 
@@ -44,7 +50,7 @@ Before upload:
 
 1. Confirm final height is exactly twice the visible height.
 2. Confirm final height is even.
-3. Confirm the top half contains only the color presenter.
+3. Confirm the top half contains the final RGB presenter image, not a green-screen plate for runtime keying.
 4. Confirm the bottom half contains only the grayscale matte.
 5. Confirm the matte is not inverted.
 6. Confirm there is no letterboxing inside either half unless intentional.
@@ -53,4 +59,3 @@ Before upload:
 ```bash
 node tools/video/recxr/validate-packed-video.mjs path/to/export.mp4
 ```
-

@@ -319,10 +319,18 @@
     uniform sampler2D videoMap;
     varying vec2 vUv;
 
+    float luma(vec3 color) {
+      return dot(color, vec3(0.299, 0.587, 0.114));
+    }
+
     void main() {
-      vec2 keyedUv = vec2(vUv.x, vUv.y * 0.5);
-      vec4 tex = texture2D(videoMap, keyedUv);
-      gl_FragColor = tex;
+      vec2 colorUv = vec2(vUv.x, 0.5 + (vUv.y * 0.5));
+      vec2 alphaUv = vec2(vUv.x, vUv.y * 0.5);
+      vec4 colorSample = texture2D(videoMap, colorUv);
+      vec4 alphaSample = texture2D(videoMap, alphaUv);
+      float alpha = luma(alphaSample.rgb);
+
+      gl_FragColor = vec4(colorSample.rgb, alpha);
     }
   `
 
@@ -375,22 +383,18 @@
     const guideMode = guide?.videoMode || 'standard'
 
     if (guideMode === 'packedAlpha' && guide?.arGuideHlsUrl) {
-      state.chromaKeyEnabled = true
-      state.greenScreenPath = 'packed-alpha-top-half-chroma-key'
-      debugStatus('Green-screen removal path in use: packed-alpha top-half chroma-key shader.')
+      state.chromaKeyEnabled = false
+      state.greenScreenPath = 'packed-alpha-luma-matte'
+      debugStatus('Packed-alpha luma matte path in use: top-half RGB plus bottom-half alpha.')
       const material = new THREE.ShaderMaterial({
         uniforms: {
           videoMap: { value: texture },
-          variantOffset: { value: 0.5 },
-          keyColor: { value: new THREE.Color(0.0, 0.8, 0.1) },
-          similarity: { value: 0.55 },
-          smoothness: { value: 0.22 },
         },
         vertexShader: guideVideoVertexShader,
-        fragmentShader: chromaKeyGuideFragmentShader,
+        fragmentShader: packedAlphaGuideFragmentShader,
         transparent: true,
         opacity: 1,
-        alphaTest: 0.5,
+        alphaTest: 0,
         premultipliedAlpha: false,
         blending: THREE.NormalBlending,
         side: THREE.FrontSide,

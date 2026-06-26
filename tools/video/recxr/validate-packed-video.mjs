@@ -116,11 +116,10 @@ try {
       console.log('- Packed height should be even so the visible RGB half and matte half split cleanly.');
     }
     if (!visibleIs16x9) {
-      console.log('- Visible half is not 16:9. This may be intentional for the 1080x1920 packed preset, but verify before upload.');
+      console.log('- Visible half is not 16:9. This may be intentional for portrait-packed exports like 1080x1920, but it will stretch on the current WebXR plane unless the plane geometry is changed.');
     }
   }
 } catch (error) {
   console.error(`Validation failed: ${error.message}`);
   process.exit(1);
 }
-

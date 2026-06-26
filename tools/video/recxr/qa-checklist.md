@@ -21,17 +21,18 @@ Use this checklist before uploading an AR guide video.
 
 ## RGB Presenter
 
-- [ ] Presenter color appears in the top half only.
-- [ ] Background outside the presenter is clean and does not contain green-screen spill.
+- [ ] Final presenter RGB appears in the top half only.
+- [ ] Top half does not require a green background or runtime chroma key.
+- [ ] Transparency comes exclusively from the bottom-half matte.
 - [ ] Edges do not show dark halos.
 - [ ] If dark halos appear, test an unpremultiply/AlphaDivide step before packing.
 
 ## Dimensions
 
-- [ ] Current requested preset, if used: `1080 x 1920` packed.
-- [ ] Inferred visible half for that preset: `1080 x 960`.
-- [ ] If using `1080 x 1920`, the non-16:9 visible half is intentional or the player plane geometry has been adjusted.
-- [ ] If true 16:9 is required, use a visible half such as `1920 x 1080` and a packed export of `1920 x 2160`.
+- [ ] Default preset, if used: `1280 x 1440` packed.
+- [ ] Inferred visible half for the default preset: `1280 x 720`.
+- [ ] High-quality preset, if used: `1920 x 2160` packed with `1920 x 1080` visible halves.
+- [ ] If using `1080 x 1920`, the portrait-packed `1080 x 960` visible half is intentional or the WebXR plane geometry has been adjusted.
 - [ ] Validator has been run.
 
 ## Player Expectations
@@ -40,3 +41,4 @@ Use this checklist before uploading an AR guide video.
 - [ ] Packed video is uploaded to the AR guide video field.
 - [ ] A standard fallback video exists when useful.
 - [ ] The packed export does not depend on a real alpha channel.
+- [ ] The packed export does not depend on chroma-key removal.

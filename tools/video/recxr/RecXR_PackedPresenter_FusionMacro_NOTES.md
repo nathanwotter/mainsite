@@ -18,13 +18,17 @@ The current RecXR player expects one normal video file with two stacked regions:
 Final packed frame: W x 2H
 ```
 
-For the current requested production preset:
+The top half should be the final RGB presenter image. Packed-alpha playback does not chroma-key this image and does not require a green background.
 
-- RGB presenter: `1080 x 960`
-- Alpha matte: `1080 x 960`
-- Final export: `1080 x 1920`
+For the recommended default production preset:
 
-This is a portrait packed preset. Its visible half is not 16:9, while the current WebXR video plane is 16:9. Use it only when that portrait packed production target is intentional, or update the player plane geometry to match.
+- RGB presenter: `1280 x 720`
+- Alpha matte: `1280 x 720`
+- Final export: `1280 x 1440`
+
+This matches the current 16:9 WebXR video plane. For a higher-quality export, use `1920 x 1080` RGB and matte halves packed into a `1920 x 2160` final frame.
+
+The older `1080 x 1920` packed export uses `1080 x 960` visible halves. That is portrait-packed and will stretch on the current WebXR plane unless the player plane geometry is changed.
 
 ## Fusion Node Strategy
 
@@ -36,8 +40,8 @@ MediaIn
 DeltaKeyer / keyed RGBA
   |
   +--> RGB branch
-  |     - preserve clean presenter RGB
-  |     - use a black/transparent-safe background outside the subject
+  |     - preserve the final presenter RGB image
+  |     - do not prepare this branch for runtime chroma keying
   |     - resize to W x H
   |     - position in top half of final comp
   |
@@ -52,11 +56,11 @@ Final Background / comp: W x 2H
 
 ## Placement
 
-For a final comp of `1080 x 1920`:
+For a final comp of `1280 x 1440`:
 
-- Put the RGB branch in the top `1080 x 960` region.
-- Put the matte branch in the bottom `1080 x 960` region.
-- Expect the validator to warn that the visible half is not 16:9.
+- Put the RGB branch in the top `1280 x 720` region.
+- Put the matte branch in the bottom `1280 x 720` region.
+- Expect the validator to report that the visible half is 16:9.
 
 If using normalized Transform centers:
 
@@ -71,7 +75,7 @@ The bottom half must be normal grayscale:
 - black = transparent
 - gray = soft transparency
 
-Do not invert the matte. Do not rely on a file alpha channel. The current player reads the bottom-half RGB luma and uses that as alpha.
+Do not invert the matte. Do not rely on a file alpha channel. Do not rely on green-screen removal. The current player reads the bottom-half RGB luma and uses that as alpha.
 
 ## Edge Quality
 
