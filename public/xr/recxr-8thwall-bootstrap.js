@@ -564,11 +564,12 @@
     const isPackedAlpha = guideMode === 'packedAlpha' && state.config?.guide?.arGuideHlsUrl
     const visibleVideoHeight = isPackedAlpha ? video.videoHeight / 2 : video.videoHeight
     const configuredWidth = state.config?.placement?.imageTargetWidth || state.config?.guide?.imageTargetWidth || 0.82
+    const configuredHeight = state.config?.placement?.guideWorldHeight || state.config?.guide?.guideWorldHeight || 1.7
     const fallbackAspect = isPackedAlpha ? (16 / 9) : 0.5625
     const aspect = visibleVideoHeight > 0 ? video.videoWidth / visibleVideoHeight : fallbackAspect
-    const packedAspect = video.videoHeight > 0 ? video.videoWidth / video.videoHeight : fallbackAspect
+    // Packed-alpha videos are W x 2H, so the visible RGB half determines the displayed plane aspect.
     const height = isPackedAlpha
-      ? configuredWidth / Math.max(packedAspect, 0.01)
+      ? configuredHeight
       : configuredWidth / Math.max(aspect, 0.01)
     const width = height * Math.max(aspect, 0.01)
     const geometry = new THREE.PlaneGeometry(width, height)
@@ -591,7 +592,7 @@
     mesh.visible = false
 
     debugStatus(
-      `Guide mesh created. transform position=(${mesh.position.x.toFixed(3)}, ${mesh.position.y.toFixed(3)}, ${mesh.position.z.toFixed(3)}) rotation=(${mesh.rotation.x.toFixed(3)}, ${mesh.rotation.y.toFixed(3)}, ${mesh.rotation.z.toFixed(3)}) width=${width.toFixed(3)}m height=${height.toFixed(3)}m configuredWidth=${Number(configuredWidth || 0).toFixed(3)}m aspect=${aspect.toFixed(3)} packedAspect=${packedAspect.toFixed(3)} video=${video.videoWidth || 0}x${video.videoHeight || 0} visibleHeight=${visibleVideoHeight || 0} packedAlpha=${isPackedAlpha ? 'yes' : 'no'}`
+      `Guide mesh created. transform position=(${mesh.position.x.toFixed(3)}, ${mesh.position.y.toFixed(3)}, ${mesh.position.z.toFixed(3)}) rotation=(${mesh.rotation.x.toFixed(3)}, ${mesh.rotation.y.toFixed(3)}, ${mesh.rotation.z.toFixed(3)}) width=${width.toFixed(3)}m height=${height.toFixed(3)}m configuredWidth=${Number(configuredWidth || 0).toFixed(3)}m configuredHeight=${Number(configuredHeight || 0).toFixed(3)}m aspect=${aspect.toFixed(3)} video=${video.videoWidth || 0}x${video.videoHeight || 0} visibleHeight=${visibleVideoHeight || 0} packedAlpha=${isPackedAlpha ? 'yes' : 'no'}`
     )
 
     state.guideMesh = mesh
@@ -618,9 +619,12 @@
     const placement = state.config?.placement || {}
     const basePosition = hit?.position || { x: 0, y: 0, z: 0 }
     const placementOffset = placement.position || { x: 0, y: 0, z: 0 }
+    const geometryHeight = mesh.geometry?.parameters?.height || 0
+    const bottomAnchorYOffset = placement.bottomAnchorOnPlacement ? geometryHeight / 2 : 0
     mesh.position.set(
       (basePosition.x ?? 0) + (placementOffset.x ?? 0),
-      (basePosition.y ?? 0) + (placementOffset.y ?? 0),
+      // For ground-placed packed-alpha presenters, the mesh origin is centered but the feet/bottom edge should sit on the tapped point.
+      (basePosition.y ?? 0) + (placementOffset.y ?? 0) + bottomAnchorYOffset,
       (basePosition.z ?? 0) + (placementOffset.z ?? 0)
     )
     const yawOnly = placement.rotation?.y || 0

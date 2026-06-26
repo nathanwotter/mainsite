@@ -235,6 +235,8 @@
     return 0.82;
   }
 
+  const PACKED_ALPHA_GUIDE_WORLD_HEIGHT = 1.7;
+
   function setDebugState() {
     if (imageTargetDebugSurface) {
       imageTargetDebugSurface.textContent = `surface candidate available: ${currentSurfaceAvailable ? 'yes' : 'no'}`;
@@ -346,23 +348,30 @@
 
   function buildGuideSpec(stop) {
     const worldWidth = getGuideWorldWidth(stop);
+    const resolvedGuideMode = getResolvedGuideMode(stop);
     return {
       title: stop?.title || 'RecXR Guide',
       guideVideoUrl: getGuideVideoUrl(stop),
       standardHlsUrl: stop?.standardHlsUrl || stop?.hlsUrl || '',
       arGuideHlsUrl: stop?.arGuideHlsUrl || '',
-      videoMode: getResolvedGuideMode(stop),
+      videoMode: resolvedGuideMode,
       imageTargetWidth: worldWidth,
+      guideWorldHeight: resolvedGuideMode === 'packedAlpha' ? PACKED_ALPHA_GUIDE_WORLD_HEIGHT : null,
     };
   }
 
   function buildPlacementSpec(stop) {
     const width = getGuideWorldWidth(stop);
-    const guideHeight = width / 0.5625;
+    const resolvedGuideMode = getResolvedGuideMode(stop);
+    const isPackedAlpha = resolvedGuideMode === 'packedAlpha';
+    // Packed-alpha presenters use the visible RGB half for aspect/height and are bottom-anchored at placement time.
+    const guideHeight = isPackedAlpha ? 0 : width / 0.5625;
     const uprightPlacement = getUprightGuidePlacement(stop || {}, guideHeight);
 
     return {
       imageTargetWidth: width,
+      guideWorldHeight: isPackedAlpha ? PACKED_ALPHA_GUIDE_WORLD_HEIGHT : null,
+      bottomAnchorOnPlacement: isPackedAlpha,
       upright: true,
       faceCameraYawOnly: true,
       detachToWorldOnGroundTap: true,
