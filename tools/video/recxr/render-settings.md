@@ -17,6 +17,19 @@
 
 This is the default recommendation for the current 16:9 WebXR plane.
 
+## AR Scale Settings
+
+Set the physical AR size in Sanity on each RecXR experience stop:
+
+- Field: `presenterWorldHeightMeters`
+- Default: `1.75`
+- Standing adults: usually `1.7` to `1.9`
+- 6 ft presenter: about `1.83`
+- Props/tabletop objects: use smaller values appropriate to the object
+- Valid range: `0.3` to `2.5`
+
+Packed-alpha playback uses this field as the fixed world-space plane height. The video resolution only supplies the visible-half aspect ratio, so a `1280 x 1440` packed video displays as a `1280 x 720` 16:9 plane at the configured physical height.
+
 ## High-Quality 16:9 Preset
 
 For a higher-quality export:

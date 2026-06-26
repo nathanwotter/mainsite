@@ -215,6 +215,16 @@ export default defineType({
               readOnly: false,
             }),
             defineField({
+              name: 'presenterWorldHeightMeters',
+              title: 'Presenter World Height (Meters)',
+              description:
+                'Physical height of the AR presenter/video plane in meters. Use about 1.7-1.9 for standing adults; smaller values for props or tabletop objects.',
+              type: 'number',
+              initialValue: 1.75,
+              validation: (Rule) => Rule.min(0.3).max(2.5),
+              readOnly: false,
+            }),
+            defineField({
               name: 'videoMode',
               title: 'Video Mode',
               description: 'Choose whether this stop uses a normal rectangular video or a packed-alpha AR guide asset.',

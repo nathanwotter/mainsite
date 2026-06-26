@@ -39,6 +39,9 @@ Use this checklist before uploading an AR guide video.
 
 - [ ] Sanity RecXR stop uses `Packed Alpha Guide`.
 - [ ] Packed video is uploaded to the AR guide video field.
+- [ ] `presenterWorldHeightMeters` is set for known-height presenters or props.
+- [ ] Standing adult presenters use about `1.7` to `1.9` meters; a 6 ft presenter uses about `1.83`.
+- [ ] Prop/object videos use a smaller physical height that matches the intended real-world object.
 - [ ] A standard fallback video exists when useful.
 - [ ] The packed export does not depend on a real alpha channel.
 - [ ] The packed export does not depend on chroma-key removal.

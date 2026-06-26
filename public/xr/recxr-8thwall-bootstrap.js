@@ -38,6 +38,29 @@
     errorModuleName: 'recxr-runtime-errors',
   }
 
+  const DEFAULT_PRESENTER_WORLD_HEIGHT_METERS = 1.75
+  const MIN_PRESENTER_WORLD_HEIGHT_METERS = 0.3
+  const MAX_PRESENTER_WORLD_HEIGHT_METERS = 2.5
+
+  function getPresenterWorldHeightMeters(config) {
+    const configuredHeight =
+      config?.placement?.presenterWorldHeightMeters ??
+      config?.guide?.presenterWorldHeightMeters ??
+      config?.placement?.guideWorldHeight ??
+      config?.guide?.guideWorldHeight
+
+    if (
+      typeof configuredHeight === 'number' &&
+      Number.isFinite(configuredHeight) &&
+      configuredHeight >= MIN_PRESENTER_WORLD_HEIGHT_METERS &&
+      configuredHeight <= MAX_PRESENTER_WORLD_HEIGHT_METERS
+    ) {
+      return configuredHeight
+    }
+
+    return DEFAULT_PRESENTER_WORLD_HEIGHT_METERS
+  }
+
   function getXR8() {
     return global.XR8
   }
@@ -564,12 +587,12 @@
     const isPackedAlpha = guideMode === 'packedAlpha' && state.config?.guide?.arGuideHlsUrl
     const visibleVideoHeight = isPackedAlpha ? video.videoHeight / 2 : video.videoHeight
     const configuredWidth = state.config?.placement?.imageTargetWidth || state.config?.guide?.imageTargetWidth || 0.82
-    const configuredHeight = state.config?.placement?.guideWorldHeight || state.config?.guide?.guideWorldHeight || 1.7
+    const presenterWorldHeightMeters = getPresenterWorldHeightMeters(state.config)
     const fallbackAspect = isPackedAlpha ? (16 / 9) : 0.5625
     const aspect = visibleVideoHeight > 0 ? video.videoWidth / visibleVideoHeight : fallbackAspect
     // Packed-alpha videos are W x 2H, so the visible RGB half determines the displayed plane aspect.
     const height = isPackedAlpha
-      ? configuredHeight
+      ? presenterWorldHeightMeters
       : configuredWidth / Math.max(aspect, 0.01)
     const width = height * Math.max(aspect, 0.01)
     const geometry = new THREE.PlaneGeometry(width, height)
@@ -592,7 +615,7 @@
     mesh.visible = false
 
     debugStatus(
-      `Guide mesh created. transform position=(${mesh.position.x.toFixed(3)}, ${mesh.position.y.toFixed(3)}, ${mesh.position.z.toFixed(3)}) rotation=(${mesh.rotation.x.toFixed(3)}, ${mesh.rotation.y.toFixed(3)}, ${mesh.rotation.z.toFixed(3)}) width=${width.toFixed(3)}m height=${height.toFixed(3)}m configuredWidth=${Number(configuredWidth || 0).toFixed(3)}m configuredHeight=${Number(configuredHeight || 0).toFixed(3)}m aspect=${aspect.toFixed(3)} video=${video.videoWidth || 0}x${video.videoHeight || 0} visibleHeight=${visibleVideoHeight || 0} packedAlpha=${isPackedAlpha ? 'yes' : 'no'}`
+      `Guide mesh created. videoMode=${guideMode} packedAlpha=${isPackedAlpha ? 'yes' : 'no'} selectedWorldHeight=${presenterWorldHeightMeters.toFixed(3)}m plane=${width.toFixed(3)}x${height.toFixed(3)}m transform position=(${mesh.position.x.toFixed(3)}, ${mesh.position.y.toFixed(3)}, ${mesh.position.z.toFixed(3)}) rotation=(${mesh.rotation.x.toFixed(3)}, ${mesh.rotation.y.toFixed(3)}, ${mesh.rotation.z.toFixed(3)}) configuredWidth=${Number(configuredWidth || 0).toFixed(3)}m visibleAspect=${aspect.toFixed(3)} video=${video.videoWidth || 0}x${video.videoHeight || 0} visibleHeight=${visibleVideoHeight || 0}`
     )
 
     state.guideMesh = mesh
@@ -621,6 +644,7 @@
     const placementOffset = placement.position || { x: 0, y: 0, z: 0 }
     const geometryHeight = mesh.geometry?.parameters?.height || 0
     const bottomAnchorYOffset = placement.bottomAnchorOnPlacement ? geometryHeight / 2 : 0
+    const bottomAnchorApplied = Boolean(placement.bottomAnchorOnPlacement)
     mesh.position.set(
       (basePosition.x ?? 0) + (placementOffset.x ?? 0),
       // For ground-placed packed-alpha presenters, the mesh origin is centered but the feet/bottom edge should sit on the tapped point.
@@ -646,7 +670,7 @@
     setSurfaceCandidate(hit)
     const geometryParams = mesh.geometry?.parameters || {}
     debugStatus(
-      `Final mesh transform position=(${mesh.position.x.toFixed(3)}, ${mesh.position.y.toFixed(3)}, ${mesh.position.z.toFixed(3)}) rotation=(${mesh.rotation.x.toFixed(3)}, ${mesh.rotation.y.toFixed(3)}, ${mesh.rotation.z.toFixed(3)}) size=${Number(geometryParams.width || 0).toFixed(3)}x${Number(geometryParams.height || 0).toFixed(3)} scale=(${mesh.scale.x.toFixed(3)}, ${mesh.scale.y.toFixed(3)}, ${mesh.scale.z.toFixed(3)})`
+      `Final mesh transform videoMode=${state.config?.guide?.videoMode || 'standard'} hitPoint=(${Number(basePosition.x || 0).toFixed(3)}, ${Number(basePosition.y || 0).toFixed(3)}, ${Number(basePosition.z || 0).toFixed(3)}) finalPosition=(${mesh.position.x.toFixed(3)}, ${mesh.position.y.toFixed(3)}, ${mesh.position.z.toFixed(3)}) bottomAnchoring=${bottomAnchorApplied ? 'yes' : 'no'} bottomAnchorYOffset=${bottomAnchorYOffset.toFixed(3)}m rotation=(${mesh.rotation.x.toFixed(3)}, ${mesh.rotation.y.toFixed(3)}, ${mesh.rotation.z.toFixed(3)}) plane=${Number(geometryParams.width || 0).toFixed(3)}x${Number(geometryParams.height || 0).toFixed(3)}m scale=(${mesh.scale.x.toFixed(3)}, ${mesh.scale.y.toFixed(3)}, ${mesh.scale.z.toFixed(3)})`
     )
     debugStatus(`Nathan placed in world space using ${hit?.type || 'unknown'} hit.`)
 

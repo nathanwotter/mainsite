@@ -37,6 +37,25 @@ For a high-quality 16:9 packed export, use:
 
 Avoid using `1080 x 1920` as the default for the current WebXR plane. That export has `1080 x 960` visible halves, which are portrait-packed and not 16:9, so the visible presenter will stretch unless the WebXR plane geometry is changed to match.
 
+## AR World Scale
+
+Packed-alpha presenter scale is controlled in Sanity per RecXR stop with `presenterWorldHeightMeters`.
+
+- Default standing adult height: `1.75` meters.
+- For a known-height presenter, set the field to their real height. For example, a 6 ft presenter can use about `1.83`.
+- For props, signs, tabletop objects, or miniature guides, use smaller values.
+- Valid range: `0.3` to `2.5` meters.
+
+The player does not scale packed-alpha presenter videos based on tap distance, camera distance, detected plane size, screen size, or video pixel dimensions. Pixel dimensions only determine the visible aspect ratio:
+
+```text
+visibleAspect = visibleWidth / visibleHeight
+planeHeight = presenterWorldHeightMeters
+planeWidth = presenterWorldHeightMeters * visibleAspect
+```
+
+Ground-placed packed-alpha presenters are bottom-anchored: the bottom edge/feet sit on the tapped surface point.
+
 ## Current Player References
 
 - Packed-alpha shader: `src/components/RecxrArGuide.astro`

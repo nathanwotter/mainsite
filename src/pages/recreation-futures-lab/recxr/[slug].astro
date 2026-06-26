@@ -58,6 +58,7 @@ const recxrSite = slug
           anchorOffsetY,
           anchorOffsetZ,
           anchorYaw,
+          presenterWorldHeightMeters,
           videoMode,
           promptText,
           standardVideo{
@@ -121,6 +122,7 @@ const experienceStops = [...(recxrSite?.experienceStops ?? [])]
       anchorOffsetY: typeof stop?.anchorOffsetY === "number" ? stop.anchorOffsetY : 0,
       anchorOffsetZ: typeof stop?.anchorOffsetZ === "number" ? stop.anchorOffsetZ : 0,
       anchorYaw: typeof stop?.anchorYaw === "number" ? stop.anchorYaw : 0,
+      presenterWorldHeightMeters: normalizeNumber(stop?.presenterWorldHeightMeters),
       videoMode: stop?.videoMode ?? (arGuidePlaybackId ? "packedAlpha" : "standard"),
       playbackId: standardPlaybackId ?? legacyPlaybackId ?? "",
       standardPlaybackId: standardPlaybackId ?? "",

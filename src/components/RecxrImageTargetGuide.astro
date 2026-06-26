@@ -235,7 +235,23 @@
     return 0.82;
   }
 
-  const PACKED_ALPHA_GUIDE_WORLD_HEIGHT = 1.7;
+  const DEFAULT_PRESENTER_WORLD_HEIGHT_METERS = 1.75;
+  const MIN_PRESENTER_WORLD_HEIGHT_METERS = 0.3;
+  const MAX_PRESENTER_WORLD_HEIGHT_METERS = 2.5;
+
+  function getPresenterWorldHeightMeters(stop) {
+    const configuredHeight =
+      typeof stop?.presenterWorldHeightMeters === 'number' ? stop.presenterWorldHeightMeters : null;
+    if (
+      configuredHeight &&
+      configuredHeight >= MIN_PRESENTER_WORLD_HEIGHT_METERS &&
+      configuredHeight <= MAX_PRESENTER_WORLD_HEIGHT_METERS
+    ) {
+      return configuredHeight;
+    }
+
+    return DEFAULT_PRESENTER_WORLD_HEIGHT_METERS;
+  }
 
   function setDebugState() {
     if (imageTargetDebugSurface) {
@@ -340,8 +356,8 @@
     }
     if (imageTargetConfigDebug) {
       imageTargetConfigDebug.textContent = stop
-        ? `imageTargetWidth=${typeof stop.imageTargetWidth === 'number' ? stop.imageTargetWidth : 'unset'} | anchorOffsetX=${stop.anchorOffsetX ?? 0} | anchorOffsetY=${stop.anchorOffsetY ?? 0} | anchorOffsetZ=${stop.anchorOffsetZ ?? 0} | anchorYaw=${stop.anchorYaw ?? 0}`
-        : 'imageTargetWidth=unset | anchorOffsetX=0 | anchorOffsetY=0 | anchorOffsetZ=0 | anchorYaw=0';
+        ? `imageTargetWidth=${typeof stop.imageTargetWidth === 'number' ? stop.imageTargetWidth : 'unset'} | presenterWorldHeightMeters=${getPresenterWorldHeightMeters(stop)} | anchorOffsetX=${stop.anchorOffsetX ?? 0} | anchorOffsetY=${stop.anchorOffsetY ?? 0} | anchorOffsetZ=${stop.anchorOffsetZ ?? 0} | anchorYaw=${stop.anchorYaw ?? 0}`
+        : 'imageTargetWidth=unset | presenterWorldHeightMeters=1.75 | anchorOffsetX=0 | anchorOffsetY=0 | anchorOffsetZ=0 | anchorYaw=0';
     }
     updateExperienceChrome();
   }
@@ -349,6 +365,7 @@
   function buildGuideSpec(stop) {
     const worldWidth = getGuideWorldWidth(stop);
     const resolvedGuideMode = getResolvedGuideMode(stop);
+    const presenterWorldHeightMeters = getPresenterWorldHeightMeters(stop);
     return {
       title: stop?.title || 'RecXR Guide',
       guideVideoUrl: getGuideVideoUrl(stop),
@@ -356,7 +373,8 @@
       arGuideHlsUrl: stop?.arGuideHlsUrl || '',
       videoMode: resolvedGuideMode,
       imageTargetWidth: worldWidth,
-      guideWorldHeight: resolvedGuideMode === 'packedAlpha' ? PACKED_ALPHA_GUIDE_WORLD_HEIGHT : null,
+      presenterWorldHeightMeters,
+      guideWorldHeight: resolvedGuideMode === 'packedAlpha' ? presenterWorldHeightMeters : null,
     };
   }
 
@@ -364,13 +382,15 @@
     const width = getGuideWorldWidth(stop);
     const resolvedGuideMode = getResolvedGuideMode(stop);
     const isPackedAlpha = resolvedGuideMode === 'packedAlpha';
+    const presenterWorldHeightMeters = getPresenterWorldHeightMeters(stop);
     // Packed-alpha presenters use the visible RGB half for aspect/height and are bottom-anchored at placement time.
     const guideHeight = isPackedAlpha ? 0 : width / 0.5625;
     const uprightPlacement = getUprightGuidePlacement(stop || {}, guideHeight);
 
     return {
       imageTargetWidth: width,
-      guideWorldHeight: isPackedAlpha ? PACKED_ALPHA_GUIDE_WORLD_HEIGHT : null,
+      presenterWorldHeightMeters,
+      guideWorldHeight: isPackedAlpha ? presenterWorldHeightMeters : null,
       bottomAnchorOnPlacement: isPackedAlpha,
       upright: true,
       faceCameraYawOnly: true,
