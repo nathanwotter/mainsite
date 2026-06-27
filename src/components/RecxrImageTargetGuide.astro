@@ -76,6 +76,7 @@
         <p id="recxr-image-target-debug-placed" style="margin: 0 0 0.2rem 0; color: #dbeafe;">Nathan placed: no</p>
         <p id="recxr-image-target-debug-tracking" style="margin: 0 0 0.2rem 0; color: #dbeafe;">SLAM tracking state: unknown</p>
         <p id="recxr-image-target-debug-count" style="margin: 0 0 0.2rem 0; color: #dbeafe;">hit test candidates per frame: 0</p>
+        <p id="recxr-image-target-debug-coordinates" style="margin: 0 0 0.2rem 0; color: #dbeafe;">hit test coordinates: unknown</p>
         <p id="recxr-image-target-debug-reject" style="margin: 0 0 0.2rem 0; color: #dbeafe;">candidate reject reason: none</p>
         <p id="recxr-image-target-debug-layout" style="margin: 0 0 0.2rem 0; color: #dbeafe;">stage/canvas layout: unknown</p>
         <p id="recxr-image-target-debug-dom" style="margin: 0 0 0.2rem 0; color: #dbeafe;">overlay/stage/canvas visibility: unknown</p>
@@ -133,6 +134,7 @@
   const imageTargetDebugPlaced = document.getElementById('recxr-image-target-debug-placed');
   const imageTargetDebugTracking = document.getElementById('recxr-image-target-debug-tracking');
   const imageTargetDebugCount = document.getElementById('recxr-image-target-debug-count');
+  const imageTargetDebugCoordinates = document.getElementById('recxr-image-target-debug-coordinates');
   const imageTargetDebugReject = document.getElementById('recxr-image-target-debug-reject');
   const imageTargetDebugLayout = document.getElementById('recxr-image-target-debug-layout');
   const imageTargetDebugDom = document.getElementById('recxr-image-target-debug-dom');
@@ -151,6 +153,7 @@
   let currentRuntimeError = '';
   let currentTrackingStatus = 'unknown';
   let currentHitCount = 0;
+  let currentCoordinateDebug = 'unknown';
   let currentRejectReason = 'none';
   let currentLayoutDebug = 'unknown';
   let currentDomDebug = 'unknown';
@@ -286,6 +289,9 @@
     if (imageTargetDebugCount) {
       imageTargetDebugCount.textContent = `hit test candidates per frame: ${currentHitCount}`;
     }
+    if (imageTargetDebugCoordinates) {
+      imageTargetDebugCoordinates.textContent = `hit test coordinates: ${currentCoordinateDebug}`;
+    }
     if (imageTargetDebugReject) {
       imageTargetDebugReject.textContent = `candidate reject reason: ${currentRejectReason}`;
     }
@@ -343,6 +349,7 @@
     currentRuntimeError = '';
     currentTrackingStatus = 'unknown';
     currentHitCount = 0;
+    currentCoordinateDebug = 'unknown';
     currentRejectReason = 'none';
     currentLayoutDebug = 'unknown';
     currentDomDebug = 'unknown';
@@ -533,6 +540,9 @@
         }
         if (detail?.placementDebug) {
           currentPlacementDebug = detail.placementDebug;
+        }
+        if (detail?.coordinateDebug) {
+          currentCoordinateDebug = detail.coordinateDebug;
         }
         if (detail?.event === 'tracking' && imageTargetStatus && currentTrackingStatus !== 'unknown') {
           imageTargetStatus.textContent = `Scanning for surface... Tracking state: ${currentTrackingStatus}`;
