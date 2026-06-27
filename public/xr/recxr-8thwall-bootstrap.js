@@ -303,16 +303,53 @@
     return !normal || Number(normal.y || 0) >= 0.45
   }
 
+  const MIN_PRESENTER_PLACEMENT_DISTANCE_METERS = 0.75
+  const MAX_PRESENTER_PLACEMENT_DISTANCE_METERS = 3.0
+
+  function getPlacementDistanceRejection(cameraToHitDistance) {
+    if (typeof cameraToHitDistance !== 'number' || !Number.isFinite(cameraToHitDistance)) {
+      return {
+        userReason: 'Move back and scan the ground',
+        debugReason: 'camera-to-hit distance unavailable',
+      }
+    }
+
+    if (cameraToHitDistance < MIN_PRESENTER_PLACEMENT_DISTANCE_METERS) {
+      return {
+        userReason: 'Move back and scan the ground',
+        debugReason: `hit too close (${cameraToHitDistance.toFixed(3)}m < ${MIN_PRESENTER_PLACEMENT_DISTANCE_METERS.toFixed(2)}m)`,
+      }
+    }
+
+    if (cameraToHitDistance > MAX_PRESENTER_PLACEMENT_DISTANCE_METERS) {
+      return {
+        userReason: 'Tap a closer ground spot',
+        debugReason: `hit too far (${cameraToHitDistance.toFixed(3)}m > ${MAX_PRESENTER_PLACEMENT_DISTANCE_METERS.toFixed(2)}m)`,
+      }
+    }
+
+    return null
+  }
+
   function getHitDebugDetails(hit, THREE) {
     const hitPosition = getHitPosition(hit)
     const hitNormal = getHitNormal(hit)
     const cameraPosition = getCameraWorldPosition(THREE)
     const cameraToHitDistance = getVectorDistance(cameraPosition, hitPosition)
+    const confidence =
+      typeof hit?.confidence === 'number'
+        ? hit.confidence
+        : typeof hit?.score === 'number'
+          ? hit.score
+          : typeof hit?.trackingConfidence === 'number'
+            ? hit.trackingConfidence
+            : null
     return {
       hitPosition,
       hitNormal,
       cameraPosition,
       cameraToHitDistance,
+      confidence,
     }
   }
 
@@ -321,10 +358,15 @@
       typeof details.cameraToHitDistance === 'number'
         ? `${details.cameraToHitDistance.toFixed(3)}m`
         : 'unknown'
+    const confidenceLabel =
+      typeof details.confidence === 'number'
+        ? details.confidence.toFixed(3)
+        : 'unknown'
     const placementDebug =
       `source=${details.hitSource || 'unknown'} | type=${details.hitType || 'unknown'} | ` +
       `hit=${formatVector(details.hitPosition)} | camera=${formatVector(details.cameraPosition)} | ` +
-      `cameraToHit=${distanceLabel} | normal=${formatVector(details.hitNormal)}`
+      `cameraToHit=${distanceLabel} | normal=${formatVector(details.hitNormal)} | confidence=${confidenceLabel}` +
+      `${details.rejectReason ? ` | reject=${details.rejectReason}` : ''}`
 
     console.info('[RecXR][8thWall][PlacementDebug]', placementDebug)
     emitDebug({
@@ -940,15 +982,21 @@
       const THREE = global.THREE
       const cameraPosition = getCameraWorldPosition(THREE)
       state.lastHitResultCount = hitResults.length
-      const bestHit = chooseBestHitResult(hitResults, cameraPosition)
-      const hitDebug = bestHit ? getHitDebugDetails(bestHit, THREE) : null
+      const closestSurfaceHit = chooseBestHitResult(hitResults, cameraPosition)
+      const hitDebug = closestSurfaceHit ? getHitDebugDetails(closestSurfaceHit, THREE) : null
+      const distanceRejection = closestSurfaceHit
+        ? getPlacementDistanceRejection(hitDebug?.cameraToHitDistance)
+        : null
+      const bestHit = distanceRejection ? null : closestSurfaceHit
       const previousAvailability = state.currentSurfaceAvailable
       const previousType = state.surfaceHitType
       state.lastRejectReason = bestHit
         ? 'none'
         : hitResults.length === 0
           ? 'hitTest returned zero candidates'
-          : 'no floor-like surface hit; feature/unspecified hits are not placeable'
+          : distanceRejection
+            ? distanceRejection.debugReason
+            : 'no floor-like surface hit; feature/unspecified hits are not placeable'
 
       setSurfaceCandidate(bestHit)
       emitDebug({
@@ -957,12 +1005,14 @@
         hitResultCount: hitResults.length,
         hitTypes: hitResults.map((hit) => getHitResultType(hit)),
         rejectReason: state.lastRejectReason,
-        placementDebug: bestHit
-          ? `reticle candidate | type=${getHitResultType(bestHit)} | hit=${formatVector(hitDebug?.hitPosition)} | camera=${formatVector(hitDebug?.cameraPosition)} | cameraToHit=${typeof hitDebug?.cameraToHitDistance === 'number' ? `${hitDebug.cameraToHitDistance.toFixed(3)}m` : 'unknown'} | normal=${formatVector(hitDebug?.hitNormal)}`
-          : null,
+        placementDebug: closestSurfaceHit
+          ? `reticle candidate | type=${getHitResultType(closestSurfaceHit)} | hit=${formatVector(hitDebug?.hitPosition)} | camera=${formatVector(hitDebug?.cameraPosition)} | cameraToHit=${typeof hitDebug?.cameraToHitDistance === 'number' ? `${hitDebug.cameraToHitDistance.toFixed(3)}m` : 'unknown'} | normal=${formatVector(hitDebug?.hitNormal)} | confidence=${typeof hitDebug?.confidence === 'number' ? hitDebug.confidence.toFixed(3) : 'unknown'}${distanceRejection ? ` | reject=${distanceRejection.debugReason}` : ''}`
+          : `reticle candidate | type=none | camera=${formatVector(cameraPosition)} | cameraToHit=unknown | normal=unknown | confidence=unknown | fallback=none | ${state.lastRejectReason}`,
       })
 
-      if (!bestHit && previousAvailability) {
+      if (distanceRejection) {
+        debugStatus(distanceRejection.userReason)
+      } else if (!bestHit && previousAvailability) {
         debugStatus('No placeable horizontal-surface candidate is currently available at the center reticle.')
       } else if (bestHit && (!previousAvailability || previousType !== state.surfaceHitType)) {
         debugStatus(`Center reticle has a placeable surface candidate using ${state.surfaceHitType}.`)
@@ -1015,18 +1065,29 @@
       const cameraPosition = getCameraWorldPosition(THREE)
       state.lastHitResultCount = hitResults.length
       const hit = chooseBestHitResult(hitResults, cameraPosition)
+      const hitDebug = hit ? getHitDebugDetails(hit, THREE) : null
+      const distanceRejection = hit
+        ? getPlacementDistanceRejection(hitDebug?.cameraToHitDistance)
+        : null
       const hitSource = 'tap-surface-hit'
-      state.lastRejectReason = hit
+      state.lastRejectReason = hit && !distanceRejection
         ? 'none'
         : hitResults.length === 0
           ? 'tap hitTest returned zero candidates'
-          : 'tap hitTest returned no floor-like surface hit'
+          : distanceRejection
+            ? distanceRejection.debugReason
+            : 'tap hitTest returned no floor-like surface hit'
       emitDebug({
         event: 'tap-hit-test',
         point,
         hitResultCount: hitResults.length,
         hitTypes: hitResults.map((candidate) => getHitResultType(candidate)),
         rejectReason: state.lastRejectReason,
+        placementDebug: hit && distanceRejection
+          ? `tap placement | type=${getHitResultType(hit)} | hit=${formatVector(hitDebug?.hitPosition)} | camera=${formatVector(hitDebug?.cameraPosition)} | cameraToHit=${typeof hitDebug?.cameraToHitDistance === 'number' ? `${hitDebug.cameraToHitDistance.toFixed(3)}m` : 'unknown'} | normal=${formatVector(hitDebug?.hitNormal)} | confidence=${typeof hitDebug?.confidence === 'number' ? hitDebug.confidence.toFixed(3) : 'unknown'} | reject=${distanceRejection.debugReason}`
+          : hit
+            ? null
+          : `tap placement | type=none | camera=${formatVector(cameraPosition)} | cameraToHit=unknown | normal=unknown | confidence=unknown | fallback=none | ${state.lastRejectReason}`,
       })
 
       if (!hit) {
@@ -1035,7 +1096,12 @@
         return
       }
 
-      const hitDebug = getHitDebugDetails(hit, THREE)
+      if (distanceRejection) {
+        debugStatus(distanceRejection.userReason)
+        debugStatus(`Placement early return: ${distanceRejection.debugReason}. No presenter was placed.`)
+        return
+      }
+
       const placementDebug = emitPlacementHitDebug({
         event: 'tap-placement-hit',
         hitSource,

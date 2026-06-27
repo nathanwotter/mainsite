@@ -69,7 +69,6 @@ function isAboutNathanNavItem(item) {
 function toTeachingChildLink(item) {
     const title = item?.title;
     const shortTitle = item?.shortTitle || item?.menuTitle;
-    const label = shortTitle || title;
     const slug = item?.slug;
 
     if (!title || !slug) {
@@ -78,7 +77,7 @@ function toTeachingChildLink(item) {
 
     return {
         _type: 'actionLink',
-        label,
+        label: title,
         title,
         shortTitle,
         url: `/teaching/${slug}`,
@@ -104,7 +103,6 @@ function mergeTeachingChildren(existingChildren = [], teachingSubpages = []) {
 function toRecreationFuturesChildLink(item) {
     const title = item?.title;
     const shortTitle = item?.shortTitle || item?.menuTitle;
-    const label = shortTitle || title;
     const slug = item?.slug;
 
     if (!title || !slug) {
@@ -113,7 +111,7 @@ function toRecreationFuturesChildLink(item) {
 
     return {
         _type: 'actionLink',
-        label,
+        label: title,
         title,
         shortTitle,
         url: `/recreation-futures-lab/${slug}`,
@@ -139,7 +137,6 @@ function mergeRecreationFuturesChildren(existingChildren = [], subpages = []) {
 function toFoodChildLink(item) {
     const title = item?.title;
     const shortTitle = item?.shortTitle || item?.menuTitle;
-    const label = shortTitle || title;
     const slug = item?.slug;
 
     if (!title || !slug) {
@@ -148,7 +145,7 @@ function toFoodChildLink(item) {
 
     return {
         _type: 'actionLink',
-        label,
+        label: title,
         title,
         shortTitle,
         url: `/food/${slug}`,
@@ -174,7 +171,6 @@ function mergeFoodChildren(existingChildren = [], subpages = []) {
 function toAboutNathanChildLink(item) {
     const title = item?.title;
     const shortTitle = item?.shortTitle || item?.menuTitle;
-    const label = shortTitle || title;
     const slug = item?.slug;
 
     if (!title || !slug) {
@@ -183,7 +179,7 @@ function toAboutNathanChildLink(item) {
 
     return {
         _type: 'actionLink',
-        label,
+        label: title,
         title,
         shortTitle,
         url: `/about-nathan/${slug}`,
