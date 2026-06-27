@@ -52,6 +52,9 @@
         <p id="recxr-image-target-scale-readout" style="margin: 0; color: #dbeafe; line-height: 1.35; font-size: 0.72rem;">
           waiting for placement
         </p>
+        <p id="recxr-image-target-placement-readout" style="margin: 0; color: #bfdbfe; line-height: 1.35; font-size: 0.72rem;">
+          hit/camera: waiting
+        </p>
       </div>
     </div>
 
@@ -121,6 +124,7 @@
   const imageTargetDebugCard = document.getElementById('recxr-image-target-debug-card');
   const imageTargetConfigPanel = document.getElementById('recxr-image-target-config-panel');
   const imageTargetScaleReadout = document.getElementById('recxr-image-target-scale-readout');
+  const imageTargetPlacementReadout = document.getElementById('recxr-image-target-placement-readout');
   const imageTargetCloseButton = document.getElementById('recxr-image-target-close');
   const imageTargetResetPlacementButton = document.getElementById('recxr-image-target-reset-placement');
   const imageTargetOpenCameraFallbackButton = document.getElementById('recxr-image-target-open-camera-fallback');
@@ -157,6 +161,7 @@
   let currentVisibleCanvasFrameCount = 0;
   let currentRendererAlphaDebug = 'unknown';
   let currentScaleDebug = 'unknown';
+  let currentPlacementDebug = 'hit/camera: waiting';
   let surfaceGuideOpening = false;
   let surfaceGuideOpen = false;
   const surfaceGuideDebugEnabled = false;
@@ -314,6 +319,9 @@
     if (imageTargetScaleReadout) {
       imageTargetScaleReadout.textContent = currentScaleDebug;
     }
+    if (imageTargetPlacementReadout) {
+      imageTargetPlacementReadout.textContent = currentPlacementDebug;
+    }
   }
 
   if (!surfaceGuideDebugEnabled) {
@@ -345,6 +353,7 @@
     currentVisibleCanvasFrameCount = 0;
     currentRendererAlphaDebug = 'unknown';
     currentScaleDebug = 'unknown';
+    currentPlacementDebug = 'hit/camera: waiting';
     setDebugState();
     logSurfaceGuide('camera fallback button rendered', {
       visible: Boolean(imageTargetOpenCameraFallbackButton),
@@ -521,6 +530,9 @@
         }
         if (detail?.scaleDebug) {
           currentScaleDebug = detail.scaleDebug;
+        }
+        if (detail?.placementDebug) {
+          currentPlacementDebug = detail.placementDebug;
         }
         if (detail?.event === 'tracking' && imageTargetStatus && currentTrackingStatus !== 'unknown') {
           imageTargetStatus.textContent = `Scanning for surface... Tracking state: ${currentTrackingStatus}`;

@@ -232,6 +232,109 @@
     return hit?.type || hit?.hitType || hit?.kind || 'UNSPECIFIED'
   }
 
+  function getVectorLike(value) {
+    if (
+      value &&
+      typeof value.x === 'number' &&
+      typeof value.y === 'number' &&
+      typeof value.z === 'number'
+    ) {
+      return value
+    }
+
+    return null
+  }
+
+  function getHitPosition(hit) {
+    return (
+      getVectorLike(hit?.position) ||
+      getVectorLike(hit?.point) ||
+      getVectorLike(hit?.worldPosition) ||
+      getVectorLike(hit?.transform?.position) ||
+      null
+    )
+  }
+
+  function getHitNormal(hit) {
+    return (
+      getVectorLike(hit?.normal) ||
+      getVectorLike(hit?.surfaceNormal) ||
+      getVectorLike(hit?.planeNormal) ||
+      getVectorLike(hit?.transform?.normal) ||
+      null
+    )
+  }
+
+  function formatVector(vector) {
+    if (!vector) return 'unknown'
+    return `(${Number(vector.x || 0).toFixed(3)}, ${Number(vector.y || 0).toFixed(3)}, ${Number(vector.z || 0).toFixed(3)})`
+  }
+
+  function getCameraWorldPosition(THREE) {
+    const camera = state.sceneResources?.camera
+    if (!camera || !THREE?.Vector3) return null
+
+    const position = new THREE.Vector3()
+    if (typeof camera.getWorldPosition === 'function') {
+      camera.updateMatrixWorld?.(true)
+      camera.getWorldPosition(position)
+      return position
+    }
+
+    return getVectorLike(camera.position)
+  }
+
+  function getVectorDistance(a, b) {
+    if (!a || !b) return null
+    const dx = Number(a.x || 0) - Number(b.x || 0)
+    const dy = Number(a.y || 0) - Number(b.y || 0)
+    const dz = Number(a.z || 0) - Number(b.z || 0)
+    return Math.sqrt((dx * dx) + (dy * dy) + (dz * dz))
+  }
+
+  function isSurfaceHit(hit) {
+    const type = getHitResultType(hit)
+    return type === 'DETECTED_SURFACE' || type === 'ESTIMATED_SURFACE'
+  }
+
+  function isFloorLikeHit(hit) {
+    const normal = getHitNormal(hit)
+    // Some 8th Wall hit results do not expose a normal. Surface hit types are still stricter than feature points.
+    return !normal || Number(normal.y || 0) >= 0.45
+  }
+
+  function getHitDebugDetails(hit, THREE) {
+    const hitPosition = getHitPosition(hit)
+    const hitNormal = getHitNormal(hit)
+    const cameraPosition = getCameraWorldPosition(THREE)
+    const cameraToHitDistance = getVectorDistance(cameraPosition, hitPosition)
+    return {
+      hitPosition,
+      hitNormal,
+      cameraPosition,
+      cameraToHitDistance,
+    }
+  }
+
+  function emitPlacementHitDebug(details) {
+    const distanceLabel =
+      typeof details.cameraToHitDistance === 'number'
+        ? `${details.cameraToHitDistance.toFixed(3)}m`
+        : 'unknown'
+    const placementDebug =
+      `source=${details.hitSource || 'unknown'} | type=${details.hitType || 'unknown'} | ` +
+      `hit=${formatVector(details.hitPosition)} | camera=${formatVector(details.cameraPosition)} | ` +
+      `cameraToHit=${distanceLabel} | normal=${formatVector(details.hitNormal)}`
+
+    console.info('[RecXR][8thWall][PlacementDebug]', placementDebug)
+    emitDebug({
+      event: details.event || 'placement-hit-debug',
+      placementDebug,
+    })
+
+    return placementDebug
+  }
+
   function setSurfaceCandidate(hit) {
     state.currentSurfaceHit = hit || null
     state.currentSurfaceAvailable = Boolean(hit)
@@ -666,6 +769,7 @@
     debugStatus(`Placement function entered. Candidate hit type: ${getHitResultType(hit)}.`)
     const mesh = await ensureGuideSceneNode()
     const xrScene = await ensureSceneResources()
+    const THREE = global.THREE
     if (!mesh || !xrScene?.scene) {
       emitError('Placement failed because the Nathan scene node could not be prepared.')
       return
@@ -678,10 +782,9 @@
     xrScene.scene.add(mesh)
     mesh.visible = true
     xrScene.scene.updateMatrixWorld?.(true)
-    const THREE = global.THREE
 
     const placement = state.config?.placement || {}
-    const basePosition = hit?.position || { x: 0, y: 0, z: 0 }
+    const basePosition = getHitPosition(hit) || { x: 0, y: 0, z: 0 }
     const placementOffset = placement.position || { x: 0, y: 0, z: 0 }
     const geometryHeight = mesh.geometry?.parameters?.height || 0
     const bottomAnchorYOffset = placement.bottomAnchorOnPlacement ? geometryHeight / 2 : 0
@@ -713,6 +816,13 @@
     mesh.updateMatrixWorld?.(true)
     const meshWorldScale = getObjectScale(mesh, THREE)
     const parentWorldScale = getObjectScale(mesh.parent, THREE)
+    const hitDebug = getHitDebugDetails(hit, THREE)
+    const placementDebug = emitPlacementHitDebug({
+      event: 'final-placement-hit',
+      hitSource: 'placeGuideInWorld',
+      hitType: getHitResultType(hit),
+      ...hitDebug,
+    })
     const scaleDebug = emitScaleDebug({
       event: 'guide-placement-scale',
       presenterWorldHeightMeters: getPresenterWorldHeightMeters(state.config),
@@ -723,7 +833,7 @@
       worldScale: meshWorldScale,
     })
     debugStatus(
-      `Final mesh transform videoMode=${state.config?.guide?.videoMode || 'standard'} hitPoint=(${Number(basePosition.x || 0).toFixed(3)}, ${Number(basePosition.y || 0).toFixed(3)}, ${Number(basePosition.z || 0).toFixed(3)}) finalPosition=(${mesh.position.x.toFixed(3)}, ${mesh.position.y.toFixed(3)}, ${mesh.position.z.toFixed(3)}) bottomAnchoring=${bottomAnchorApplied ? 'yes' : 'no'} bottomAnchorYOffset=${bottomAnchorYOffset.toFixed(3)}m rotation=(${mesh.rotation.x.toFixed(3)}, ${mesh.rotation.y.toFixed(3)}, ${mesh.rotation.z.toFixed(3)}) plane=${Number(geometryParams.width || 0).toFixed(3)}x${Number(geometryParams.height || 0).toFixed(3)}m meshScale=${formatScale(mesh.scale)} parentWorldScale=${formatScale(parentWorldScale)} worldMatrixScale=${formatScale(meshWorldScale)} ${scaleDebug}`
+      `Final mesh transform videoMode=${state.config?.guide?.videoMode || 'standard'} hitPoint=(${Number(basePosition.x || 0).toFixed(3)}, ${Number(basePosition.y || 0).toFixed(3)}, ${Number(basePosition.z || 0).toFixed(3)}) finalPosition=(${mesh.position.x.toFixed(3)}, ${mesh.position.y.toFixed(3)}, ${mesh.position.z.toFixed(3)}) bottomAnchoring=${bottomAnchorApplied ? 'yes' : 'no'} bottomAnchorYOffset=${bottomAnchorYOffset.toFixed(3)}m rotation=(${mesh.rotation.x.toFixed(3)}, ${mesh.rotation.y.toFixed(3)}, ${mesh.rotation.z.toFixed(3)}) plane=${Number(geometryParams.width || 0).toFixed(3)}x${Number(geometryParams.height || 0).toFixed(3)}m meshScale=${formatScale(mesh.scale)} parentWorldScale=${formatScale(parentWorldScale)} worldMatrixScale=${formatScale(meshWorldScale)} ${placementDebug} ${scaleDebug}`
     )
     debugStatus(`Nathan placed in world space using ${hit?.type || 'unknown'} hit.`)
 
@@ -758,37 +868,43 @@
     }
   }
 
-  function getHitResultDistance(hit) {
+  function getHitResultDistance(hit, cameraPosition) {
     if (typeof hit?.distance === 'number') return hit.distance
-    const position = hit?.position
-    if (position && typeof position.x === 'number' && typeof position.y === 'number' && typeof position.z === 'number') {
+    const position = getHitPosition(hit)
+    if (cameraPosition && position) {
+      return getVectorDistance(cameraPosition, position) ?? Number.POSITIVE_INFINITY
+    }
+    if (position) {
       return Math.sqrt((position.x ** 2) + (position.y ** 2) + (position.z ** 2))
     }
     return Number.POSITIVE_INFINITY
   }
 
-  function chooseBestHitResult(results) {
+  function chooseBestHitResult(results, cameraPosition = null) {
     if (!Array.isArray(results) || results.length === 0) return null
 
     const priority = {
       DETECTED_SURFACE: 0,
       ESTIMATED_SURFACE: 1,
-      FEATURE_POINT: 2,
-      UNSPECIFIED: 3,
     }
 
-    return [...results].sort((left, right) => {
+    const surfaceHits = results.filter((hit) => isSurfaceHit(hit) && isFloorLikeHit(hit))
+    if (!surfaceHits.length) return null
+
+    return [...surfaceHits].sort((left, right) => {
       const leftType = getHitResultType(left)
       const rightType = getHitResultType(right)
-      const leftPriority = leftType in priority ? priority[leftType] : priority.UNSPECIFIED
-      const rightPriority = rightType in priority ? priority[rightType] : priority.UNSPECIFIED
-      if (leftPriority !== rightPriority) return leftPriority - rightPriority
-      return getHitResultDistance(left) - getHitResultDistance(right)
+      const leftDistance = getHitResultDistance(left, cameraPosition)
+      const rightDistance = getHitResultDistance(right, cameraPosition)
+      if (leftDistance !== rightDistance) return leftDistance - rightDistance
+      const leftPriority = leftType in priority ? priority[leftType] : 99
+      const rightPriority = rightType in priority ? priority[rightType] : 99
+      return leftPriority - rightPriority
     })[0]
   }
 
   function getIncludedHitTypes() {
-    return ['DETECTED_SURFACE', 'ESTIMATED_SURFACE', 'FEATURE_POINT', 'UNSPECIFIED']
+    return ['DETECTED_SURFACE', 'ESTIMATED_SURFACE']
   }
 
   function getCenterScreenPoint() {
@@ -821,15 +937,18 @@
       const includedTypes = getIncludedHitTypes()
       const results = await XR8.XrController.hitTest(point.x, point.y, includedTypes)
       const hitResults = Array.isArray(results) ? results : (results ? [results] : [])
+      const THREE = global.THREE
+      const cameraPosition = getCameraWorldPosition(THREE)
       state.lastHitResultCount = hitResults.length
-      const bestHit = chooseBestHitResult(hitResults)
+      const bestHit = chooseBestHitResult(hitResults, cameraPosition)
+      const hitDebug = bestHit ? getHitDebugDetails(bestHit, THREE) : null
       const previousAvailability = state.currentSurfaceAvailable
       const previousType = state.surfaceHitType
       state.lastRejectReason = bestHit
         ? 'none'
         : hitResults.length === 0
           ? 'hitTest returned zero candidates'
-          : 'all candidates were rejected by selector'
+          : 'no floor-like surface hit; feature/unspecified hits are not placeable'
 
       setSurfaceCandidate(bestHit)
       emitDebug({
@@ -838,6 +957,9 @@
         hitResultCount: hitResults.length,
         hitTypes: hitResults.map((hit) => getHitResultType(hit)),
         rejectReason: state.lastRejectReason,
+        placementDebug: bestHit
+          ? `reticle candidate | type=${getHitResultType(bestHit)} | hit=${formatVector(hitDebug?.hitPosition)} | camera=${formatVector(hitDebug?.cameraPosition)} | cameraToHit=${typeof hitDebug?.cameraToHitDistance === 'number' ? `${hitDebug.cameraToHitDistance.toFixed(3)}m` : 'unknown'} | normal=${formatVector(hitDebug?.hitNormal)}`
+          : null,
       })
 
       if (!bestHit && previousAvailability) {
@@ -889,14 +1011,16 @@
 
       const results = await XR8.XrController.hitTest(point.x, point.y, includedTypes)
       const hitResults = Array.isArray(results) ? results : (results ? [results] : [])
+      const THREE = global.THREE
+      const cameraPosition = getCameraWorldPosition(THREE)
       state.lastHitResultCount = hitResults.length
-      let hit = chooseBestHitResult(hitResults)
-      let hitSource = 'tap-coordinates'
+      const hit = chooseBestHitResult(hitResults, cameraPosition)
+      const hitSource = 'tap-surface-hit'
       state.lastRejectReason = hit
         ? 'none'
         : hitResults.length === 0
           ? 'tap hitTest returned zero candidates'
-          : 'tap hitTest candidates rejected by selector'
+          : 'tap hitTest returned no floor-like surface hit'
       emitDebug({
         event: 'tap-hit-test',
         point,
@@ -905,19 +1029,21 @@
         rejectReason: state.lastRejectReason,
       })
 
-      if (!hit && state.currentSurfaceHit) {
-        hit = state.currentSurfaceHit
-        hitSource = 'current-reticle-candidate'
-      }
-
       if (!hit) {
         debugStatus(`Placement early return: no candidate available at tap point ${point.x.toFixed(3)}, ${point.y.toFixed(3)}.`)
-        debugStatus(`Tap received but no SLAM hit result was returned. Tried hit types: ${includedTypes.join(', ')}.`)
+        debugStatus(`Tap received but no floor-like SLAM surface hit was returned. Tried hit types: ${includedTypes.join(', ')}. No reticle fallback was used.`)
         return
       }
 
+      const hitDebug = getHitDebugDetails(hit, THREE)
+      const placementDebug = emitPlacementHitDebug({
+        event: 'tap-placement-hit',
+        hitSource,
+        hitType: getHitResultType(hit),
+        ...hitDebug,
+      })
       debugStatus(
-        `Tap-to-place selected ${getHitResultType(hit)} hit for world placement using ${hitSource}. hitPosition=(${Number(hit?.position?.x || 0).toFixed(3)}, ${Number(hit?.position?.y || 0).toFixed(3)}, ${Number(hit?.position?.z || 0).toFixed(3)})`
+        `Tap-to-place selected ${getHitResultType(hit)} hit for world placement using ${hitSource}. ${placementDebug}`
       )
       await placeGuideInWorld(hit)
       debugStatus('Nathan placed. He should stay upright on the ground.')
