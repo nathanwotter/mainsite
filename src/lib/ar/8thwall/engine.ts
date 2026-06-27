@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 
 const ENGINE_SCRIPT_URL = '/xr/xr.js'
-const BRIDGE_SCRIPT_URL = '/xr/recxr-8thwall-bootstrap.js?v=hit-test-coordinate-debug-20260627'
+const BRIDGE_SCRIPT_URL = '/xr/recxr-8thwall-bootstrap.js?v=packed-alpha-distance-guard-20260626'
 
 type SelfHosted8thWallWindow = Window & {
   __recxrScriptPromises?: Record<string, Promise<void>>

@@ -26,7 +26,6 @@
     debugEnabled: false,
     lastFacingYaw: null,
     lastFacingYawLogAt: 0,
-    lastCenterHitDebugAt: 0,
     sceneResources: null,
     pipelineModulesAdded: false,
     sessionStarting: false,
@@ -271,55 +270,6 @@
     return `(${Number(vector.x || 0).toFixed(3)}, ${Number(vector.y || 0).toFixed(3)}, ${Number(vector.z || 0).toFixed(3)})`
   }
 
-  function getViewportMetrics() {
-    const visualViewport = global.visualViewport || null
-    const layoutWidth = Math.max(global.innerWidth || 0, document.documentElement?.clientWidth || 0, 1)
-    const layoutHeight = Math.max(global.innerHeight || 0, document.documentElement?.clientHeight || 0, 1)
-    const visualWidth = Math.max(visualViewport?.width || layoutWidth, 1)
-    const visualHeight = Math.max(visualViewport?.height || layoutHeight, 1)
-    const visualOffsetLeft = Number(visualViewport?.offsetLeft || 0)
-    const visualOffsetTop = Number(visualViewport?.offsetTop || 0)
-
-    return {
-      layoutWidth,
-      layoutHeight,
-      visualWidth,
-      visualHeight,
-      visualOffsetLeft,
-      visualOffsetTop,
-      scale: Number(visualViewport?.scale || 1),
-      devicePixelRatio: Number(global.devicePixelRatio || 1),
-    }
-  }
-
-  function normalizeViewportPoint(clientX, clientY) {
-    const viewport = getViewportMetrics()
-    const relativeX = clientX - viewport.visualOffsetLeft
-    const relativeY = clientY - viewport.visualOffsetTop
-
-    return {
-      clientX,
-      clientY,
-      x: Math.min(1, Math.max(0, relativeX / viewport.visualWidth)),
-      y: Math.min(1, Math.max(0, relativeY / viewport.visualHeight)),
-      referenceWidth: viewport.visualWidth,
-      referenceHeight: viewport.visualHeight,
-      referenceLeft: viewport.visualOffsetLeft,
-      referenceTop: viewport.visualOffsetTop,
-      layoutWidth: viewport.layoutWidth,
-      layoutHeight: viewport.layoutHeight,
-      visualViewportScale: viewport.scale,
-      devicePixelRatio: viewport.devicePixelRatio,
-      coordinateSpace: 'normalized-visual-viewport',
-    }
-  }
-
-  function getElementRectDebug(element) {
-    if (!element?.getBoundingClientRect) return 'missing'
-    const rect = element.getBoundingClientRect()
-    return `${Math.round(rect.left)},${Math.round(rect.top)} ${Math.round(rect.width)}x${Math.round(rect.height)}`
-  }
-
   function getCameraWorldPosition(THREE) {
     const camera = state.sceneResources?.camera
     if (!camera || !THREE?.Vector3) return null
@@ -401,65 +351,6 @@
       cameraToHitDistance,
       confidence,
     }
-  }
-
-  function summarizeHitResults(hitResults, THREE) {
-    const cameraPosition = getCameraWorldPosition(THREE)
-    return hitResults.map((hit, index) => {
-      const details = getHitDebugDetails(hit, THREE)
-      const distance =
-        typeof hit?.distance === 'number'
-          ? hit.distance
-          : details.cameraToHitDistance
-      return {
-        index,
-        type: getHitResultType(hit),
-        distance: typeof distance === 'number' && Number.isFinite(distance) ? Number(distance.toFixed(3)) : null,
-        cameraToHitDistance:
-          typeof details.cameraToHitDistance === 'number' && Number.isFinite(details.cameraToHitDistance)
-            ? Number(details.cameraToHitDistance.toFixed(3))
-            : null,
-        position: formatVector(details.hitPosition),
-        normal: formatVector(details.hitNormal),
-        camera: formatVector(cameraPosition),
-        floorLike: isFloorLikeHit(hit),
-      }
-    })
-  }
-
-  function formatHitSummary(hitResults, THREE) {
-    if (!hitResults.length) return 'none'
-    return summarizeHitResults(hitResults, THREE)
-      .map((hit) => `${hit.index}:${hit.type} d=${hit.distance ?? 'unknown'}m normal=${hit.normal} pos=${hit.position}`)
-      .join(' ; ')
-  }
-
-  function emitHitTestDebug({ event, label, point, includedTypes, results, rawResults }) {
-    const THREE = global.THREE
-    const hitResults = Array.isArray(results) ? results : (results ? [results] : [])
-    const debugPayload = {
-      event,
-      label,
-      point,
-      includedTypes,
-      hitResultCount: hitResults.length,
-      hitTypes: hitResults.map((hit) => getHitResultType(hit)),
-      hits: summarizeHitResults(hitResults, THREE),
-      rawResultWasArray: Array.isArray(rawResults),
-      coordinateDebug:
-        `client=(${Number(point.clientX ?? 0).toFixed(1)}, ${Number(point.clientY ?? 0).toFixed(1)}) | ` +
-        `normalized=(${Number(point.x ?? 0).toFixed(3)}, ${Number(point.y ?? 0).toFixed(3)}) | ` +
-        `space=${point.coordinateSpace || 'unknown'} | ` +
-        `reference=${Math.round(point.referenceWidth || 0)}x${Math.round(point.referenceHeight || 0)}@${Math.round(point.referenceLeft || 0)},${Math.round(point.referenceTop || 0)} | ` +
-        `layout=${Math.round(point.layoutWidth || 0)}x${Math.round(point.layoutHeight || 0)} | ` +
-        `canvas=${getElementRectDebug(state.canvas)} | container=${getElementRectDebug(state.container)} | ` +
-        `dpr=${Number(point.devicePixelRatio || 1).toFixed(2)} vvScale=${Number(point.visualViewportScale || 1).toFixed(2)}`,
-      placementDebug: `${label} | types=${includedTypes.join(',') || 'all'} | count=${hitResults.length} | ${formatHitSummary(hitResults, THREE)}`,
-    }
-
-    console.info('[RecXR][8thWall][HitTestDebug]', debugPayload)
-    emitDebug(debugPayload)
-    return debugPayload
   }
 
   function emitPlacementHitDebug(details) {
@@ -997,11 +888,26 @@
   }
 
   function normalizeTouchPoint(event) {
+    const referenceRect =
+      state.canvas?.getBoundingClientRect?.() ||
+      state.container?.getBoundingClientRect?.() || {
+        left: 0,
+        top: 0,
+        width: window.innerWidth || 1,
+        height: window.innerHeight || 1,
+      }
     const clientPoint = event.changedTouches?.[0] || event.touches?.[0] || event
     const clientX = typeof clientPoint?.clientX === 'number' ? clientPoint.clientX : 0
     const clientY = typeof clientPoint?.clientY === 'number' ? clientPoint.clientY : 0
 
-    return normalizeViewportPoint(clientX, clientY)
+    return {
+      clientX,
+      clientY,
+      x: Math.min(1, Math.max(0, (clientX - referenceRect.left) / Math.max(referenceRect.width || 1, 1))),
+      y: Math.min(1, Math.max(0, (clientY - referenceRect.top) / Math.max(referenceRect.height || 1, 1))),
+      referenceWidth: referenceRect.width || 1,
+      referenceHeight: referenceRect.height || 1,
+    }
   }
 
   function getHitResultDistance(hit, cameraPosition) {
@@ -1044,39 +950,7 @@
   }
 
   function getCenterScreenPoint() {
-    const viewport = getViewportMetrics()
-    return normalizeViewportPoint(
-      viewport.visualOffsetLeft + (viewport.visualWidth / 2),
-      viewport.visualOffsetTop + (viewport.visualHeight / 2)
-    )
-  }
-
-  async function runHitTestDebugSeries(label, point) {
-    const XR8 = getXR8()
-    if (!XR8?.XrController?.hitTest) return []
-
-    const scenarios = [
-      { label: `${label}:combined`, includedTypes: getIncludedHitTypes() },
-      { label: `${label}:detected-only`, includedTypes: ['DETECTED_SURFACE'] },
-      { label: `${label}:estimated-only`, includedTypes: ['ESTIMATED_SURFACE'] },
-    ]
-    const scenarioResults = []
-
-    for (const scenario of scenarios) {
-      const rawResults = await XR8.XrController.hitTest(point.x, point.y, scenario.includedTypes)
-      const hitResults = Array.isArray(rawResults) ? rawResults : (rawResults ? [rawResults] : [])
-      scenarioResults.push({ ...scenario, rawResults, hitResults })
-      emitHitTestDebug({
-        event: 'hit-test-debug',
-        label: scenario.label,
-        point,
-        includedTypes: scenario.includedTypes,
-        results: hitResults,
-        rawResults,
-      })
-    }
-
-    return scenarioResults
+    return { x: 0.5, y: 0.5 }
   }
 
   function updateTrackingStatus(nextStatus) {
@@ -1105,18 +979,6 @@
       const includedTypes = getIncludedHitTypes()
       const results = await XR8.XrController.hitTest(point.x, point.y, includedTypes)
       const hitResults = Array.isArray(results) ? results : (results ? [results] : [])
-      const shouldEmitCenterDebug = now - state.lastCenterHitDebugAt > 1200 || hitResults.length > 0
-      if (shouldEmitCenterDebug) {
-        state.lastCenterHitDebugAt = now
-        emitHitTestDebug({
-          event: 'hit-test',
-          label: 'center-reticle',
-          point,
-          includedTypes,
-          results: hitResults,
-          rawResults: results,
-        })
-      }
       const THREE = global.THREE
       const cameraPosition = getCameraWorldPosition(THREE)
       state.lastHitResultCount = hitResults.length
@@ -1193,11 +1055,10 @@
       await kickGuideVideoPlayback('tap gesture', { allowAudio: true })
       const includedTypes = getIncludedHitTypes()
       debugStatus(
-        `Tap coordinates client=(${point.clientX.toFixed(1)}, ${point.clientY.toFixed(1)}) normalized=(${point.x.toFixed(3)}, ${point.y.toFixed(3)}) reference=${Math.round(point.referenceWidth)}x${Math.round(point.referenceHeight)} coordinateSpace=${point.coordinateSpace}`
+        `Tap coordinates client=(${point.clientX.toFixed(1)}, ${point.clientY.toFixed(1)}) normalized=(${point.x.toFixed(3)}, ${point.y.toFixed(3)}) reference=${Math.round(point.referenceWidth)}x${Math.round(point.referenceHeight)}`
       )
       debugStatus(`Tap candidate exists before hit test: ${state.currentSurfaceHit ? 'yes' : 'no'}.`)
 
-      await runHitTestDebugSeries('tap-anywhere', point)
       const results = await XR8.XrController.hitTest(point.x, point.y, includedTypes)
       const hitResults = Array.isArray(results) ? results : (results ? [results] : [])
       const THREE = global.THREE
@@ -1409,25 +1270,16 @@
     state.lastTapAt = 0
     state.lastFacingYaw = null
     state.lastFacingYawLogAt = 0
-    state.lastCenterHitDebugAt = 0
     updateTrackingStatus('starting')
     setSurfaceCandidate(null)
     debugStatus('Self-hosted 8th Wall bootstrap startSession entered.')
     debugStatus('Starting SLAM-only horizontal-surface placement mode.')
 
     if (XR8.XrController?.configure) {
-      const xrControllerConfig = {
+      XR8.XrController.configure({
         enableWorldPoints: true,
-        disableWorldTracking: false,
-      }
-      XR8.XrController.configure(xrControllerConfig)
-      debugStatus('Applied XR8.XrController.configure for SLAM world-point placement with world tracking enabled.')
-      emitDebug({
-        event: 'xr8-configure',
-        xrControllerConfig,
-        surfaceDetection: 'enabled by SLAM world points',
-        hitTestMethod: 'XR8.XrController.hitTest(normalizedX, normalizedY, includedTypes)',
       })
+      debugStatus('Applied XR8.XrController.configure for SLAM world-point placement.')
     }
 
     addPipelineModules()
@@ -1438,16 +1290,6 @@
       canvas: state.canvas,
       allowedDevices: 'any',
     }
-    emitDebug({
-      event: 'xr8-run-config',
-      runConfig: {
-        allowedDevices: runConfig.allowedDevices,
-        canvas: describeNode(runConfig.canvas),
-      },
-      canvasLayout: getElementRectDebug(state.canvas),
-      containerLayout: getElementRectDebug(state.container),
-      viewport: getViewportMetrics(),
-    })
 
     try {
       if (XR8.run) {
