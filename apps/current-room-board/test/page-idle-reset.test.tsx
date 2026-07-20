@@ -125,6 +125,43 @@ describe("page idle reset", () => {
     expect(screen.getByText("Monday, July 20")).toBeInTheDocument();
   });
 
+  it("continues normal polling past the idle threshold while already on today", async () => {
+    process.env.NEXT_PUBLIC_REFRESH_INTERVAL_SECONDS = "60";
+    render(<Home />);
+    await flushEffects();
+    expect(fetch).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000);
+    });
+    await flushEffects();
+    expect(fetch).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000);
+    });
+    await flushEffects();
+    expect(fetch).toHaveBeenCalledTimes(3);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000);
+    });
+    await flushEffects();
+    expect(fetch).toHaveBeenCalledTimes(4);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000);
+    });
+    await flushEffects();
+    expect(fetch).toHaveBeenCalledTimes(5);
+
+    const postInitialTriggers = vi.mocked(fetch).mock.calls
+      .slice(1)
+      .map(([, init]) => (init as RequestInit).headers as Record<string, string>)
+      .map((headers) => headers["X-Current-Room-Board-Refresh-Trigger"]);
+    expect(postInitialTriggers).toEqual(["polling", "polling", "polling", "polling"]);
+  });
+
   it("cleans up idle timers and activity listeners on unmount", async () => {
     const { unmount } = render(<Home />);
     await flushEffects();
@@ -195,5 +232,37 @@ describe("page idle reset", () => {
         }),
       }),
     );
+  });
+
+  it("checks stale data and idle reset when returning from the background", async () => {
+    process.env.NEXT_PUBLIC_REFRESH_INTERVAL_SECONDS = "60";
+    render(<Home />);
+    await flushEffects();
+    expect(fetch).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByLabelText("Next day"));
+    await flushEffects();
+    expect(fetch).toHaveBeenCalledTimes(2);
+
+    Object.defineProperty(document, "hidden", { configurable: true, get: () => true });
+    fireEvent(document, new Event("visibilitychange"));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(181_000);
+    });
+
+    Object.defineProperty(document, "hidden", { configurable: true, get: () => false });
+    fireEvent(document, new Event("visibilitychange"));
+    await flushEffects();
+
+    expect(fetch).toHaveBeenCalledTimes(3);
+    expect(fetch).toHaveBeenLastCalledWith(
+      "/api/schedule?date=2026-07-20",
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          "X-Current-Room-Board-Refresh-Trigger": "idle reset",
+        }),
+      }),
+    );
+    expect(screen.getByText("Monday, July 20")).toBeInTheDocument();
   });
 });

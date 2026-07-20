@@ -15,7 +15,7 @@ import {
   type RefreshTrigger,
   type StoredSchedule,
 } from "@/lib/schedule/refreshFlow";
-import { hasIdleThresholdElapsed, idleResetMs, refreshIntervalMs, shouldRefreshWhenVisible, shouldResetDateAfterIdle } from "@/lib/schedule/refreshTimer";
+import { idleResetMs, refreshIntervalMs, shouldRefreshWhenVisible, shouldResetDateAfterIdle } from "@/lib/schedule/refreshTimer";
 import type { DailyRoomSchedule } from "@/lib/schedule/types";
 
 type Status = "loading" | "fresh" | "stale" | "offline";
@@ -210,8 +210,10 @@ export default function Home() {
     const idleMs = idleResetMs(idleResetSeconds);
     const poll = () => {
       const now = Date.now();
+      const todayDate = today();
+      const idleResetDue = shouldResetDateAfterIdle(dateRef.current, todayDate, lastActivityRef.current, now, idleMs);
       const sameIdleBoundary = now - lastIdleResetRef.current < 1000;
-      if (!document.hidden && !sameIdleBoundary && !hasIdleThresholdElapsed(lastActivityRef.current, now, idleMs)) {
+      if (!document.hidden && !sameIdleBoundary && !idleResetDue) {
         void load("polling");
       }
       timer = window.setTimeout(poll, intervalMs);
@@ -251,6 +253,10 @@ export default function Home() {
     };
     const checkIdle = () => {
       const now = Date.now();
+      if (document.hidden) {
+        timer = window.setTimeout(checkIdle, idleMs);
+        return;
+      }
       const todayDate = today();
       if (shouldResetDateAfterIdle(dateRef.current, todayDate, lastActivityRef.current, now, idleMs)) {
         skipNextDateLoadRef.current = true;
