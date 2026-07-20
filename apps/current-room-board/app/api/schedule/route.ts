@@ -19,7 +19,7 @@ function publicError(code: ScheduleErrorCode, status: number) {
   return NextResponse.json({ error: { code, message } }, { status });
 }
 
-const refreshTriggers = new Set<RefreshTrigger>(["initial load", "polling", "manual refresh", "date navigation"]);
+const refreshTriggers = new Set<RefreshTrigger>(["initial load", "polling", "manual refresh", "date navigation", "idle reset"]);
 
 function requestDiagnostics(request: Request): ScheduleLoadDiagnostics {
   const trigger = request.headers.get("X-Current-Room-Board-Refresh-Trigger");

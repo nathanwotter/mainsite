@@ -1,6 +1,6 @@
 import type { DailyRoomSchedule } from "@/lib/schedule/types";
 
-export type RefreshTrigger = "initial load" | "polling" | "manual refresh" | "date navigation";
+export type RefreshTrigger = "initial load" | "polling" | "manual refresh" | "date navigation" | "idle reset";
 export type DisplayedDataSource = "live" | "local-cache";
 export type RefreshStatus = "loading" | "fresh" | "stale" | "offline";
 

@@ -15,7 +15,7 @@ import {
   type RefreshTrigger,
   type StoredSchedule,
 } from "@/lib/schedule/refreshFlow";
-import { refreshIntervalMs, shouldRefreshWhenVisible } from "@/lib/schedule/refreshTimer";
+import { hasIdleThresholdElapsed, idleResetMs, refreshIntervalMs, shouldRefreshWhenVisible, shouldResetDateAfterIdle } from "@/lib/schedule/refreshTimer";
 import type { DailyRoomSchedule } from "@/lib/schedule/types";
 
 type Status = "loading" | "fresh" | "stale" | "offline";
@@ -36,15 +36,24 @@ export default function Home() {
   const scheduleRef = useRef<DailyRoomSchedule | null>(null);
   const refreshIdRef = useRef(0);
   const lastSuccessfulUpdateRef = useRef<string | null>(null);
+  const dateRef = useRef(date);
+  const lastActivityRef = useRef(Date.now());
+  const lastIdleResetRef = useRef(0);
+  const skipNextDateLoadRef = useRef(false);
 
   const refreshSeconds = Number(process.env.NEXT_PUBLIC_REFRESH_INTERVAL_SECONDS || "60");
+  const idleResetSeconds = Number(process.env.NEXT_PUBLIC_IDLE_RESET_SECONDS || "180");
+
+  useEffect(() => {
+    dateRef.current = date;
+  }, [date]);
 
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
     void navigator.serviceWorker.register("/sw.js");
   }, []);
 
-  const load = useCallback(async (trigger: RefreshTrigger = "manual refresh") => {
+  const load = useCallback(async (trigger: RefreshTrigger = "manual refresh", scheduleDate = dateRef.current) => {
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
@@ -60,7 +69,7 @@ export default function Home() {
       query_parameter_names: ["date"],
     });
     try {
-      const response = await fetch(`/api/schedule?date=${date}`, {
+      const response = await fetch(`/api/schedule?date=${scheduleDate}`, {
         signal: controller.signal,
         headers: {
           "X-Current-Room-Board-Refresh-Id": refreshId,
@@ -176,12 +185,19 @@ export default function Home() {
         displayed_updated_timestamp: nextState.updatedTimestamp,
       });
     }
-  }, [date]);
+  }, []);
 
   useEffect(() => {
+    if (skipNextDateLoadRef.current) {
+      skipNextDateLoadRef.current = false;
+      return;
+    }
     void load(scheduleRef.current ? "date navigation" : "initial load");
+  }, [date, load]);
+
+  useEffect(() => {
     return () => abortRef.current?.abort();
-  }, [load]);
+  }, []);
 
   useEffect(() => {
     const tick = window.setInterval(() => setClock(new Date()), 1000);
@@ -191,13 +207,30 @@ export default function Home() {
   useEffect(() => {
     let timer: number;
     const intervalMs = refreshIntervalMs(refreshSeconds);
+    const idleMs = idleResetMs(idleResetSeconds);
     const poll = () => {
-      if (!document.hidden) void load("polling");
+      const now = Date.now();
+      const sameIdleBoundary = now - lastIdleResetRef.current < 1000;
+      if (!document.hidden && !sameIdleBoundary && !hasIdleThresholdElapsed(lastActivityRef.current, now, idleMs)) {
+        void load("polling");
+      }
       timer = window.setTimeout(poll, intervalMs);
     };
     timer = window.setTimeout(poll, intervalMs);
     const visible = () => {
-      if (!document.hidden && shouldRefreshWhenVisible(lastSuccessfulUpdateRef.current, Date.now(), intervalMs)) {
+      if (document.hidden) return;
+      const now = Date.now();
+      const todayDate = today();
+      if (shouldResetDateAfterIdle(dateRef.current, todayDate, lastActivityRef.current, now, idleMs)) {
+        skipNextDateLoadRef.current = true;
+        dateRef.current = todayDate;
+        setDate(todayDate);
+        lastActivityRef.current = now;
+        lastIdleResetRef.current = now;
+        void load("idle reset", todayDate);
+        return;
+      }
+      if (shouldRefreshWhenVisible(lastSuccessfulUpdateRef.current, now, intervalMs)) {
         void load("polling");
       }
     };
@@ -206,9 +239,46 @@ export default function Home() {
       window.clearTimeout(timer);
       document.removeEventListener("visibilitychange", visible);
     };
-  }, [load, refreshSeconds]);
+  }, [idleResetSeconds, load, refreshSeconds]);
+
+  useEffect(() => {
+    let timer: number;
+    const idleMs = idleResetMs(idleResetSeconds);
+    const markActivity = () => {
+      lastActivityRef.current = Date.now();
+      window.clearTimeout(timer);
+      timer = window.setTimeout(checkIdle, idleMs);
+    };
+    const checkIdle = () => {
+      const now = Date.now();
+      const todayDate = today();
+      if (shouldResetDateAfterIdle(dateRef.current, todayDate, lastActivityRef.current, now, idleMs)) {
+        skipNextDateLoadRef.current = true;
+        dateRef.current = todayDate;
+        setDate(todayDate);
+        lastActivityRef.current = now;
+        lastIdleResetRef.current = now;
+        void load("idle reset", todayDate);
+        timer = window.setTimeout(checkIdle, idleMs);
+        return;
+      }
+      timer = window.setTimeout(checkIdle, idleMs);
+    };
+
+    timer = window.setTimeout(checkIdle, idleMs);
+    const events = ["pointerdown", "touchstart", "keydown"] as const;
+    events.forEach((eventName) => window.addEventListener(eventName, markActivity, { passive: true }));
+    return () => {
+      window.clearTimeout(timer);
+      events.forEach((eventName) => window.removeEventListener(eventName, markActivity));
+    };
+  }, [idleResetSeconds, load]);
 
   const dateLabel = useMemo(() => format(parseISO(`${date}T12:00:00`), "EEEE, MMMM d"), [date]);
+
+  const markControlActivity = () => {
+    lastActivityRef.current = Date.now();
+  };
 
   return (
     <main className="app-shell">
@@ -218,17 +288,29 @@ export default function Home() {
           <strong>{dateLabel}</strong>
         </div>
         <nav className="controls" aria-label="Schedule date controls">
-          <button type="button" aria-label="Previous day" onClick={() => setDate(format(addDays(parseISO(date), -1), "yyyy-MM-dd"))}>
+          <button type="button" aria-label="Previous day" onClick={() => {
+            markControlActivity();
+            setDate(format(addDays(parseISO(date), -1), "yyyy-MM-dd"));
+          }}>
             <ChevronLeft size={24} />
           </button>
-          <button type="button" onClick={() => setDate(today())}>
+          <button type="button" onClick={() => {
+            markControlActivity();
+            setDate(today());
+          }}>
             <CalendarDays size={20} />
             Today
           </button>
-          <button type="button" aria-label="Next day" onClick={() => setDate(format(addDays(parseISO(date), 1), "yyyy-MM-dd"))}>
+          <button type="button" aria-label="Next day" onClick={() => {
+            markControlActivity();
+            setDate(format(addDays(parseISO(date), 1), "yyyy-MM-dd"));
+          }}>
             <ChevronRight size={24} />
           </button>
-          <button type="button" aria-label="Refresh schedule" onClick={() => void load("manual refresh")}>
+          <button type="button" aria-label="Refresh schedule" onClick={() => {
+            markControlActivity();
+            void load("manual refresh");
+          }}>
             <RefreshCcw size={22} />
           </button>
         </nav>
