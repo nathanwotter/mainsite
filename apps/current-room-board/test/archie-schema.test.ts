@@ -156,6 +156,43 @@ describe("Archie booking schema and normalization", () => {
     expect(reservation[0]?.roomId).toBe("b4cc4859-8845-5d52-9669-f629affbc83c");
   });
 
+  it("normalizes bookings into Schooner and Pram by stable Archie UUID", () => {
+    const reservations = buildNormalizedReservations([
+      {
+        ...baseBooking,
+        uuid: "booking-schooner",
+        item_uuid: undefined,
+        conference_room: {
+          uuid: "1e0426c4-14e7-5a9b-99b7-a899d0e2115d",
+          slug: "Schooner-1761388816",
+          name: "Schooner",
+          category: "office",
+          archived: false,
+        },
+      },
+      {
+        ...baseBooking,
+        uuid: "booking-pram",
+        item_uuid: undefined,
+        conference_room: {
+          uuid: "248d7e04-fc69-5821-ad20-9d9ebae36d0d",
+          slug: "pram",
+          name: "Pram",
+          category: "office",
+          archived: false,
+        },
+      },
+    ], new Set([
+      "1e0426c4-14e7-5a9b-99b7-a899d0e2115d",
+      "248d7e04-fc69-5821-ad20-9d9ebae36d0d",
+    ]));
+
+    expect(reservations.map((reservation) => reservation.roomId)).toEqual([
+      "1e0426c4-14e7-5a9b-99b7-a899d0e2115d",
+      "248d7e04-fc69-5821-ad20-9d9ebae36d0d",
+    ]);
+  });
+
   it("keeps valid bookings when another booking in the same response is malformed", () => {
     const result = paginatedBookingsSchema.safeParse({
       data: [

@@ -3,8 +3,14 @@ import { expect, test } from "@playwright/test";
 test("renders the room-column kiosk board without private data", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByText("Current Wellness")).toBeVisible();
-  await expect(page.getByText("Confluence")).toBeVisible();
-  await expect(page.getByText("Tributary")).toBeVisible();
+  await expect(page.locator(".room-heading")).toHaveText([
+    "Confluence",
+    "Basin",
+    "Delta",
+    "Tributary",
+    "Schooner",
+    "Pram",
+  ]);
   await expect(page.getByText("9:00 AM").first()).toBeVisible();
   await expect(page.getByText("Available", { exact: true })).toHaveCount(0);
   const layoutGap = await page.evaluate(() => {
@@ -17,6 +23,15 @@ test("renders the room-column kiosk board without private data", async ({ page }
     };
   });
   expect(layoutGap).toEqual({ toolbarToHeader: 0, headerToGrid: 0 });
+  const columnAlignment = await page.evaluate(() => {
+    const headings = Array.from(document.querySelectorAll(".room-heading")).map((node) => node.getBoundingClientRect());
+    const columns = Array.from(document.querySelectorAll(".room-column")).map((node) => node.getBoundingClientRect());
+    return headings.map((heading, index) => ({
+      leftDelta: Math.round(heading.left - (columns[index]?.left ?? 0)),
+      widthDelta: Math.round(heading.width - (columns[index]?.width ?? 0)),
+    }));
+  });
+  expect(columnAlignment).toEqual(Array.from({ length: 6 }, () => ({ leftDelta: 0, widthDelta: 0 })));
   await expect(page.getByLabel(/Sam, 9:15 AM to 10:00 AM/)).toBeVisible();
 
   const ninety = await page.getByLabel(/Amy, 8:00 AM to 9:30 AM/).boundingBox();

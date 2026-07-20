@@ -10,6 +10,8 @@ export const roomMappings: RoomMapping[] = [
   { archieResourceId: "b4cc4859-8845-5d52-9669-f629affbc83c", displayName: "Basin", sortOrder: 20, visible: true },
   { archieResourceId: "49c4aca0-0f72-51fa-99d7-8a46ffbc7622", displayName: "Delta", sortOrder: 30, visible: true },
   { archieResourceId: "6a75e027-382f-508b-9569-0cb8e9025cb4", displayName: "Tributary", sortOrder: 40, visible: true },
+  { archieResourceId: "1e0426c4-14e7-5a9b-99b7-a899d0e2115d", displayName: "Schooner", sortOrder: 50, visible: true },
+  { archieResourceId: "248d7e04-fc69-5821-ad20-9d9ebae36d0d", displayName: "Pram", sortOrder: 60, visible: true },
 ];
 
 export function validateRoomMappings(mappings = roomMappings): string[] {
