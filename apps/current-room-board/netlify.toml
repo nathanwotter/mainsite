@@ -1,0 +1,7 @@
+[build]
+  command = "cd apps/current-room-board && npm run build"
+
+[dev]
+  command = "cd apps/current-room-board && npm run dev"
+  port = 8888
+  targetPort = 3000
