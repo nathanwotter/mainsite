@@ -1,6 +1,6 @@
 ---
 name: class-guests
-description: Review prior course-guest correspondence, maintain a course-organized guest directory, match invitees to appropriate class dates, and draft personalized invitations in Gmail. Use for guest speakers, professional panels, learning-site hosts, or other classroom collaborators; do not use for unrelated email outreach.
+description: Draft personalized course-guest invitations from prior correspondence and the current course schedule, and record genuinely new invitees in the guest spreadsheet. Use for guest speakers, professional panels, learning-site hosts, or other classroom collaborators; do not use for unrelated email outreach.
 ---
 
 # Class Guests
@@ -17,17 +17,20 @@ Help the user manage classroom guest outreach through their connected university
 
 ## Guest directory
 
-When building or updating a directory, create or use a native Google Sheet in the university Drive with an Overview tab and one tab per course.
+Treat the guest spreadsheet as a directory of people, not an invitation log. Before changing it, search the entire workbook for the invitee by email address and name.
 
-- Consolidate repeat invitations to the same person within a course.
-- Keep the same person on each course tab when they were invited to multiple courses.
+- Add a row only when the invitation is to a person who is not already anywhere in the workbook.
+- Put a new person on the tab for the course in the invitation. Create that course tab only if needed.
+- If the person already appears anywhere in the workbook, do not add, duplicate, move, or update their spreadsheet record merely because another invitation is being drafted, including an invitation to a different course.
+- Do not modify the spreadsheet when the task only asks for drafts and none of the invitees are new.
 - Distinguish guest speakers, professional panelists, guest instructors, service-learning partners, learning-site hosts, referrals, and other collaborators rather than treating every contact as a speaker.
 - Include, when evidence is available: name, email, organization, invitation type, invitation history, proposed or visit dates, latest status, topic or role, notes, and a representative source-email link.
 - Mark unavailable details as not identified; do not infer an organization from an email domain alone.
-- Verify tab names, headers, and row counts by reading the completed sheet back before reporting completion.
+- When a new row is added, verify the destination tab, values, and row count by reading the completed sheet back before reporting completion.
 
 ## Draft invitations
 
+- Drafting is the default action for an existing guest. Base each message on the identified course, its current schedule, and comparable prior invitations for that course.
 - Use recent sent messages to the recipient, or closely comparable course invitations, as the writing guide.
 - Personalize the opening with the prior relationship, visit, referral, or known scheduling history. Correct obvious input typos silently.
 - State the full course name when useful, exact weekday and date, time, location or virtual format, expected length, topic, and what preparation is or is not needed.
