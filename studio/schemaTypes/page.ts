@@ -1,5 +1,5 @@
 import {defineField, defineType} from 'sanity'
-import {ComposeIcon} from '@sanity/icons'
+import {ComposeIcon} from '@sanity/icons/Compose'
 import {shortTitleField} from './shortTitleField'
 
 export default defineType({
