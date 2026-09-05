@@ -1,116 +1,156 @@
-# Astro Netlify Sanity Starter
+# Codex workspace and web projects
 
-![Astro Netlify Sanity Starter](https://assets.stackbit.com/docs/astro-sanity-starter-thumb.jpg)
+This repository is the source of truth for Nathan's web projects, reusable personal Codex skills, and shared tooling. It also remains the deployment repository for the existing Astro/Sanity website and the Current Wellness Room Board.
 
-[Live Demo](https://astro-sanity-starter-demo.netlify.app/)
+## Repository layout
 
-Netlify Astro and Sanity minimal starter with [visual editing](https://docs.netlify.com/visual-editor/overview/).
-
-| Prerequisites                                                                |
-| :--------------------------------------------------------------------------- |
-| [Node.js](https://nodejs.org/) v20.+                                         |
-| (optional) [nvm](https://github.com/nvm-sh/nvm) for Node version management. |
-
-## Getting Started
-
-Create local project from this repo and run:
-
-```txt
-npm install
+```text
+.
+|-- apps/                  Additional deployable applications
+|   `-- current-room-board/
+|-- personal-skills/       Reusable personal Codex skills
+|-- tools/                 Shared scripts, utilities, and non-skill tooling
+|-- studio/                Sanity Studio for the primary website
+|-- sanity-export/         Sanity import/export utilities and snapshot
+|-- src/                   Primary Astro website source
+|-- public/                Primary website static assets
+`-- netlify.toml           Primary website local Netlify configuration
 ```
 
-### Sign Into Sanity
+The primary Astro/Sanity site intentionally remains at the repository root. Moving it would change established relative paths and could change Netlify's build base. The existing `apps/`, `studio/`, `sanity-export/`, and `tools/video/` paths are also preserved.
 
-If you are not already signed into Sanity via the CLI, install the CLI package and then run the login command.
+### `apps/`
 
-```txt
-npm install -g @sanity/cli
-sanity login
+Use `apps/` for standalone applications or substantial project-specific code that belongs in this repository. Each app should keep its own dependencies, deployment configuration, documentation, and project-specific utilities together.
+
+The repository currently contains `apps/current-room-board`, a separately deployable Next.js application with its own `package.json` and `netlify.toml`.
+
+### `personal-skills/`
+
+Use `personal-skills/` for reusable Codex workflows that should be available across unrelated projects. Every skill has its own folder and an obvious `SKILL.md` entry point. Supporting scripts, references, templates, and assets that belong only to a skill stay inside that skill's folder.
+
+To add a reusable skill:
+
+1. Create `personal-skills/<skill-name>/SKILL.md`.
+2. Use a lowercase, hyphenated folder name matching the skill's frontmatter `name`.
+3. Put skill-only resources in `scripts/`, `references/`, `assets/`, or `agents/` within the skill folder.
+4. Run the installation script again. Existing links already point to the repository, so normal edits become available to Codex automatically.
+
+### Project-specific skills
+
+Do not put a narrowly project-specific workflow in `personal-skills/`. Keep it with its project under `<project>/.agents/skills/<skill-name>/SKILL.md`. Codex scans `.agents/skills` from the current working directory up to the repository root, so a skill inside an app remains scoped to that part of the repository.
+
+Use the root `.agents/skills/` location only for future skills that apply to this entire repository but should not be installed for unrelated repositories.
+
+### `tools/`
+
+Use `tools/` for shared scripts, MCP servers, utilities, and operational tooling that are not themselves Codex skills. Keep a utility inside an app or skill when it has no genuine use outside that owner.
+
+Existing RecXR video tooling remains under `tools/video/recxr`. Codex setup helpers live under `tools/codex`.
+
+## Make personal skills available to Codex on Windows
+
+Codex discovers user-level skills under `%USERPROFILE%\.agents\skills` and follows linked skill directories. Keep the editable copy in this Git repository and create Windows directory junctions into the Codex discovery directory:
+
+```powershell
+PowerShell -ExecutionPolicy Bypass -File .\tools\codex\install-personal-skills.ps1
 ```
 
-This will open a browser and walk you through the authentication process.
+The installer never replaces an existing path. If directory links are unavailable in a particular environment, install independent copies instead:
 
-### Import Content
-
-Once authenticated, you'll be able to create a Sanity project and import content.
-
-```txt
-npm run create-project
+```powershell
+PowerShell -ExecutionPolicy Bypass -File .\tools\codex\install-personal-skills.ps1 -Copy
 ```
 
-_Note: You may want to sign into Sanity in the browser and rename your project._
+Linked installation is recommended because the repository remains the sole source of truth. Codex detects skill changes automatically; restart Codex if a newly installed skill does not appear.
 
-Once the project exists and you've set the environment variables, you can import the content.
+If pasting commands through a remote session is inconvenient, double-click `tools\codex\install-personal-skills.cmd` in File Explorer instead.
 
-```txt
-npm run import {projectId}
+## Restore this workspace on another Windows computer
+
+Install Git, GitHub CLI, and Node.js 24 LTS, then authenticate GitHub and clone the repository:
+
+```powershell
+gh auth login --hostname github.com --git-protocol https --web
+git clone https://github.com/nathanwotter/mainsite.git
+Set-Location .\mainsite
+PowerShell -ExecutionPolicy Bypass -File .\tools\codex\install-personal-skills.ps1
 ```
 
-Replace `{projectId}` with the project ID output from the previous command.
+Install only the dependencies for the projects you plan to use:
 
-### Store Sanity Values
+```powershell
+# Primary Astro website
+npm ci
 
-Sign into Sanity to create an editor token, navigate to the following address (replace the `SANITY_PROJECT_ID` with your project ID) `https://www.sanity.io/manage/personal/project/SANITY_PROJECT_ID/api#tokens`. Then create `.env` file in you repo, copy & paste the following environment variables into the file and set their values.
+# Sanity Studio
+npm --prefix .\studio ci
 
-```txt
-SANITY_PROJECT_ID="..."
-SANITY_DATASET="..."
-SANITY_TOKEN="..."
+# Current Wellness Room Board
+npm --prefix .\apps\current-room-board ci
 ```
 
-### Run Sanity Studio
+The package manifests contain reviewed, version-pinned install-script approvals for native build dependencies. After upgrading dependencies, inspect newly requested scripts in each affected project with `npm install-scripts ls`; approve or deny them individually before committing the resulting manifest changes.
 
-Sanity Studio code exists for this project in the `studio` directory. First, install the dependencies in this directory.
+Environment files and deployment secrets are intentionally excluded from Git. Restore the appropriate values from the Sanity and Netlify dashboards; do not commit tokens or production secrets.
 
-```txt
-cd studio
-npm install
-```
+## Primary Astro/Sanity website
 
-Then create a `.env` file in the `studio` directory with the following environment variables and set their values:
+The projects require Node.js 24 LTS, as recorded in their `.nvmrc` files and `package.json` engine ranges.
 
-```txt
-SANITY_STUDIO_PROJECT_ID="..."
-SANITY_STUDIO_DATASET="..."
-```
-
-Then run the studio locally.
-
-```txt
-sanity dev
-```
-
-If you want to see the content, you can open your browser and navigate to localhost:3333.
-
-### Start Development Server
-
-Then you can run the Astro.js development server in root directory:
-
-```txt
+```powershell
+npm ci
 npm run dev
 ```
 
-Install Netlify Visual Editor CLI:
+The site uses environment values documented in `.env.example` and `.env-sample`. Create an ignored `.env` file for local values such as `SANITY_PROJECT_ID`, `SANITY_DATASET`, and `SANITY_TOKEN`; never commit the token. Its Sanity Studio lives in `studio/` and targets Sanity project `ix5o6b8v`, dataset `production`, through `studio/sanity.cli.ts`.
 
-```txt
-npm install -g @stackbit/cli
+Use the repository-local Sanity dependency instead of requiring a separate global CLI installation:
+
+```powershell
+npm --prefix .\studio ci
+npm --prefix .\studio exec sanity login
+npm --prefix .\studio run dev
 ```
 
-And the Stackbit development server.
+For Studio-specific environment overrides, create the ignored `studio/.env` file and set `SANITY_STUDIO_PROJECT_ID` and `SANITY_STUDIO_DATASET`.
 
-```txt
+The Sanity import/export helpers remain available through the root scripts:
+
+```powershell
+npm run create-project
+npm run import -- <projectId>
+npm run export
+```
+
+### Netlify Visual Editor
+
+The existing Stackbit/Netlify Visual Editor configuration remains in `.stackbit/` and `stackbit.config.ts`. When that workflow is needed, install the CLI and start its development server as before:
+
+```powershell
+npm install --global @stackbit/cli
 stackbit dev
 ```
 
-This outputs your own Netlify Visual Editor URL. Open this, register or sign in, and you will be directed to Netlify Visual Editor for your new project.
+This is optional for ordinary Astro development.
 
-## Next Steps
+## Netlify deployment safety
 
-Here are a few suggestions on what to do next if you're new to Netlify Visual Editor:
+This repository is already connected to deployment workflows outside the local checkout. Preserve the following paths unless the matching Netlify site configuration is deliberately updated at the same time:
 
-- Learn [how Netlify Visual Editor works](https://docs.netlify.com/visual-editor/concepts/how-visual-editor-works/)
-- Check [Netlify Visual Editor reference documentation](https://visual-editor-reference.netlify.com/)
+- The primary Astro website remains at the repository root.
+- `netlify.toml` remains at the repository root.
+- The room board remains under `apps/current-room-board` with its own `netlify.toml`.
+- Sanity Studio remains under `studio`.
 
-## Support
+Adding `personal-skills/` or Codex utilities does not change the existing build commands or publish directories. Before changing project locations, build bases, or deployment settings, verify both corresponding Netlify sites and their environment variables.
 
-If you get stuck along the way, get help in our [support forums](https://answers.netlify.com/).
+## Existing project documentation
+
+- See `apps/current-room-board/README.md` for the room board's local setup, Archie integration, privacy model, diagnostics, testing, and deployment checklist.
+- See `tools/video/recxr/README.md` for the RecXR packed-video tooling.
+- See `src/assets/margin-images/README.md` and `public/xr/README.md` for asset-specific notes.
+
+## License
+
+See `LICENSE`.

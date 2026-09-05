@@ -1,6 +1,6 @@
 const path = require('path');
 const { createClient } = require('@sanity/client');
-const exportDataset = require('@sanity/export');
+const { exportDataset } = require('@sanity/export');
 const Configstore = require('configstore');
 
 const config = new Configstore('sanity', {}, { globalConfigPath: true });
