@@ -45,12 +45,19 @@ jobs:
         with:
           node-version-file: studio/.nvmrc
           cache: npm
-          cache-dependency-path: studio/package-lock.json
+          cache-dependency-path: |
+            package-lock.json
+            studio/package-lock.json
+      - name: Install parent site dependencies
+        run: npm ci
+        working-directory: .
       - run: npm ci
       - run: npm exec -- tsc --noEmit
       - run: npm run build
         env:
           SANITY_CLI_USER_CONFIG: ${{ runner.temp }}/sanity-cli-config.json
+          SANITY_PROJECT_ID: ix5o6b8v
+          SANITY_DATASET: production
 
   room-board:
     name: Current Room Board
