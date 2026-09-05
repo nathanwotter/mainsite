@@ -1,4 +1,4 @@
 interface:
   display_name: "Class Guests"
-  short_description: "Track guests and draft course invitations"
-  default_prompt: "Use $class-guests to review prior guest outreach and draft invitations for my course."
+  short_description: "Draft course invitations and log new guests"
+  default_prompt: "Use $class-guests to draft course-based guest invitations and add only genuinely new invitees to my guest spreadsheet."
