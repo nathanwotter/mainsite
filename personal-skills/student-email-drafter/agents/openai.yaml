@@ -1,0 +1,4 @@
+interface:
+  display_name: "Student Email Drafter"
+  short_description: "Draft policy-aligned replies to student emails"
+  default_prompt: "Use $student-email-drafter to draft a reply to this student email."
