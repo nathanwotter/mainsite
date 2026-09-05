@@ -1,0 +1,4 @@
+interface:
+  display_name: "Current Wellness Receipts"
+  short_description: "File and match Current Wellness receipts"
+  default_prompt: "Use $current-wellness-receipts to file and match the current batch of receipts."
