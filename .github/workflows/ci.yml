@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  main-site:
+    name: Main site
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - run: npm run build
+        env:
+          ASTRO_TELEMETRY_DISABLED: 1
+          SANITY_PROJECT_ID: ix5o6b8v
+          SANITY_DATASET: production
+
+  studio:
+    name: Sanity Studio
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: studio
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: studio/.nvmrc
+          cache: npm
+          cache-dependency-path: studio/package-lock.json
+      - run: npm ci
+      - run: npm exec -- tsc --noEmit
+      - run: npm run build
+        env:
+          SANITY_CLI_USER_CONFIG: ${{ runner.temp }}/sanity-cli-config.json
+
+  room-board:
+    name: Current Room Board
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: apps/current-room-board
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: apps/current-room-board/.nvmrc
+          cache: npm
+          cache-dependency-path: apps/current-room-board/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
