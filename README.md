@@ -68,7 +68,7 @@ If pasting commands through a remote session is inconvenient, double-click `tool
 
 ## Restore this workspace on another Windows computer
 
-Install Git, GitHub CLI, and Node.js 20, then authenticate GitHub and clone the repository:
+Install Git, GitHub CLI, and Node.js 24 LTS, then authenticate GitHub and clone the repository:
 
 ```powershell
 gh auth login --hostname github.com --git-protocol https --web
@@ -90,11 +90,13 @@ npm --prefix .\studio ci
 npm --prefix .\apps\current-room-board ci
 ```
 
+The package manifests contain reviewed, version-pinned install-script approvals for native build dependencies. After upgrading dependencies, inspect newly requested scripts in each affected project with `npm install-scripts ls`; approve or deny them individually before committing the resulting manifest changes.
+
 Environment files and deployment secrets are intentionally excluded from Git. Restore the appropriate values from the Sanity and Netlify dashboards; do not commit tokens or production secrets.
 
 ## Primary Astro/Sanity website
 
-The primary site requires Node.js 20, as recorded in `.nvmrc`.
+The projects require Node.js 24 LTS, as recorded in their `.nvmrc` files and `package.json` engine ranges.
 
 ```powershell
 npm ci
