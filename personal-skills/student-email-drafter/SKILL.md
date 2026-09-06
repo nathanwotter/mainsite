@@ -1,6 +1,6 @@
 ---
 name: student-email-drafter
-description: Draft informal, policy-aligned Gmail replies to probable students. Use for messages from an @ncsu.edu sender when the message or thread also establishes course context; do not use for general university correspondence or unsupported student-request categories.
+description: Draft informal, policy-aligned Gmail replies for student attendance-makeup requests and Disability Resources Office accommodation-letter notifications. Use when an NCSU message or thread establishes student and course context; do not use for general university correspondence or unsupported student-request categories.
 ---
 
 # Student Email Drafter
@@ -9,12 +9,13 @@ Draft replies in Nathan's voice while preserving his authority over every sent m
 
 ## Scope the message
 
-- Treat a sender as a probable student only when both conditions hold:
-  - the sender address ends in `@ncsu.edu`; and
-  - the message or thread contains credible course context, such as a course name or number, section, class meeting, assignment, attendance, Moodle, or an established instructor-student exchange.
-- Do not assume every NCSU sender is a student. If either condition is missing or the relationship is unclear, create no draft and flag the message for Nathan.
-- Read enough of the thread to avoid asking for information already provided and to identify the student's first name, course context, absence dates, and stated circumstances.
-- The only supported response category in this version is making up missed class attendance. For other categories, create no draft and report the category so the skill can be expanded later.
+- Handle either of these supported categories:
+  - An attendance-makeup request from a probable student: the sender address ends in `@ncsu.edu`, and the message or thread contains credible course context such as a course name or number, section, class meeting, assignment, attendance, Moodle, or an established instructor-student exchange.
+  - A Disability Resources Office message whose subject contains `Accommodation Letter Notification` and whose message or attached letter identifies the student and course.
+- Do not assume every NCSU sender is a student. For accommodation notifications, address the student named in the message or letter, not the office sender.
+- Read enough of the thread and any relevant attached letter to avoid asking for information already provided and to identify the student's first name, course context, and the facts needed by the applicable reply category.
+- If a supported category's required student or course context is missing or ambiguous, create no draft and flag the message for Nathan.
+- For other categories, create no draft and report the category so the skill can be expanded later.
 
 ## Draft safely
 
@@ -24,6 +25,7 @@ Draft replies in Nathan's voice while preserving his authority over every sent m
 - Do not invent dates, course details, activities, circumstances, accommodations, or exceptions.
 - If a missed class included an activity that may require customized makeup work and the necessary details are unavailable, do not improvise. Flag it for Nathan.
 - For an attendance-makeup request, read and follow [references/attendance-makeup.md](references/attendance-makeup.md).
+- For a Disability Resources Office message with `Accommodation Letter Notification` in the subject, read and follow [references/accommodation-letter.md](references/accommodation-letter.md).
 
 ## Match Nathan's voice
 
