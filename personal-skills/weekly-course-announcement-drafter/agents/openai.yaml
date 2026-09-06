@@ -1,0 +1,4 @@
+interface:
+  display_name: "Weekly Course Announcement Drafter"
+  short_description: "Draft verified weekly course announcements"
+  default_prompt: "Use $weekly-course-announcement-drafter to draft this week’s course announcements from current materials and leave them unposted for my review."
