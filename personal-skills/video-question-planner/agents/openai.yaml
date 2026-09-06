@@ -1,0 +1,4 @@
+interface:
+  display_name: "Video Question Planner"
+  short_description: "Plan timestamped questions for instructional videos"
+  default_prompt: "Use $video-question-planner to review this instructional video and propose timestamped embedded questions, including a lighter-interaction option."
