@@ -11,7 +11,9 @@ Help the user manage classroom guest outreach through their connected university
 
 - Use the account the user identifies as their university email and Drive. If multiple accounts are connected and the university account is not clear, ask before any write.
 - Identify the course code, term, invitees, desired outcome, and any date boundary supplied by the user.
-- Search recent sent mail for each invitee, course code, and invitation language. Read the relevant threads, not just search snippets, when drafting or interpreting status.
+- Use the guest-directory spreadsheet for known names, email addresses, organizations, roles, and prior course associations.
+- For routine semester invitation drafting, do not search Gmail merely to recover the user's voice or standard wording. Read [references/email-templates.md](references/email-templates.md) and adapt the matching course and invitation type.
+- Search or read Gmail only when the user asks for an email review, when current correspondence or acceptance status must be verified, or when recipient-specific history is essential and is not available in the directory or the user's request. Read the relevant thread, not just search snippets.
 - Find the current course schedule in Drive before proposing a date. Prefer the schedule whose course and term both match; do not reuse dates from an older term.
 - When several dates could fit, select the class topic with the strongest substantive match and briefly state the choice. Ask only if the options would materially change the invitation.
 
@@ -30,8 +32,8 @@ Treat the guest spreadsheet as a directory of people, not an invitation log. Bef
 
 ## Draft invitations
 
-- Drafting is the default action for an existing guest. Base each message on the identified course, its current schedule, and comparable prior invitations for that course.
-- Use recent sent messages to the recipient, or closely comparable course invitations, as the writing guide.
+- Drafting is the default action for an existing guest. Base each message on the identified course, its current schedule, and the reusable patterns in [references/email-templates.md](references/email-templates.md).
+- Treat the templates as adaptable patterns, not fixed scripts. Preserve their tone and information structure while matching the recipient, topic, relationship, and requested format.
 - Personalize the opening with the prior relationship, visit, referral, or known scheduling history. Correct obvious input typos silently.
 - State the full course name when useful, exact weekday and date, time, location or virtual format, expected length, topic, and what preparation is or is not needed.
 - For professional panels, explain that the session is conversational and typically includes introductions, career journeys, current work, and student questions. Mention parking logistics only when the event is in person and that is consistent with prior messages.
