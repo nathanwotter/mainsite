@@ -1,6 +1,6 @@
 ---
 name: current-wellness-receipts
-description: File Current Wellness receipt emails as consistently named PDFs in Google Drive and match them to QuickBooks Online bank transactions. Use when scanning Current Wellness Gmail or Drive for receipts, preparing or matching receipt attachments, or posting user-confirmed QuickBooks expenses; do not post without explicit current confirmation.
+description: File Current Wellness receipt emails from the business and nw1978 Gmail accounts as consistently named PDFs in Google Drive and match them to QuickBooks Online bank transactions. Use when scanning Gmail or Drive for Current Wellness receipts, preparing or matching receipt attachments, or posting user-confirmed QuickBooks expenses; do not post without explicit current confirmation.
 ---
 
 # Current Wellness Receipts
@@ -18,6 +18,7 @@ Read [references/workflow.md](references/workflow.md) before filing, matching, o
 
 ## Preserve the evidence chain
 
+- File receipts only in the Current Wellness Google Drive account (`nathan@currentwellnessraleigh.com`). Never use the university Drive account (`cnwilli6@ncsu.edu`) unless the user explicitly requests it.
 - Read the receipt itself for its date, payee, and amount. Do not infer unsupported values from the email subject, filename, or bank row.
 - Require an exact amount match. Require either a date match or a credible settlement-timing explanation corroborated by the payee/vendor and amount.
 - Detect duplicate emails, Drive files, attachments, and posted transactions before creating or changing anything.

@@ -2,14 +2,14 @@
 
 ## Accounts and tool routing
 
-- For the Current Wellness inbox, use the connected Gmail account named **Current Wellness** (`nathan@currentwellnessraleigh.com`). If the requested mailbox is ambiguous among connected accounts, resolve the account before changing mail.
-- Use the connected Google Drive for filing and inspect the live folder structure before writing.
+- For a normal receipt run, scan both connected Gmail accounts: **Current Wellness** (`nathan@currentwellnessraleigh.com`) and **Personal** (`nw1978@gmail.com`). Honor an explicit user request to narrow the run to one mailbox. Keep each source email associated with its actual account when reading or archiving it.
+- File receipts through the signed-in **Current Wellness** Google Drive account (`nathan@currentwellnessraleigh.com`), never the university account (`cnwilli6@ncsu.edu`) unless the user explicitly requests it. If a Drive connector is authenticated to the university account, do not use that connector for filing; switch to the Current Wellness browser session or stop and report the access blocker.
 - Use the signed-in QuickBooks Online **Bank transactions** interface for receipt uploads and matching. Do not route this workflow through QuickBooks' separate Receipts interface.
 - Use PDF-capable tooling to create and visually verify PDFs. Use browser control for QuickBooks when no purpose-built QuickBooks connector is available.
 
 ## Discover and classify receipts
 
-1. Search only the mailbox/date/status scope the user requested.
+1. Search both configured Gmail accounts unless the user explicitly narrows the mailbox scope. Apply any requested date or status scope consistently to both accounts.
 2. Read the full relevant email and its attachment or linked receipt.
 3. Establish the payee, monetary amount, and receipt, invoice, or payment date from the receipt evidence.
 4. Check whether the email, receipt, or resulting file has already been handled. Treat matching content, not merely a similar subject, as the duplicate signal.
@@ -21,7 +21,7 @@
 - Omit the dollar sign and preserve two decimal places, for example `08062026_Acme Services 125.00.pdf`.
 - Use the receipt date in the filename, not a later bank settlement date.
 - Make the payee portion filesystem-safe while keeping it recognizable. Avoid characters that are invalid or unreliable in Windows, Drive, or downstream accounting uploads.
-- Search Drive for `Receipts - YYYY`, where `YYYY` is the receipt year. Inspect the existing hierarchy and file the PDF in its correct year/month destination. Reuse existing folders and do not assume a month-folder naming style without observing it.
+- In the Current Wellness Drive, search for `Receipts - YYYY`, where `YYYY` is the receipt year. Inspect the existing hierarchy and file the PDF in its correct year/month destination. Reuse existing folders and do not assume a month-folder naming style without observing it.
 - Verify the uploaded PDF exists in the intended folder and can be opened or fetched before changing the email.
 - Archive only the successfully filed source email. Leave unresolved or failed items in place and report them.
 
