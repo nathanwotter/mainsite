@@ -2,6 +2,8 @@
 
 Use this policy for attendance makeup across every class Nathan teaches. A particular class meeting may require customization when it included an activity that cannot be replaced by the standard work.
 
+For a PRT 152 Adventure Team activity, use [adventure-team-makeup.md](adventure-team-makeup.md) instead. Its activity-specific assignment replaces the ordinary recording-and-video-response makeup for that class period unless Nathan explicitly requires both.
+
 ## Policy
 
 - Completing the makeup is optional.
