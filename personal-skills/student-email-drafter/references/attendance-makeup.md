@@ -7,6 +7,7 @@ For a PRT 152 Adventure Team activity, use [adventure-team-makeup.md](adventure-
 ## Policy
 
 - Completing the makeup is optional.
+- An absence is never excused or marked as made up solely because the student gives advance notice, explains the circumstances, or supplies documentation such as a doctor's note. If the student chooses not to complete the makeup, the absence remains unmade-up. Do not promise to excuse an absence without completed makeup work.
 - The student has one week after returning to complete it.
 - For each missed class period, the student watches the lecture recording on Moodle and takes notes on the material covered.
 - For each missed class period, the student records a roughly five-minute video response addressing all three prompts:
@@ -22,6 +23,9 @@ For a PRT 152 Adventure Team activity, use [adventure-team-makeup.md](adventure-
 - State `for each missed class period` wherever needed to prevent the student from interpreting one video as covering multiple absences.
 - If the message provides return timing, express the deadline as one week after that return. If return timing is unclear, say `within one week after you return` rather than inventing a calendar date.
 - Acknowledge the stated reason for the absence briefly and appropriately. Never infer an unstated illness, emergency, or personal circumstance.
+- Adapt instructions to the timing and circumstances stated in the message. When an ill student writes before an upcoming absence, introduce the work compassionately with wording such as `when you're feeling better`; do not make the reply sound as though the work is immediately due while the student is sick. Keep the one-week-after-return deadline intact.
+- Frame the option naturally around both attendance and missed learning, using wording such as `If you'd like to make up today's absence and what we covered`. Avoid administrative phrasing such as `have the absence marked as made up` in the student-facing reply. Do not call the absence `excused` unless Nathan has explicitly provided a separate exception.
+- Match relative time words to the moment the draft is created. If the reply is drafted on the class day, use `today's absence`; if the class day is later or has passed, use the supported weekday or date instead. Recheck this wording when revising a draft so it does not become stale.
 - If the thread identifies a class-specific activity that needs an alternate task, use only details Nathan has already provided. Otherwise flag the thread for customization instead of drafting unsupported requirements.
 
 ## Reference shape
