@@ -12,7 +12,8 @@
         "astro": "astro",
         "create-project": "node ./sanity-export/create-project.js",
         "import": "node ./sanity-export/import.js",
-        "export": "node ./sanity-export/export.js"
+        "export": "node ./sanity-export/export.js",
+        "migrate:faculty-content": "npm --prefix ./studio run migrate:faculty-content"
     },
     "dependencies": {
         "@sanity/astro": "^3.5.1",

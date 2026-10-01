@@ -14,9 +14,7 @@ const [page, subpages] = await Promise.all([
 ]);
 
 const title = page?.title ?? "This Semester's Showcase";
-const intro =
-  page?.intro ??
-  "This page is a placeholder for This Semester's Showcase within NC:State of Recreation.";
+const intro = page?.intro ?? "";
 const body = page?.body ?? [];
 const secondaryNavItems = toNcStateSecondaryNavItems(subpages);
 ---
@@ -27,6 +25,4 @@ const secondaryNavItems = toNcStateSecondaryNavItems(subpages);
   body={body}
   currentPath={`${NC_STATE_BASE_PATH}/${slug}`}
   secondaryNavItems={secondaryNavItems}
->
-  {body.length === 0 && <p>Showcase details can be added here.</p>}
-</NcStateOfRecreationLayout>
+/>
