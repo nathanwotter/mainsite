@@ -2,8 +2,12 @@
 import Layout from "../layouts/Layout.astro";
 import { client } from "../utils/sanity-client";
 import PortableTextContent from "../components/PortableTextContent.astro";
+import { homePageFallback, resolveEditorialPage } from "../data/editorialFallbacks";
 
-const homePage = await client.fetch(`*[_type == "homePage"][0]`);
+const homePage = resolveEditorialPage(
+  await client.fetch(`*[_type == "homePage"][0]`),
+  homePageFallback
+);
 
 const title = homePage?.title ?? "Otter Adventures";
 const intro =

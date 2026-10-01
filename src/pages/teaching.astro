@@ -3,6 +3,7 @@ import { client } from "../utils/sanity-client";
 import SectionLayout from "../layouts/SectionLayout.astro";
 import { fetchTeachingSubpages, TEACHING_BASE_PATH, toSectionNavItems } from "../data/sectionNav";
 import { PORTABLE_BODY } from "../data/portableText";
+import { resolveEditorialPage, teachingPageFallback } from "../data/editorialFallbacks";
 
 const [teachingPage, teachingSubpages] = await Promise.all([client.fetch(
   `*[_type == "teachingPage"][0]{
@@ -13,9 +14,10 @@ const [teachingPage, teachingSubpages] = await Promise.all([client.fetch(
   }`
 ), fetchTeachingSubpages()]);
 
-const title = teachingPage?.title ?? "Teaching";
-const intro = teachingPage?.intro ?? "";
-const body = teachingPage?.body ?? [];
+const resolvedTeachingPage = resolveEditorialPage(teachingPage, teachingPageFallback);
+const title = resolvedTeachingPage?.title ?? "Teaching";
+const intro = resolvedTeachingPage?.intro ?? "";
+const body = resolvedTeachingPage?.body ?? [];
 const secondaryNavItems = toSectionNavItems(teachingSubpages, TEACHING_BASE_PATH);
 ---
 

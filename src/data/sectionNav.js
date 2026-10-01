@@ -1,4 +1,5 @@
 import { client } from '@utils/sanity-client';
+import { aboutNathanSubpageFallbacks, mergeEditorialSubpages, recreationFuturesSubpageFallbacks, teachingSubpageFallbacks } from './editorialFallbacks';
 
 export const TEACHING_BASE_PATH = '/teaching';
 export const FOOD_BASE_PATH = '/food';
@@ -9,6 +10,8 @@ const TEACHING_SUBPAGES_QUERY = `*[_type == "teachingSubpage" && defined(slug.cu
   title,
   shortTitle,
   menuTitle,
+  intro,
+  order,
   "slug": slug.current
 }`;
 
@@ -23,6 +26,8 @@ const ABOUT_NATHAN_SUBPAGES_QUERY = `*[_type == "aboutNathanSubpage" && defined(
   title,
   shortTitle,
   menuTitle,
+  intro,
+  order,
   "slug": slug.current
 }`;
 
@@ -30,11 +35,14 @@ const RECREATION_FUTURES_SUBPAGES_QUERY = `*[_type == "recreationFuturesSubpage"
   title,
   shortTitle,
   menuTitle,
+  intro,
+  order,
   "slug": slug.current
 }`;
 
 export async function fetchTeachingSubpages() {
-    return client.fetch(TEACHING_SUBPAGES_QUERY);
+    const subpages = await client.fetch(TEACHING_SUBPAGES_QUERY);
+    return mergeEditorialSubpages(subpages, teachingSubpageFallbacks);
 }
 
 export async function fetchFoodSubpages() {
@@ -42,11 +50,13 @@ export async function fetchFoodSubpages() {
 }
 
 export async function fetchAboutNathanSubpages() {
-    return client.fetch(ABOUT_NATHAN_SUBPAGES_QUERY);
+    const subpages = await client.fetch(ABOUT_NATHAN_SUBPAGES_QUERY);
+    return mergeEditorialSubpages(subpages, aboutNathanSubpageFallbacks);
 }
 
 export async function fetchRecreationFuturesSubpages() {
-    return client.fetch(RECREATION_FUTURES_SUBPAGES_QUERY);
+    const subpages = await client.fetch(RECREATION_FUTURES_SUBPAGES_QUERY);
+    return mergeEditorialSubpages(subpages, recreationFuturesSubpageFallbacks);
 }
 
 export function toSectionNavItems(items = [], basePath = '') {

@@ -9,6 +9,7 @@
   "license": "UNLICENSED",
   "scripts": {
     "dev": "sanity dev",
+    "migrate:faculty-content": "sanity exec migrations/migrate-faculty-content.mjs --with-user-token",
     "start": "sanity start",
     "build": "sanity build",
     "deploy": "sanity deploy",

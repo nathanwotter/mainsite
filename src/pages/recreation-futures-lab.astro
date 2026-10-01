@@ -7,6 +7,7 @@ import {
   toSectionNavItems
 } from "../data/sectionNav";
 import { PORTABLE_BODY } from "../data/portableText";
+import { recreationFuturesPageFallback, resolveEditorialPage } from "../data/editorialFallbacks";
 
 const [recreationFuturesPage, recreationFuturesSubpages] = await Promise.all([
   client.fetch(
@@ -20,9 +21,10 @@ const [recreationFuturesPage, recreationFuturesSubpages] = await Promise.all([
   fetchRecreationFuturesSubpages()
 ]);
 
-const title = recreationFuturesPage?.title ?? "Recreation Futures Lab";
-const intro = recreationFuturesPage?.intro ?? "";
-const body = recreationFuturesPage?.body ?? [];
+const resolvedRecreationFuturesPage = resolveEditorialPage(recreationFuturesPage, recreationFuturesPageFallback);
+const title = resolvedRecreationFuturesPage?.title ?? "Recreation Futures Lab";
+const intro = resolvedRecreationFuturesPage?.intro ?? "";
+const body = resolvedRecreationFuturesPage?.body ?? [];
 const secondaryNavItems = toSectionNavItems(recreationFuturesSubpages, RECREATION_FUTURES_BASE_PATH);
 ---
 
@@ -34,6 +36,4 @@ const secondaryNavItems = toSectionNavItems(recreationFuturesSubpages, RECREATIO
   secondaryNavItems={secondaryNavItems}
   currentPath={RECREATION_FUTURES_BASE_PATH}
   showTitleHeading={false}
->
-  <p>Recreation Futures Lab content can be added in Sanity Studio.</p>
-</SectionLayout>
+/>

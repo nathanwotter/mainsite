@@ -1,5 +1,6 @@
 import { client } from '@utils/sanity-client';
 import { IMAGE } from './blocks';
+import { fetchAboutNathanSubpages, fetchFoodSubpages, fetchRecreationFuturesSubpages, fetchTeachingSubpages } from './sectionNav';
 
 const CONFIG_QUERY_OBJ = `{
   _id,
@@ -14,44 +15,12 @@ const CONFIG_QUERY_OBJ = `{
   titleSuffix
 }`;
 
-const TEACHING_SUBPAGES_QUERY = `*[_type == "teachingSubpage" && defined(slug.current)] | order(order asc, title asc) {
-  title,
-  shortTitle,
-  menuTitle,
-  "slug": slug.current
-}`;
-
-const RECREATION_FUTURES_SUBPAGES_QUERY = `*[_type == "recreationFuturesSubpage" && defined(slug.current)] | order(order asc, title asc) {
-  title,
-  shortTitle,
-  menuTitle,
-  "slug": slug.current
-}`;
-
-const FOOD_SUBPAGES_QUERY = `*[_type == "foodSubpage" && defined(slug.current)] | order(order asc, title asc) {
-  title,
-  shortTitle,
-  menuTitle,
-  "slug": slug.current
-}`;
-
-const ABOUT_NATHAN_SUBPAGES_QUERY = `*[_type == "aboutNathanSubpage" && defined(slug.current)] | order(order asc, title asc) {
-  title,
-  shortTitle,
-  menuTitle,
-  "slug": slug.current
-}`;
-
 function isTeachingNavItem(item) {
     return item?.url === '/teaching' || item?.url === '/teaching/' || item?.label === 'Teaching';
 }
 
 function isRecreationFuturesNavItem(item) {
-    return (
-        item?.url === '/recreation-futures-lab' ||
-        item?.url === '/recreation-futures-lab/' ||
-        item?.label === 'Recreation Futures Lab'
-    );
+    return item?.url === '/recreation-futures-lab' || item?.url === '/recreation-futures-lab/' || item?.label === 'Recreation Futures Lab';
 }
 
 function isCoachingNavItem(item) {
@@ -205,10 +174,10 @@ function mergeAboutNathanChildren(existingChildren = [], subpages = []) {
 export async function fetchData() {
     const [configData, teachingSubpages, recreationFuturesSubpages, foodSubpages, aboutNathanSubpages] = await Promise.all([
         client.fetch(`*[_type == "siteConfig"][0] ${CONFIG_QUERY_OBJ}`),
-        client.fetch(TEACHING_SUBPAGES_QUERY),
-        client.fetch(RECREATION_FUTURES_SUBPAGES_QUERY),
-        client.fetch(FOOD_SUBPAGES_QUERY),
-        client.fetch(ABOUT_NATHAN_SUBPAGES_QUERY)
+        fetchTeachingSubpages(),
+        fetchRecreationFuturesSubpages(),
+        fetchFoodSubpages(),
+        fetchAboutNathanSubpages()
     ]);
 
     if (!configData?.header?.navLinks?.length) {
@@ -242,7 +211,7 @@ export async function fetchData() {
                             _type: item._type || 'navigationItem',
                             children: mergeAboutNathanChildren(item.children, aboutNathanSubpages)
                         }
-                  : item
+                      : item
         );
 
     return {

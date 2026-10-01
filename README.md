@@ -123,6 +123,15 @@ npm run import -- <projectId>
 npm run export
 ```
 
+The faculty-site migration is also checked into the repository. It is safe to rerun: it updates the matching singleton or slugged documents instead of creating duplicates.
+
+```powershell
+npm --prefix .\studio ci
+npm run migrate:faculty-content
+```
+
+The migration publishes the finished home, teaching, course, Recreation Futures, NC:State of Recreation, Food, Resources, and Contact copy to the `production` dataset so it remains editable in Sanity Studio. The Astro site also carries the same copy as a fallback, preventing incomplete draft notes from appearing if one of those documents is missing or still contains the known setup placeholders.
+
 ### Netlify Visual Editor
 
 The existing Stackbit/Netlify Visual Editor configuration remains in `.stackbit/` and `stackbit.config.ts`. When that workflow is needed, install the CLI and start its development server as before:

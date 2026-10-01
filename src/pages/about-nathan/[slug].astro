@@ -3,13 +3,10 @@ import { client } from "../../utils/sanity-client";
 import SectionLayout from "../../layouts/SectionLayout.astro";
 import { ABOUT_NATHAN_BASE_PATH, fetchAboutNathanSubpages, toSectionNavItems } from "../../data/sectionNav";
 import { PORTABLE_BODY } from "../../data/portableText";
+import { aboutNathanSubpageFallbacks, resolveEditorialPage } from "../../data/editorialFallbacks";
 
 export async function getStaticPaths() {
-  const slugs = await client.fetch(
-    `*[_type == "aboutNathanSubpage" && defined(slug.current)]{
-      "slug": slug.current
-    }`
-  );
+  const slugs = await fetchAboutNathanSubpages();
 
   return slugs.map(({ slug }: { slug: string }) => ({
     params: { slug },
@@ -33,9 +30,10 @@ const [aboutNathanSubpage, aboutNathanSubpages] = await Promise.all([
   fetchAboutNathanSubpages(),
 ]);
 
-const title = aboutNathanSubpage?.title ?? "About Nathan";
-const intro = aboutNathanSubpage?.intro ?? "";
-const body = aboutNathanSubpage?.body ?? [];
+const resolvedAboutNathanSubpage = resolveEditorialPage(aboutNathanSubpage, aboutNathanSubpageFallbacks[slug]);
+const title = resolvedAboutNathanSubpage?.title ?? "About Nathan";
+const intro = resolvedAboutNathanSubpage?.intro ?? "";
+const body = resolvedAboutNathanSubpage?.body ?? [];
 const secondaryNavItems = toSectionNavItems(aboutNathanSubpages, ABOUT_NATHAN_BASE_PATH);
 ---
 

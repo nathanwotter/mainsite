@@ -8,13 +8,13 @@ import {
   toSectionNavItems
 } from "../../data/sectionNav";
 import { PORTABLE_BODY } from "../../data/portableText";
+import {
+  recreationFuturesSubpageFallbacks,
+  resolveEditorialPage
+} from "../../data/editorialFallbacks";
 
 export async function getStaticPaths() {
-  const slugs = await client.fetch(
-    `*[_type == "recreationFuturesSubpage" && defined(slug.current)]{
-      "slug": slug.current
-    }`
-  );
+  const slugs = await fetchRecreationFuturesSubpages();
 
   return slugs
     .filter(({ slug }: { slug: string }) => slug !== NC_STATE_PARENT_SLUG)
@@ -40,9 +40,13 @@ const [recreationFuturesSubpage, recreationFuturesSubpages] = await Promise.all(
   fetchRecreationFuturesSubpages()
 ]);
 
-const title = recreationFuturesSubpage?.title ?? "Recreation Futures Lab";
-const intro = recreationFuturesSubpage?.intro ?? "";
-const body = recreationFuturesSubpage?.body ?? [];
+const resolvedRecreationFuturesSubpage = resolveEditorialPage(
+  recreationFuturesSubpage,
+  recreationFuturesSubpageFallbacks[slug]
+);
+const title = resolvedRecreationFuturesSubpage?.title ?? "Recreation Futures Lab";
+const intro = resolvedRecreationFuturesSubpage?.intro ?? "";
+const body = resolvedRecreationFuturesSubpage?.body ?? [];
 const secondaryNavItems = toSectionNavItems(recreationFuturesSubpages, RECREATION_FUTURES_BASE_PATH);
 ---
 

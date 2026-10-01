@@ -1,5 +1,6 @@
 import { client } from '@utils/sanity-client';
 import { PORTABLE_BODY } from './portableText';
+import { mergeEditorialSubpages, ncStateSubpageFallbacks, resolveEditorialPage } from './editorialFallbacks';
 
 export const NC_STATE_PARENT_SLUG = 'nc-state-of-recreation';
 export const NC_STATE_BASE_PATH = `/recreation-futures-lab/${NC_STATE_PARENT_SLUG}`;
@@ -29,21 +30,6 @@ const NC_STATE_PARENT_QUERY = `*[_type == "recreationFuturesSubpage" && slug.cur
   ${PORTABLE_BODY}
 }`;
 
-const FALLBACK_SUBPAGES = [
-    {
-        title: "This Semester's Showcase",
-        shortTitle: 'Showcase',
-        menuTitle: "This Semester's Showcase",
-        slug: 'showcase'
-    },
-    {
-        title: 'NC:State of Recreation Map',
-        shortTitle: 'Map',
-        menuTitle: 'NC:State of Recreation Map',
-        slug: 'map'
-    }
-];
-
 export async function fetchNcStateOfRecreationParentPage() {
     return client.fetch(NC_STATE_PARENT_QUERY, { slug: NC_STATE_PARENT_SLUG });
 }
@@ -55,7 +41,8 @@ export async function fetchNcStateOfRecreationSubpages() {
 }
 
 export async function fetchNcStateOfRecreationSubpage(slug) {
-    return client.fetch(NC_STATE_SUBPAGE_QUERY, { slug });
+    const page = await client.fetch(NC_STATE_SUBPAGE_QUERY, { slug });
+    return resolveEditorialPage(page, ncStateSubpageFallbacks[slug]);
 }
 
 export async function fetchNcStateOfRecreationSubpageSlugs() {
@@ -91,15 +78,5 @@ export function toNcStateSecondaryNavItems(subpages = []) {
 }
 
 function mergeFallbackSubpages(subpages = []) {
-    const merged = [...subpages];
-    const seenSlugs = new Set(subpages.map((subpage) => subpage?.slug).filter(Boolean));
-
-    for (const fallbackSubpage of FALLBACK_SUBPAGES) {
-        if (!seenSlugs.has(fallbackSubpage.slug)) {
-            merged.push(fallbackSubpage);
-            seenSlugs.add(fallbackSubpage.slug);
-        }
-    }
-
-    return merged;
+    return mergeEditorialSubpages(subpages, ncStateSubpageFallbacks);
 }
