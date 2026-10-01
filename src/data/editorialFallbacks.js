@@ -40,7 +40,21 @@ const linkedParagraph = (...children) => block(children);
 
 export const homePageFallback = {
     title: 'Otter Adventures — Projects by Nathan Williams',
-    intro: 'Teaching, research, and creative projects exploring recreation, immersive technology, food, and the ways people build healthier communities.'
+    intro: 'Teaching, research, and creative projects exploring recreation, immersive technology, food, and the ways people build healthier communities.',
+    body: [
+        paragraph(
+            'Recreation and leisure industries are changing quickly. At NC State, I help students prepare to innovate, transform communities, and support wellness for people across diverse ages, identities, and levels of access and ability.'
+        ),
+        linkedParagraph(
+            'If you are a current, potential, or former student, I would be glad to help you connect with a career, an outdoor recreation destination, or a useful wellness resource. Explore my ',
+            { text: 'courses', href: '/teaching/' },
+            ', learn about the ',
+            { text: 'Recreation Futures Lab', href: '/recreation-futures-lab/' },
+            ', or ',
+            { text: 'get in touch', href: '/about-nathan/contact/' },
+            '.'
+        )
+    ]
 };
 
 export const teachingPageFallback = {
@@ -161,6 +175,24 @@ export const recreationFuturesSubpageFallbacks = {
             paragraph(
                 'RecXR is a home for location-based augmented- and extended-reality prototypes created through the Recreation Futures Lab. These projects test new ways to interpret parks, trails, art, and recreation spaces.'
             )
+        ]
+    },
+    'adventures-in-recreation-and-leisure': {
+        title: 'Adventures in Recreation and Leisure',
+        shortTitle: 'Open Textbook',
+        menuTitle: 'Adventures in Recreation and Leisure',
+        slug: 'adventures-in-recreation-and-leisure',
+        order: 25,
+        intro: 'A free, open textbook for students and educators in recreation and leisure studies.',
+        body: [
+            paragraph(
+                'Physical textbooks are expensive for students and can be out of date as soon as they ship. Supported by an NC State University Libraries Alt-Textbook Grant, Adventures in Recreation and Leisure is an open educational resource for my courses and for recreation and leisure programs elsewhere.'
+            ),
+            paragraph('The book is free to use, reuse, remix, and adapt for noncommercial educational purposes.'),
+            linkedParagraph({
+                text: 'Read Adventures in Recreation and Leisure.',
+                href: 'https://ncstate.pressbooks.pub/adventuresinrec/'
+            })
         ]
     },
     'dix-park-in-fortnite': {
@@ -327,7 +359,12 @@ export const aboutNathanSubpageFallbacks = {
             ),
             heading('Tools'),
             linkedParagraph({ text: 'Wonda VR', href: 'https://www.wonda.pro/' }, ' — create immersive 360-degree tours and experiences.'),
-            linkedParagraph({ text: 'Insta360', href: 'https://www.insta360.com/' }, ' — 360-degree cameras and related tools.')
+            linkedParagraph({ text: 'Insta360', href: 'https://www.insta360.com/' }, ' — 360-degree cameras and related tools.'),
+            heading('Follow the Recreation Futures Lab'),
+            linkedParagraph({ text: 'Instagram', href: 'https://www.instagram.com/future_of_recreation/' }, ' · ', {
+                text: 'LinkedIn',
+                href: 'https://www.linkedin.com/in/futureofrec'
+            })
         ]
     },
     contact: {
