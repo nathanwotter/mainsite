@@ -132,6 +132,8 @@ npm run migrate:faculty-content
 
 The migration publishes the finished home, teaching, course, Recreation Futures, NC:State of Recreation, Food, Resources, and Contact copy to the `production` dataset so it remains editable in Sanity Studio. The Astro site also carries the same copy as a fallback, preventing incomplete draft notes from appearing if one of those documents is missing or still contains the known setup placeholders.
 
+The Studio navigation is organized around the public site rather than the underlying schema: Home, Teaching, Recreation Futures Lab, Food, About Nathan, RecXR sites, and Site settings. One-off overview and settings documents open directly and cannot be accidentally duplicated or deleted.
+
 ### Netlify Visual Editor
 
 The existing Stackbit/Netlify Visual Editor configuration remains in `.stackbit/` and `stackbit.config.ts`. When that workflow is needed, install the CLI and start its development server as before:
