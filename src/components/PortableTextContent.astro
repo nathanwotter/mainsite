@@ -1,5 +1,6 @@
 ---
 import { PortableText } from 'astro-portabletext';
+import { rewriteLegacyFacultyLinks } from '@data/legacyUrls';
 import PageFileBlock from './PageFileBlock.astro';
 import PageImageBlock from './PageImageBlock.astro';
 
@@ -8,6 +9,7 @@ interface Props {
 }
 
 const { value = [] } = Astro.props;
+const normalizedValue = rewriteLegacyFacultyLinks(value);
 
 const components = {
     type: {
@@ -17,8 +19,8 @@ const components = {
 };
 ---
 
-{value.length > 0 && (
+{normalizedValue.length > 0 && (
     <div class="site-typography portable-text-content">
-        <PortableText value={value} components={components} />
+        <PortableText value={normalizedValue} components={components} />
     </div>
 )}
