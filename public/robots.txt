@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://otteradventures.org/sitemap-index.xml

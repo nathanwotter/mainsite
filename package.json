@@ -16,6 +16,7 @@
         "migrate:faculty-content": "npm --prefix ./studio run migrate:faculty-content"
     },
     "dependencies": {
+        "@astrojs/sitemap": "^3.7.4",
         "@sanity/astro": "^3.5.1",
         "@sanity/client": "^8.5.0",
         "@sanity/validation": "^6.12.0",
