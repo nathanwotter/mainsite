@@ -1,0 +1,4 @@
+interface:
+  display_name: "Weekly Interest Digest"
+  short_description: "Compile a four-account digest and archive probable spam"
+  default_prompt: "Use $weekly-interest-digest to prepare this week's interest digest from the four approved plugin-connected accounts, conservatively archive probable spam without accessing delegated inboxes, and list archived messages with source-account attribution at the bottom."
