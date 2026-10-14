@@ -39,7 +39,37 @@ Do not force an item into an irrelevant section and do not include an empty sect
 
 ## Identify probable spam
 
-Review messages currently in each accessible approved account's Inbox, including items outside the digest-source label. Do not inspect delegated inboxes. Archive a message only when there are at least two strong spam indicators and no exclusion below.
+Review messages currently in each accessible approved account's Inbox, including items outside the digest-source label. Do not inspect delegated inboxes. Read the full message and thread context before deciding; snippets are not enough.
+
+### Relationship-and-intent rubric
+
+First identify protections. Keep the message when there is concrete evidence of any of these:
+
+- an existing two-way human relationship or a thread Nathan has participated in;
+- content Nathan requested or knowingly subscribed to;
+- an actual ongoing vendor, customer, client, partner, reservation, purchase, or service relationship;
+- protected student, advising, course, university-operation, legal, financial, security, HR, benefits, travel, calendar, grant, conference, journal-review, or personal correspondence.
+
+Do not infer a relationship from a first-name greeting, a reference to one of Nathan's organizations or interests, sender-domain authentication, or a plausible product category. These facts may reduce false-positive confidence, but they do not establish that outreach was wanted.
+
+When no protection applies, score the observable outreach signals:
+
+- +2 unsolicited commercial outreach;
+- +2 explicit commercial call to action, such as booking a demo, requesting a sales reply, accepting a sample, buying, or sharing a case study;
+- +2 mass-outreach language, reusable case-study framing, or a templated campaign pattern;
+- +1 generic personalization limited to Nathan's name or a public fact;
+- +1 delivery to an unrelated recipient account for the business or role being pitched;
+- +3 deceptive or materially mismatched sender identity, reply-to, domain, links, or stated organization;
+- +2 repeated near-identical outreach after no engagement;
+- +2 suspicious attachment framing, incoherent content, implausible urgency, prizes, crypto/investment claims, or misleading links.
+
+Decide from the total:
+
+- 4 or more: archive as probable spam;
+- 2-3: leave in Inbox and report as borderline;
+- 0-1: keep without flagging.
+
+A superficial topic match and domain authentication each add zero points and remove no points. For example, a cold EHR pitch mentioning Current Wellness and a cold product-sample offer tied to botanical blends can still meet the archive threshold when there is no prior relationship or requested contact.
 
 Strong indicators include:
 
@@ -50,7 +80,7 @@ Strong indicators include:
 - irrelevant SEO, lead-generation, publishing, conference, awards, or vendor solicitations with no credible connection to Nathan's roles;
 - incoherent content, suspicious attachment framing, or link text that materially misrepresents its destination.
 
-Never treat these facts alone as sufficient evidence of spam: a newsletter format, promotional language, an unfamiliar sender, an unsubscribe link, or low personal interest.
+Never treat these facts alone as sufficient evidence of spam: a newsletter format, an unfamiliar sender, an unsubscribe link, or low personal interest. Promotional language contributes only when it is part of unsolicited commercial outreach under the rubric.
 
 Do not archive:
 
@@ -59,18 +89,20 @@ Do not archive:
 - human replies or messages in a thread Nathan has participated in;
 - receipts, invoices, payment notices, account-security notices, benefits, HR, legal, travel, reservations, or calendar mail;
 - grants, calls for proposals, journal review invitations, conferences, jobs, professional associations, or relevant publications unless the message is clearly deceptive or an unrelated mass solicitation;
-- anything whose legitimacy remains uncertain after reading the full message and checking the thread context.
+- anything whose protected status or thread history remains uncertain after reading the full message and checking the thread context; report it for review instead.
+
+For consistent decisions, use the same fields and scoring implemented in `scripts/SpamClassifier.psm1`. Run `scripts/test-spam-classifier.ps1` after changing this policy or classifier.
 
 ## Archive and verify
 
 For each message that clears the threshold:
 
-1. Record the source account, sender name and address, subject, received date/time, Gmail thread or message identifier, review link, spam rationale, and false-positive consideration before changing Inbox state.
+1. Record the source account, sender name and address, subject, received date/time, Gmail thread or message identifier, review link, score, spam rationale, and false-positive consideration before changing Inbox state.
 2. Use Gmail's **Archive** action. Do not use **Delete** or **Report spam**.
 3. Confirm the message is absent from Inbox and still retrievable in All Mail or through its recorded link/identifier.
 4. If the result is uncertain, inspect the thread before retrying. Do not repeat the archive action blindly.
 
-Only verified archive results belong in the digest's archived-spam list.
+Only verified archive results belong in the digest's archived-spam list. After verification, append a compact JSON object to `state/spam-archive-review.jsonl` with the recorded fields and `status` set to `pending_digest`. This ignored local file bridges spam-only runs to the next digest; it is not a substitute for the sent digest as the durable record. Do not record message bodies, credentials, or authentication-bearing URLs.
 
 ## Compose the email
 
@@ -83,7 +115,7 @@ Match the recent HTML email structure rather than pasting Markdown syntax:
 5. A short source/run note stating the date window, which approved accounts were scanned or unscanned, the established sources used, and the deduplication result
 6. Final heading: `Archived as probable spam`
 
-Order archived items by false-positive risk, highest risk first. Keep each item to one line:
+Read pending entries from `state/spam-archive-review.jsonl` and combine them with archives from the current run. Order archived items by false-positive risk, highest risk first. Keep each item to one line:
 
 ```text
 Source account - Sender - linked subject (received date) - concise spam rationale; review risk: brief counter-signal.
@@ -92,6 +124,8 @@ Source account - Sender - linked subject (received date) - concise spam rational
 Omit the review-risk clause when there is no meaningful counter-signal, and keep those clear cases after the borderline ones. Use a stable Gmail identifier in place of the link when necessary. If nothing was archived, write `None this week.`
 
 The source/run note should continue to say that digest-source messages were not archived, deleted, or relabeled. Make clear that the separate probable-spam items listed below were archived, not deleted.
+
+After the digest is successfully sent, remove only the pending entries that were included. If sending is not authorized or fails, leave them pending.
 
 ## Final verification
 

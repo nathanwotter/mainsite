@@ -1,0 +1,106 @@
+[
+  {
+    "name": "Rachel Hayes lavender sample pitch",
+    "expected_decision": "archive",
+    "protections": {
+      "prior_two_way_relationship": false,
+      "requested_or_subscribed": false,
+      "ongoing_business_relationship": false,
+      "protected_correspondence": false
+    },
+    "signals": {
+      "unsolicited_commercial": true,
+      "commercial_call_to_action": true,
+      "mass_outreach_language": false,
+      "generic_personalization": true,
+      "unrelated_recipient_account": false,
+      "deceptive_or_mismatched_identity": false,
+      "repeated_after_no_engagement": false,
+      "suspicious_or_misleading_content": false,
+      "topic_match_only": true,
+      "domain_authenticated": true
+    }
+  },
+  {
+    "name": "Alex Smith EHR case-study pitch",
+    "expected_decision": "archive",
+    "protections": {
+      "prior_two_way_relationship": false,
+      "requested_or_subscribed": false,
+      "ongoing_business_relationship": false,
+      "protected_correspondence": false
+    },
+    "signals": {
+      "unsolicited_commercial": true,
+      "commercial_call_to_action": true,
+      "mass_outreach_language": true,
+      "generic_personalization": true,
+      "unrelated_recipient_account": true,
+      "deceptive_or_mismatched_identity": false,
+      "repeated_after_no_engagement": false,
+      "suspicious_or_misleading_content": false,
+      "topic_match_only": true,
+      "domain_authenticated": true
+    }
+  },
+  {
+    "name": "Student absence message",
+    "expected_decision": "keep",
+    "protections": {
+      "prior_two_way_relationship": false,
+      "requested_or_subscribed": false,
+      "ongoing_business_relationship": false,
+      "protected_correspondence": true
+    },
+    "signals": {
+      "unsolicited_commercial": false,
+      "commercial_call_to_action": false,
+      "mass_outreach_language": false,
+      "generic_personalization": false,
+      "unrelated_recipient_account": false,
+      "deceptive_or_mismatched_identity": false,
+      "repeated_after_no_engagement": false,
+      "suspicious_or_misleading_content": false
+    }
+  },
+  {
+    "name": "Existing HVAC vendor invoice",
+    "expected_decision": "keep",
+    "protections": {
+      "prior_two_way_relationship": false,
+      "requested_or_subscribed": false,
+      "ongoing_business_relationship": true,
+      "protected_correspondence": true
+    },
+    "signals": {
+      "unsolicited_commercial": false,
+      "commercial_call_to_action": true,
+      "mass_outreach_language": false,
+      "generic_personalization": false,
+      "unrelated_recipient_account": false,
+      "deceptive_or_mismatched_identity": false,
+      "repeated_after_no_engagement": false,
+      "suspicious_or_misleading_content": false
+    }
+  },
+  {
+    "name": "Subscribed local-news newsletter",
+    "expected_decision": "keep",
+    "protections": {
+      "prior_two_way_relationship": false,
+      "requested_or_subscribed": true,
+      "ongoing_business_relationship": false,
+      "protected_correspondence": false
+    },
+    "signals": {
+      "unsolicited_commercial": false,
+      "commercial_call_to_action": true,
+      "mass_outreach_language": true,
+      "generic_personalization": false,
+      "unrelated_recipient_account": false,
+      "deceptive_or_mismatched_identity": false,
+      "repeated_after_no_engagement": false,
+      "suspicious_or_misleading_content": false
+    }
+  }
+]

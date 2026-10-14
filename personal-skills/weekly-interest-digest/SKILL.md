@@ -22,14 +22,15 @@ Read [references/workflow.md](references/workflow.md) before running the digest 
 - Reuse the recent digest's plain, compact structure: title and date, concise topical headings, bulleted items with a short explanation and useful link, then the run/source note.
 - Retain the established subject format and topical vocabulary. Omit empty topical sections rather than padding the message.
 - Deduplicate repeated alerts and cross-posted items. Prefer original or durable destination links over tracking links when available.
-- Treat the sent digest itself as the run log. Do not create a second logging system unless Nathan asks for one.
+- Treat the sent digest itself as the durable run log. Until the next digest is sent, keep verified archive entries in the local pending review log described in the workflow; do not put message bodies or secrets in it.
 
 ## Archive probable spam conservatively
 
 - Scan each accessible approved account's Inbox for probable spam during the same run. Archive it in its source account; never delete it, empty trash, or report it as spam.
-- Require multiple strong spam signals and no meaningful sign that the message belongs to Nathan's teaching, advising, research, university, professional, or client work.
+- Apply the explicit relationship-and-intent rubric in the workflow. Protect demonstrated relationships and expected correspondence, but do not let a superficial topic match, use of Nathan's name, or an authenticated sender domain excuse unsolicited commercial outreach.
 - Do not archive ordinary student or client correspondence, replies in an existing human thread, operational university notices, account/security messages, receipts, invoices, benefits or HR messages, grant or conference deadlines, calendar messages, or relevant professional newsletters merely because they are bulk mail.
-- When uncertain, leave the message in place. False negatives are safer than silently hiding legitimate correspondence.
+- Sender authentication establishes who sent a message; it does not establish legitimacy, wantedness, or relevance.
+- Leave genuinely ambiguous messages in place for review, but classify cold sales pitches consistently when the commercial signals meet the documented threshold.
 - Verify that each archived message leaves Inbox but remains available in All Mail.
 
 ## Make archived messages easy to review
