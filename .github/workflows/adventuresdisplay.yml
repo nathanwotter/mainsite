@@ -1,0 +1,28 @@
+name: AdventuresDisplay
+on:
+  push:
+    branches: [main]
+    paths: ['apps/adventuresdisplay/**', '.github/workflows/adventuresdisplay.yml']
+  pull_request:
+    paths: ['apps/adventuresdisplay/**', '.github/workflows/adventuresdisplay.yml']
+permissions:
+  contents: read
+jobs:
+  adventuresdisplay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: apps/adventuresdisplay
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: apps/adventuresdisplay/.nvmrc
+          cache: npm
+          cache-dependency-path: apps/adventuresdisplay/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npx playwright install --with-deps chromium webkit
+      - run: npm run test:e2e
+      - run: npm run build

@@ -1,0 +1,10 @@
+{
+  "name": "AdventuresDisplay",
+  "short_name": "AdventuresDisplay",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#172521",
+  "theme_color": "#182523",
+  "icons": [{ "src": "/apple-touch-icon.png", "sizes": "180x180", "type": "image/png" }]
+}
