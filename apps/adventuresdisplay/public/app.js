@@ -17,6 +17,7 @@
   ];
   var mode = 'pure', manual = false, cycleStart = Date.now(), lastInteraction = Date.now(), lastSlide = Date.now();
   var currentPhoto = 0, activeLayer = 0, photoBusy = false, photoToken = 0, turn = 0, paused = false;
+  var photoHistory = [photos[0].id], historyPosition = 0;
   var layers = [$('photo-a'), $('photo-b')], day = C.zonedDay(new Date()), events = C.sampleEvents(day), meals = C.sampleMeals(day);
   var demo = true, snapshotTime = 0, weatherBusy = false, weatherUpdated = 0, noticeTimeout, offlineLeaseUntil = 0, offlineSnapshot = false;
   var weather = sampleWeather(), returnFocus;
@@ -55,18 +56,36 @@
       else $('video-play').hidden = false;
     });
   }
-  function showVideo(next, token) {
+  function rememberPhoto(next, historyTarget) {
+    var id = photos[next].id;
+    if (historyTarget !== undefined) { historyPosition = historyTarget; return; }
+    if (photoHistory[historyPosition] === id) return;
+    photoHistory = photoHistory.slice(0, historyPosition + 1);
+    photoHistory.push(id);
+    if (photoHistory.length > 64) photoHistory.shift();
+    historyPosition = photoHistory.length - 1;
+  }
+  function navigatePhoto(direction) {
+    lastInteraction = Date.now();
+    if (photoBusy) return;
+    for (var h = historyPosition + direction; h >= 0 && h < photoHistory.length; h += direction) {
+      var next = photos.findIndex(function (p) { return p.id === photoHistory[h] && (preferences.videos || p.type !== 'video'); });
+      if (next >= 0 && next !== currentPhoto) { changePhoto(direction, next, h); return; }
+    }
+    changePhoto(direction);
+  }
+  function showVideo(next, token, historyTarget) {
     var item = photos[next]; clearTimeout(videoTimeout);
     videoTimeout = setTimeout(function () { if (token === photoToken) { photoBusy = false; lastSlide = Date.now(); stopVideo(true); notify('Video unavailable. Continuing the frame.'); changePhoto(1); } }, 15000);
     video.onloadeddata = function () {
-      if (token !== photoToken) return; clearTimeout(videoTimeout); videoActive = true; currentPhoto = next; videoStartedAt = Date.now(); lastSlide = Date.now();
+      if (token !== photoToken) return; clearTimeout(videoTimeout); videoActive = true; currentPhoto = next; rememberPhoto(next, historyTarget); videoStartedAt = Date.now(); lastSlide = Date.now();
       layers[activeLayer].classList.remove('active'); video.classList.add('active'); video.setAttribute('aria-label', item.alt || 'Album video'); $('photo-count').textContent = next + 1 + ' / ' + photos.length;
       photoBusy = false; playVideo();
     };
     video.onerror = function () { if (token !== photoToken) return; clearTimeout(videoTimeout); photoBusy = false; currentPhoto = next; stopVideo(true); lastSlide = Date.now(); notify('This video could not play. Skipping to the next album item.'); changePhoto(1); };
     video.muted = true; video.src = item.src; video.load();
   }
-  function changePhoto(direction, selected) {
+  function changePhoto(direction, selected, historyTarget) {
     if (photoBusy || !photos.length) return;
     var eligible = photos.map(function (p, index) { return { item: p, index: index }; }).filter(function (p) { return preferences.videos || p.item.type !== 'video'; });
     if (!eligible.length || (eligible.length < 2 && currentPhoto >= 0 && selected === undefined)) return;
@@ -75,31 +94,54 @@
     var chosen = position < 0 ? 0 : direction === -1 ? (position + eligible.length - 1) % eligible.length : preferences.shuffle ? C.choosePhoto(eligible.map(function (p) { return p.item; }), position, turn) : C.nextIndex(position, eligible.length, false);
     var next = selected === undefined ? eligible[chosen].index : selected;
     var token = ++photoToken; photoBusy = true;
-    if (photos[next].type === 'video') { showVideo(next, token); return; }
+    if (photos[next].type === 'video') { showVideo(next, token, historyTarget); return; }
     var incoming = layers[1 - activeLayer];
     var timeout = setTimeout(function () { if (token === photoToken) { photoBusy = false; photoToken++; lastSlide = Date.now(); } }, 10000);
     incoming.onload = function () {
       if (token !== photoToken) return; clearTimeout(timeout);
       incoming.alt = photos[next].alt || 'Album photograph'; incoming.removeAttribute('aria-hidden'); layers[activeLayer].setAttribute('aria-hidden', 'true');
-      stopVideo(false); layers[activeLayer].classList.remove('active'); incoming.classList.add('active'); activeLayer = 1 - activeLayer; currentPhoto = next; lastSlide = Date.now();
+      stopVideo(false); layers[activeLayer].classList.remove('active'); incoming.classList.add('active'); activeLayer = 1 - activeLayer; currentPhoto = next; rememberPhoto(next, historyTarget); lastSlide = Date.now();
       $('photo-count').textContent = (next + 1) + ' / ' + photos.length;
       setTimeout(function () { if (token !== photoToken) return; photoBusy = false; video.removeAttribute('src'); video.load(); }, window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 1900);
     };
     incoming.onerror = function () { clearTimeout(timeout); if (token !== photoToken) return; photoBusy = false; lastSlide = Date.now(); notify('Photo unavailable. Keeping the current photograph.'); };
     incoming.src = photos[next].src;
   }
-  $('next').addEventListener('click', function () { changePhoto(1); }); $('previous').addEventListener('click', function () { changePhoto(-1); });
+  $('next').addEventListener('click', function () { navigatePhoto(1); }); $('previous').addEventListener('click', function () { navigatePhoto(-1); });
   $('pause-slides').addEventListener('click', function () { paused = !paused; this.textContent = paused ? '▶' : 'Ⅱ'; this.setAttribute('aria-label', paused ? 'Resume slideshow' : 'Pause slideshow'); lastSlide = Date.now(); if (paused) video.pause(); else playVideo(); });
   video.addEventListener('ended', function () { video.muted = true; soundControl(); if (!paused) changePhoto(1); });
   $('video-play').addEventListener('click', function () { playVideo(); reveal(); });
   $('video-sound').addEventListener('click', function () { preferences.videoSound = video.muted; soundUnlocked = preferences.videoSound; video.muted = !preferences.videoSound; soundControl(); try { localStorage.setItem('adventuresdisplay.preferences.v3', JSON.stringify(preferences)); } catch (e) { /* Apply for this visit. */ } if (paused) return; var p = video.play(); if (p) p.catch(function () { video.muted = true; soundControl(); $('video-play').hidden = false; }); });
   $('demo-video').addEventListener('click', function () { if (!preferences.videos) { notify('Enable album videos in Display preferences first.'); return; } var index = photos.findIndex(function (p) { return p.type === 'video'; }); if (index >= 0) changePhoto(1, index); });
-  var touchX = null, touchY = null, swiped = false;
-  $('photo-stage').addEventListener('touchstart', function (e) { touchX = e.changedTouches[0].clientX; touchY = e.changedTouches[0].clientY; }, { passive: true });
-  $('photo-stage').addEventListener('touchend', function (e) { if (touchX === null) return; var dx = e.changedTouches[0].clientX - touchX, dy = e.changedTouches[0].clientY - touchY; if (Math.abs(dx) > 55 && Math.abs(dx) > Math.abs(dy)) { swiped = true; changePhoto(dx > 0 ? -1 : 1); setTimeout(function () { swiped = false; }, 400); } touchX = null; }, { passive: true });
-  function tapPhoto() { if (swiped) return; if ($('navigation').hidden) reveal(); else changePhoto(1); }
+  var touchX = null, touchY = null, touchId = null, suppressTapUntil = 0;
+  function cancelSwipe() { touchX = null; touchY = null; touchId = null; }
+  $('photo-stage').addEventListener('touchstart', function (e) {
+    lastInteraction = Date.now();
+    if (e.touches.length !== 1) { cancelSwipe(); return; }
+    var touch = e.touches[0]; touchX = touch.clientX; touchY = touch.clientY; touchId = touch.identifier;
+  }, { passive: true });
+  $('photo-stage').addEventListener('touchmove', function (e) {
+    if (touchX === null) return;
+    if (e.touches.length !== 1) { cancelSwipe(); return; }
+    var touch = e.touches[0], dx = touch.clientX - touchX, dy = touch.clientY - touchY;
+    if (Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy) * 1.25 && e.cancelable) e.preventDefault();
+  }, { passive: false });
+  $('photo-stage').addEventListener('touchend', function (e) {
+    if (touchX === null) return;
+    var touch = Array.prototype.find.call(e.changedTouches, function (t) { return t.identifier === touchId; });
+    if (!touch) return;
+    var dx = touch.clientX - touchX, dy = touch.clientY - touchY;
+    if (Math.abs(dx) > 55 && Math.abs(dx) > Math.abs(dy) * 1.25) {
+      suppressTapUntil = Date.now() + 700;
+      navigatePhoto(dx > 0 ? -1 : 1);
+      if (e.cancelable) e.preventDefault();
+    }
+    cancelSwipe();
+  }, { passive: false });
+  $('photo-stage').addEventListener('touchcancel', cancelSwipe, { passive: true });
+  function tapPhoto() { if (Date.now() < suppressTapUntil) return; if ($('navigation').hidden) reveal(); else navigatePhoto(1); }
   $('photo-stage').addEventListener('click', tapPhoto);
-  $('photo-stage').addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tapPhoto(); } if (e.key === 'ArrowRight') changePhoto(1); if (e.key === 'ArrowLeft') changePhoto(-1); });
+  $('photo-stage').addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tapPhoto(); } if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); navigatePhoto(e.key === 'ArrowRight' ? 1 : -1); } });
   function visibleEvents() { return events.filter(function (e) { return preferences[String(e.calendar).toLowerCase()] !== false; }); }
   function eventRow(event) { var row = element('div', 'agenda-item ' + String(event.calendar).toLowerCase()); row.appendChild(element('time', '', event.time)); row.appendChild(element('h3', '', event.title)); if (event.location) row.appendChild(element('p', '', event.location)); return row; }
   function renderInformation() {
@@ -180,11 +222,11 @@
       if (!data || data.demo) return; demo = false; $('demo-status').hidden = true; offlineLeaseUntil = data.offlineLeaseUntil || 0; offlineSnapshot = !!data.offline; $('locked').hidden = true; events = data.events || []; meals = data.meals || []; $('sample-label').textContent = data.stale ? 'Sync interrupted · last saved information' : 'Household display'; $('data-source').textContent = data.stale ? 'Last saved information · sync interrupted' : 'Household calendars & Plan to Eat';
       if (data.preferences) { preferences = C.settings(data.preferences); applyPreferences(); }
       $('demo-video').hidden = true;
-      if (Array.isArray(data.photos)) { var oldId = photos[currentPhoto] && photos[currentPhoto].id; photos = data.photos; var retained = photos.findIndex(function (p) { return p.id === oldId; }); currentPhoto = retained; if (retained < 0) { photoToken++; stopVideo(true); photoBusy = false; layers.forEach(function (layer) { layer.removeAttribute('src'); layer.alt = ''; }); if (photos.length) changePhoto(1); else notify('Your album is empty. Connect a photo source in administration.'); } $('photo-count').textContent = photos.length ? Math.max(1, currentPhoto + 1) + ' / ' + photos.length : 'No album items'; }
+      if (Array.isArray(data.photos)) { var oldId = photos[currentPhoto] && photos[currentPhoto].id; photos = data.photos; var retained = photos.findIndex(function (p) { return p.id === oldId; }); currentPhoto = retained; if (retained < 0) { photoHistory = []; historyPosition = -1; photoToken++; stopVideo(true); photoBusy = false; layers.forEach(function (layer) { layer.removeAttribute('src'); layer.alt = ''; }); if (photos.length) changePhoto(1); else notify('Your album is empty. Connect a photo source in administration.'); } $('photo-count').textContent = photos.length ? Math.max(1, currentPhoto + 1) + ' / ' + photos.length : 'No album items'; }
       renderInformation(); if (data.stale) notify('A source could not sync. Showing last saved information.');
     }).catch(function () { /* Preserve loaded content during network interruption. */ });
   }
-  function lockDisplay() { $('locked').hidden = false; $('photos').hidden = true; photoToken++; stopVideo(true); events = []; meals = []; photos = []; layers.forEach(function (layer) { layer.removeAttribute('src'); layer.alt = ''; }); renderInformation(); }
+  function lockDisplay() { $('locked').hidden = false; $('photos').hidden = true; photoToken++; stopVideo(true); photoHistory = []; historyPosition = -1; events = []; meals = []; photos = []; layers.forEach(function (layer) { layer.removeAttribute('src'); layer.alt = ''; }); renderInformation(); }
   function tick() { var now = Date.now(); updateClock(); if (!document.hidden && $('locked').hidden) {
     if (!demo && (offlineSnapshot || !navigator.onLine) && (!offlineLeaseUntil || offlineLeaseUntil <= now)) { lockDisplay(); return; }
     if (!manual && $('preferences').hidden && !videoActive) { var scheduled = C.modeAt(preferences, (now - cycleStart) / 1000); if (mode !== scheduled) setMode(scheduled); }

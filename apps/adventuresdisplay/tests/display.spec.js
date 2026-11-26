@@ -50,7 +50,7 @@ test.use({ serviceWorkers: 'allow' });
 test('public photo cache supports offline relaunch without caching private API data', async ({ page, context }) => {
   await page.evaluate(async () => { const registration = await navigator.serviceWorker.ready; await registration.active; });
   await page.reload(); await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
-  await expect.poll(() => page.evaluate(async () => { const c = await caches.open('adventuresdisplay-demo-v7'); return !!await c.match('/demo-mode'); })).toBe(true);
+  await expect.poll(() => page.evaluate(async () => { const c = await caches.open('adventuresdisplay-demo-v8'); return !!await c.match('/demo-mode'); })).toBe(true);
   await context.setOffline(true); await page.reload(); await expect(page.locator('#photo-a')).toHaveJSProperty('complete', true); await expect(page.locator('#locked')).toBeHidden();
 });
 });
@@ -102,4 +102,73 @@ test('dinner overlay shows assigned dates only and hides when the week is empty'
 test('existing iPads enable the day range once and retain a later choice to hide it',async({page})=>{
  await page.evaluate(()=>{var p=JSON.parse(localStorage.getItem('adventuresdisplay.preferences.v3'));p.highlow=false;localStorage.setItem('adventuresdisplay.preferences.v3',JSON.stringify(p));localStorage.removeItem('adventuresdisplay.weather-range.v1');});await page.reload();await expect(page.locator('#highlow')).toBeVisible();
  await page.evaluate(()=>{var p=JSON.parse(localStorage.getItem('adventuresdisplay.preferences.v3'));p.highlow=false;localStorage.setItem('adventuresdisplay.preferences.v3',JSON.stringify(p));});await page.reload();await expect(page.locator('#highlow')).toBeHidden();
+});
+
+async function swipeFrame(page, dx, dy = 0, options = {}) {
+  await page.locator('#photo-stage').evaluate((stage, args) => {
+    function dispatch(type, touches, changedTouches) {
+      const event = new Event(type, { bubbles:true, cancelable:true });
+      Object.defineProperties(event, { touches:{value:touches}, changedTouches:{value:changedTouches} });
+      stage.dispatchEvent(event);
+    }
+    const start = {identifier:1,clientX:512,clientY:380};
+    const end = {identifier:1,clientX:512+args.dx,clientY:380+args.dy};
+    dispatch('touchstart', [start], [start]);
+    if (args.options.multitouch) dispatch('touchstart', [start,{identifier:2,clientX:530,clientY:390}], []);
+    dispatch('touchmove', [end], [end]);
+    if (args.options.cancel) dispatch('touchcancel', [], [end]);
+    dispatch('touchend', [], [end]);
+    if (args.options.click) stage.click();
+  }, {dx,dy,options});
+}
+
+async function stillPhotos(page) {
+  await page.evaluate(() => { const key='adventuresdisplay.preferences.v3'; const p=JSON.parse(localStorage.getItem(key)); p.videos=false;localStorage.setItem(key,JSON.stringify(p)); });
+  await page.reload(); await expect(page.locator('#photo-a')).toHaveJSProperty('complete',true);
+}
+test('swipe left and right revisit photos during shuffle without revealing controls', async ({page}) => {
+  await stillPhotos(page);
+  await swipeFrame(page,-180,5,{click:true});
+  await expect(page.locator('#photo-count')).not.toHaveText('1 / 4');
+  const second = await page.locator('#photo-count').textContent();
+  await expect(page.locator('#navigation')).toBeHidden();await expect(page.locator('#photo-controls')).toBeHidden();
+  await page.clock.fastForward(2100);
+  await swipeFrame(page,-180);
+  await expect(page.locator('#photo-count')).not.toHaveText(second);
+  await page.clock.fastForward(2100);
+  await swipeFrame(page,180);
+  await expect(page.locator('#photo-count')).toHaveText(second);
+  await page.clock.fastForward(2100);
+  await swipeFrame(page,180);
+  await expect(page.locator('#photo-count')).toHaveText('1 / 4');
+  await page.clock.fastForward(2100);
+  await swipeFrame(page,-180);
+  await expect(page.locator('#photo-count')).toHaveText(second);
+  await expect(page.locator('#navigation')).toBeHidden();await expect(page.locator('#photo-controls')).toBeHidden();
+});
+test('vertical, short, cancelled and multi-finger gestures do not change photos',async({page})=>{
+  await expect(page.locator('#photo-a')).toHaveJSProperty('complete',true);
+  for(const gesture of [[10,180,{}],[-25,0,{}],[-180,0,{cancel:true}],[-180,0,{multitouch:true}]]) {
+    await swipeFrame(page,...gesture);await expect(page.locator('#photo-count')).toHaveText('1 / 4');
+  }
+  await expect(page.locator('#navigation')).toBeHidden();
+  await page.locator('#photo-stage').click();await expect(page.locator('#navigation')).toBeVisible();
+});
+test('a swipe resets the automatic slideshow countdown',async({page})=>{
+  await stillPhotos(page);await page.clock.fastForward(40000);
+  await swipeFrame(page,-180);
+  await expect(page.locator('#photo-count')).not.toHaveText('1 / 4');
+  const current = await page.locator('#photo-count').textContent();
+  await page.clock.fastForward(6000);await expect(page.locator('#photo-count')).toHaveText(current);
+  await page.clock.fastForward(40000);await expect(page.locator('#photo-count')).not.toHaveText(current);
+});
+test('native touch swipe changes photos without showing navigation',async({page,context,browserName})=>{
+  test.skip(browserName!=='chromium','Native touch injection uses Chromium DevTools; gesture handling is also covered in WebKit.');
+  await stillPhotos(page);
+  const cdp=await context.newCDPSession(page);
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:700,y:380}]});
+  for(const x of [670,620,560,500,440]) await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x,y:380}]});
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+  await expect(page.locator('#photo-count')).not.toHaveText('1 / 4');
+  await expect(page.locator('#navigation')).toBeHidden();await expect(page.locator('#photo-controls')).toBeHidden();
 });
