@@ -1,6 +1,6 @@
 (function (root) {
   'use strict';
-  var defaults = { interval: 45, inactivity: 60, fit: 'contain', background: 'evergreen', shuffle: true, clock: true, date: true, temperature: true, highlow: true, event: false, dinner: false, weeklyDinners: true, night: true, fontSize: 'normal', liveWeather: true, layout: 'kitchen', pure: true, ambient: true, today: true, week: true, pureSeconds: 270, ambientSeconds: 270, todaySeconds: 30, weekSeconds: 30, outlookEvery: 1, nightStart: 22, nightEnd: 7, latitude: 35.7796, longitude: -78.6382, location: 'Raleigh, NC', family: true, home: true, activities: true, videos: true, videoSound: false };
+  var defaults = { interval: 45, inactivity: 60, fit: 'contain', background: 'evergreen', shuffle: true, clock: true, date: true, temperature: true, highlow: true, event: false, dinner: false, weeklyDinners: true, night: true, fontSize: 'normal', liveWeather: true, layout: 'kitchen', pure: true, ambient: true, rotatePure: false, today: true, week: true, pureSeconds: 270, ambientSeconds: 270, todaySeconds: 30, weekSeconds: 30, outlookEvery: 1, nightStart: 22, nightEnd: 7, latitude: 35.7796, longitude: -78.6382, location: 'Raleigh, NC', family: true, home: true, activities: true, videos: true, videoSound: false };
   function settings(input) {
     var result = Object.assign({}, defaults);
     if (!input || typeof input !== 'object') return result;
@@ -59,7 +59,7 @@
   function rotation(p) {
     var steps = [];
     for (var c = 0; c < p.outlookEvery; c++) {
-      (p.layout === 'kitchen' ? ['ambient', 'pure'] : ['pure', 'ambient']).forEach(function (mode) { if (p[mode]) steps.push({ mode: mode, seconds: p[mode + 'Seconds'] }); });
+      (p.layout === 'kitchen' ? ['ambient', 'pure'] : ['pure', 'ambient']).forEach(function (mode) { if (p[mode]) { var scheduledMode = mode === 'pure' && p.ambient && !p.rotatePure ? 'ambient' : mode; steps.push({ mode: scheduledMode, seconds: p[mode + 'Seconds'] }); } });
     }
     ['today', 'week'].forEach(function (mode) { if (p[mode]) steps.push({ mode: mode, seconds: p[mode + 'Seconds'] }); });
     return steps;

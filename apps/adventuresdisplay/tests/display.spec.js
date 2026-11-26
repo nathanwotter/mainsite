@@ -22,7 +22,7 @@ test('photo controls preserve crossfade and pause', async ({ page }) => {
   const count = await page.locator('#photo-count').textContent(); await page.getByRole('button', { name: 'Pause slideshow' }).click(); await page.clock.fastForward(50000); await expect(page.locator('#photo-count')).toHaveText(count);
 });
 test('rotation is photo-first and manual Today returns to photos after inactivity', async ({ page }) => {
-  await page.clock.fastForward(271000); await expect(page.locator('#board')).toHaveAttribute('data-mode', 'pure');
+  await page.clock.fastForward(271000); await expect(page.locator('#board')).toHaveAttribute('data-mode', 'ambient'); await expect(page.locator('#overlays')).toHaveCSS('opacity', '1');
   await dock(page); await page.getByRole('button', { name: 'Today', exact: true }).click(); await page.clock.fastForward(61000);
   await expect(page.locator('#board')).toHaveAttribute('data-mode', 'ambient'); await expect(page.locator('#navigation')).toBeHidden();
 });
@@ -50,7 +50,7 @@ test.use({ serviceWorkers: 'allow' });
 test('public photo cache supports offline relaunch without caching private API data', async ({ page, context }) => {
   await page.evaluate(async () => { const registration = await navigator.serviceWorker.ready; await registration.active; });
   await page.reload(); await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
-  await expect.poll(() => page.evaluate(async () => { const c = await caches.open('adventuresdisplay-demo-v11'); return !!await c.match('/demo-mode'); })).toBe(true);
+  await expect.poll(() => page.evaluate(async () => { const c = await caches.open('adventuresdisplay-demo-v12'); return !!await c.match('/demo-mode'); })).toBe(true);
   await context.setOffline(true); await page.reload(); await expect(page.locator('#photo-a')).toHaveJSProperty('complete', true); await expect(page.locator('#locked')).toBeHidden();
 });
 });
@@ -237,4 +237,17 @@ test('recipe visit resets after one hour and the display remains ready',async({p
 test('blocked recipe tabs offer a retry; untrusted recipe URLs never become links',async({page,context})=>{
   await recipeSnapshot(page,context);await page.evaluate(()=>{window.open=()=>null;});await page.locator('#dinner-week-list a').first().click();await expect(page.locator('#notice')).toContainText('Allow pop-ups');await expect(page.locator('#recipe-return')).toBeHidden();
   await page.route('**/api/snapshot',route=>route.fulfill({json:{demo:false,photos:[],events:[],meals:[{day:'2026-11-26',title:'Unsafe example',recipeURL:'javascript:alert(1)'}]}}));await page.reload();await expect(page.locator('#dinner-week-list a')).toHaveCount(0);await expect(page.locator('#dinner-week-list')).toContainText('Unsafe example');
+});
+
+test('clock weather and dinner overlays survive the former Pure Photos interval and household refresh',async({page})=>{
+  await page.route('**/api/snapshot',route=>route.fulfill({json:{demo:false,preferences:{pure:true,ambient:true,videos:false},photos:[{id:'regression-photo',src:'/photos/lake.jpg'}],events:[],meals:[{day:'2026-11-26',title:'Sample dinner'}]}}));await page.reload();await expect(page.locator('#demo-status')).toBeHidden();
+  let previous=0;for(const seconds of [260,280,520,620,880,1120,1510,1820]) {
+    await page.clock.fastForward((seconds-previous)*1000);previous=seconds;
+    await expect(page.locator('#board')).toHaveAttribute('data-mode','ambient');await expect(page.locator('#overlays')).toHaveCSS('opacity','1');await expect(page.locator('#clock')).toBeVisible();await expect(page.locator('#temperature')).toBeVisible();await expect(page.locator('#dinner-week-overlay')).toBeVisible();
+  }
+});
+test('unobstructed automatic intervals require an explicit saved preference',async({page})=>{
+  await dock(page);await page.getByRole('button',{name:'Display',exact:true}).click();const option=page.locator('[name=rotatePure]');await expect(option).not.toBeChecked();await option.check();await page.locator('[name=videos]').uncheck();await page.getByRole('button',{name:'Save preferences',exact:true}).click();
+  await page.reload();await page.clock.fastForward(271000);await expect(page.locator('#board')).toHaveAttribute('data-mode','pure');await expect(page.locator('#overlays')).toHaveCSS('opacity','0');
+  await dock(page);await page.getByRole('button',{name:'Display',exact:true}).click();await expect(page.locator('[name=rotatePure]')).toBeChecked();
 });

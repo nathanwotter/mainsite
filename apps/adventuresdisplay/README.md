@@ -18,8 +18,8 @@ Tap to reveal navigation; controls fade after eight seconds. The default rotatio
 
 | Mode | Duration | Purpose |
 | --- | --- | --- |
-| Pure Photos | 270 seconds | Entirely unobstructed photographs |
-| Ambient Photos | 270 seconds | Quiet optional clock/date/weather/dinner overlays |
+| Ambient Photos | 540 seconds | Clock/date/weather/dinner overlays stay visible throughout photo playback |
+| Pure Photos | Manual / opt-in | Entirely unobstructed photographs |
 | Today | 30 seconds | Current/hourly weather, today’s events/meals and tomorrow’s highlights |
 | Weekly Outlook | 30 seconds | Seven readable rows of weather, events and dinners |
 
@@ -95,3 +95,5 @@ Tap the frame, then **Backgrounds** for a four-quadrant comparison using the sam
 Planned recipes link directly to their Plan to Eat recipe from the photo dinner overlays, Today and Weekly Outlook. Only validated HTTPS numeric recipe paths are exposed to authorized displays; subscription URLs stay server-side and URL queries/fragments are discarded. New links arrive with the next successful 15-minute feed sync. The demo has no real recipe links. Plan to Eat may ask you to sign in on the iPad.
 
 Recipes open in a separate browser tab. Close that tab to return to the display; the display also offers Return to display while a recipe visit is active. After one hour it attempts to close the script-opened tab and resets to photo mode, checking the deadline again whenever the display resumes. This is best effort: Safari background suspension, separate Safari windows from home-screen apps, or Plan to Eat window isolation can prevent an exact one-hour return. AdventuresDisplay cannot put its own return button on Plan to Eat pages or force another app/tab to switch. Recipe pages are not embedded, proxied, cached or scraped. Guided Access may limit switching to Safari from a home-screen app; test this on the kitchen iPad.
+
+Automatic photo playback now retains its overlays by default. The original cycle silently switched from Ambient to Pure Photos after 270 seconds, hiding overlays for the following 270 seconds. **Display → Automatically show unobstructed photos** explicitly opts into that alternation. Both photo slots use Ambient when that option is off, preserving the 90% photo schedule and existing durations. Existing settings that lack this new option default to stable overlays; manually choosing Pure Photos, or disabling Ambient entirely, still gives unobstructed photos. Today and Weekly Outlook remain separately configurable information modes.
