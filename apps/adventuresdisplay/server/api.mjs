@@ -19,7 +19,7 @@ export function createAPI(storage, env) {
         if (demo || !/^[a-f0-9]{64}$/i.test(env.CONFIG_ENCRYPTION_KEY || '') || env.ADMIN_PASSWORD_HASH || await storage.get('administrator', { type: 'json' })) return json({ error: 'Setup unavailable or already completed' }, 409);
         const body = await request.json();
         if (typeof body.token !== 'string' || !/^[a-f0-9]{64}$/i.test(body.token) || !/^[a-f0-9]{64}$/i.test(env.SETUP_TOKEN_HASH || '') || (!Number.isFinite(Number(env.SETUP_TOKEN_EXPIRES)) || Date.now() >= Number(env.SETUP_TOKEN_EXPIRES || 0)) || !timingSafeEqual(Buffer.from(digest(body.token), 'hex'), Buffer.from(env.SETUP_TOKEN_HASH, 'hex'))) return json({ error: 'Setup link invalid or expired' }, 401);
-        if (typeof body.password !== 'string' || body.password.length < 14 || body.password.length > 256) return json({ error: 'Use a password with 14 to 256 characters' }, 400);
+        if (typeof body.password !== 'string' || body.password.length < 8 || body.password.length > 256) return json({ error: 'Use a password with 8 to 256 characters' }, 400);
         const saved = await storage.setJSON('administrator', encrypt({ passwordHash: hashPassword(body.password) }, env.CONFIG_ENCRYPTION_KEY), { onlyIfNew: true });
         if (!saved.modified) return json({ error: 'Setup already completed' }, 409);
         const issued = await issueSession(storage, 'admin'); return json({ ok: true }, 200, { 'Set-Cookie': issued.cookie });

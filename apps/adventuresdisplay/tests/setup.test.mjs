@@ -22,3 +22,5 @@ test('enrollment rejects wrong or expired tokens, cross-origin requests, demo mo
 test('concurrent enrollment cannot overwrite an administrator', async () => {
   const storage = new MemoryStore(), api = createAPI(storage, env()); const responses = await Promise.all([api(request('setup', { token, password })), api(request('setup', { token, password: 'different-long-fictional-password' }))]); assert.deepEqual(responses.map(r => r.status).sort(), [200, 409]);
 });
+
+test('enrollment accepts an eight-character password and rejects seven characters',async()=>{const storage=new MemoryStore(),api=createAPI(storage,env());assert.equal((await api(request('setup',{token,password:'sevenok'}))).status,400);assert.equal(await storage.get('administrator'),null);assert.equal((await api(request('setup',{token,password:'eight-ok'}))).status,200);assert.equal((await api(request('login',{password:'eight-ok'}))).status,200);});
