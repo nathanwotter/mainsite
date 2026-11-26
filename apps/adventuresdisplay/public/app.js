@@ -38,6 +38,7 @@
     mode = next; $('board').dataset.mode = next; $('photos').hidden = next !== 'pure' && next !== 'ambient'; $('today').hidden = next !== 'today'; $('week').hidden = next !== 'week';
     if (next !== 'pure' && next !== 'ambient') { video.pause(); video.muted = true; }
     else if (videoActive && !paused && !video.ended && video.paused) playVideo();
+    document.querySelectorAll('#overlays .recipe-link').forEach(function (link) { link.tabIndex = next === 'ambient' ? 0 : -1; });
     document.querySelectorAll('[data-mode]').forEach(function (node) { if (node.tagName === 'BUTTON') { if (node.dataset.mode === next) node.setAttribute('aria-current', 'page'); else node.removeAttribute('aria-current'); } });
     $('photo-controls').hidden = $('navigation').hidden || (next !== 'pure' && next !== 'ambient');
     if (user) { manual = true; reveal(); } window.scrollTo(0, 0);
@@ -56,7 +57,7 @@
   video.addEventListener('volumechange', soundControl);
   function stopVideo(unload) { clearTimeout(videoTimeout); video.pause(); video.muted = true; videoActive = false; video.classList.remove('active'); $('video-play').hidden = true; soundControl(); if (unload) { video.removeAttribute('src'); video.load(); } }
   function playVideo() {
-    if (!videoActive || paused || !$('background-preview').hidden || (mode !== 'pure' && mode !== 'ambient')) return;
+    if (!videoActive || paused || recipeDeadline || !$('background-preview').hidden || (mode !== 'pure' && mode !== 'ambient')) return;
     if (video.paused) videoStartedAt = Date.now();
     video.muted = !(preferences.videoSound && soundUnlocked); soundControl();
     var token = photoToken, promise = video.play(); if (promise) promise.then(function () { if (token === photoToken) $('video-play').hidden = true; }).catch(function () {
@@ -153,17 +154,51 @@
   $('photo-stage').addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tapPhoto(); } if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); navigatePhoto(e.key === 'ArrowRight' ? 1 : -1); } });
   function visibleEvents() { return events.filter(function (e) { return preferences[String(e.calendar).toLowerCase()] !== false; }); }
   function eventRow(event) { var row = element('div', 'agenda-item ' + String(event.calendar).toLowerCase()); row.appendChild(element('time', '', event.time)); row.appendChild(element('h3', '', event.title)); if (event.location) row.appendChild(element('p', '', event.location)); return row; }
+  var recipeWindow = null, recipeDeadline = 0;
+  function returnFromRecipe() {
+    try { if (recipeWindow && !recipeWindow.closed) recipeWindow.close(); } catch (e) { /* Safari may separate the external tab. */ }
+    recipeWindow = null; recipeDeadline = 0; $('recipe-return').hidden = true;
+    lastSlide = lastInteraction = cycleStart = Date.now(); manual = false; setMode(preferredPhotoMode());
+    $('navigation').hidden = true; $('photo-controls').hidden = true;
+    if (!document.hidden) playVideo();
+  }
+  function checkRecipeReturn() {
+    if (!recipeDeadline) return;
+    if (Date.now() >= recipeDeadline) { returnFromRecipe(); return; }
+    try { if (recipeWindow && recipeWindow.closed) returnFromRecipe(); } catch (e) { /* Keep the manual return available. */ }
+  }
+  function recipeName(meal, suffix) {
+    var url = C.recipeURL(meal.recipeURL), title = meal.title + (suffix || '');
+    if (!url) return element('span', '', title);
+    var link = element('a', 'recipe-link', title); link.href = url; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.referrerPolicy = 'no-referrer'; link.setAttribute('aria-label', 'Open ' + meal.title + ' in Plan to Eat');
+    link.addEventListener('click', function (e) {
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      e.preventDefault(); e.stopPropagation(); lastInteraction = Date.now();
+      var opened;
+      try { opened = window.open('about:blank', '_blank'); } catch (error) { /* Show an honest retry hint below. */ }
+      if (!opened) { notify('Allow pop-ups for this display, then tap the recipe again.'); return; }
+      // Retain the script-opened relationship so the browser permits closing this tab.
+      // Destinations are restricted to Plan to Eat recipe pages; no subscription URL is navigable.
+      try { opened.location.replace(url); } catch (error) { opened.close(); notify('The recipe could not open. Please try again.'); return; }
+      if (recipeWindow) { try { recipeWindow.close(); } catch (error) { /* Previous tab may already be closed. */ } }
+      recipeWindow = opened; recipeDeadline = Date.now() + 3600000; $('recipe-return').hidden = false;
+      video.pause(); video.muted = true;
+    });
+    return link;
+  }
+  $('recipe-return-button').addEventListener('click', returnFromRecipe);
+  window.addEventListener('focus', checkRecipeReturn);
   function renderInformation() {
     var visible = visibleEvents(), todayEvents = visible.filter(function (e) { return e.day === day; }), todayMeals = meals.filter(function (m) { return m.day === day; });
     $('today-events').textContent = ''; todayEvents.slice(0, 4).forEach(function (e) { $('today-events').appendChild(eventRow(e)); }); if (!todayEvents.length) $('today-events').appendChild(element('p', 'fineprint', 'A little room in the day. No events planned.'));
-    $('today-meals').textContent = ''; todayMeals.slice(0, 4).forEach(function (m) { var meal = element('div', 'meal'); meal.appendChild(element('h3', '', m.title)); $('today-meals').appendChild(meal); });
+    $('today-meals').textContent = ''; todayMeals.slice(0, 4).forEach(function (m) { var meal = element('div', 'meal'); var heading = element('h3'); heading.appendChild(recipeName(m)); meal.appendChild(heading); $('today-meals').appendChild(meal); });
     if (!todayMeals.length) $('today-meals').appendChild(element('p', 'fineprint', 'No dinner planned. A little room for inspiration.'));
     document.querySelectorAll('.meal-source').forEach(function (n) { n.textContent = demo ? 'Sample dinner plan · Plan to Eat connects privately' : 'Plan to Eat · Dinner plan'; });
     var upcoming = visible.filter(function (e) { return e.day === C.addDays(day, 1); }); $('tomorrow').textContent = '';
     if (upcoming.length) { $('tomorrow').appendChild(element('h3', '', 'Tomorrow, a little ahead')); $('tomorrow').appendChild(element('p', '', upcoming.slice(0, 2).map(function (e) { return e.time + ' · ' + e.title; }).join(' / '))); }
     var nowParts = new Intl.DateTimeFormat('en-GB', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date()).split(':'), minutes = Number(nowParts[0]) * 60 + Number(nowParts[1]);
     var nextEvent = todayEvents.filter(function (e) { var match = /^(\d+):(\d+)\s*([AP]M)/.exec(e.time); return match && ((Number(match[1]) % 12) * 60 + Number(match[2]) + (match[3] === 'PM' ? 720 : 0)) >= minutes; })[0]; $('next-event').textContent = nextEvent ? nextEvent.time + ' · ' + nextEvent.title : 'Nothing else on the calendar';
-    $('dinner-text').textContent = todayMeals.length ? todayMeals.map(function (m) { return m.title; }).join(' · ') : 'No dinner planned';
+    $('dinner-text').textContent = ''; if (!todayMeals.length) $('dinner-text').textContent = 'No dinner planned'; todayMeals.forEach(function (m, i) { if (i) $('dinner-text').appendChild(document.createTextNode(' · ')); $('dinner-text').appendChild(recipeName(m)); });
     $('dinner-label').textContent = demo ? 'TONIGHT’S DINNER · SAMPLE' : 'TONIGHT’S DINNER';
     $('dinner-week-label').textContent = demo ? 'DINNERS THIS WEEK · SAMPLE' : 'DINNERS THIS WEEK';
     $('dinner-week-list').textContent = '';
@@ -172,11 +207,12 @@
       if (!dinners.length) continue;
       var dinnerRow = element('li', 'dinner-day' + (dinnerDay === 0 ? ' dinner-today' : ''));
       var dinnerTime = element('time', '', dinnerDay === 0 ? 'Today' : labelDay(dinnerDate, { weekday: 'short' })); dinnerTime.dateTime = dinnerDate; dinnerRow.appendChild(dinnerTime);
-      dinnerRow.appendChild(element('span', 'dinner-name', dinners.map(function (meal) { return meal.title; }).join(' · ')));
+      var names = element('span', 'dinner-name'); dinners.forEach(function (meal, i) { if (i) names.appendChild(document.createTextNode(' · ')); names.appendChild(recipeName(meal)); }); names.classList.toggle('has-recipes', !!names.querySelector('a')); dinnerRow.appendChild(names);
       $('dinner-week-list').appendChild(dinnerRow);
     }
     $('dinner-week-overlay').classList.toggle('few-dinners', $('dinner-week-list').children.length <= 3);
     $('dinner-week-overlay').hidden = !preferences.weeklyDinners || !$('dinner-week-list').children.length;
+    document.querySelectorAll('#overlays .recipe-link').forEach(function (link) { link.tabIndex = mode === 'ambient' ? 0 : -1; });
     $('week-days').textContent = '';
     for (var i = 0; i < 7; i++) {
       var date = C.addDays(day, i), column = element('section', 'week-day'), forecast = weather.daily.filter(function (d) { return d.day === date; })[0];
@@ -186,7 +222,7 @@
       var planned = meals.filter(function (m) { return m.day === date; });
       var mealNode = element('div', 'week-meal'); mealNode.appendChild(element('span', '', 'DINNER'));
       if (!planned.length) mealNode.appendChild(element('p', '', 'Unplanned'));
-      planned.slice(0, 1).forEach(function (m) { mealNode.appendChild(element('p', '', m.title + (planned.length > 1 ? ' + ' + (planned.length - 1) + ' more' : ''))); }); column.appendChild(mealNode); $('week-days').appendChild(column);
+      planned.slice(0, 1).forEach(function (m) { var name = element('p'); name.appendChild(recipeName(m, planned.length > 1 ? ' + ' + (planned.length - 1) + ' more' : '')); mealNode.appendChild(name); }); column.appendChild(mealNode); $('week-days').appendChild(column);
     }
   }
   function renderWeather() {
@@ -266,8 +302,8 @@
       renderInformation(); if (data.stale) notify('A source could not sync. Showing last saved information.');
     }).catch(function () { /* Preserve loaded content during network interruption. */ });
   }
-  function lockDisplay() { closeBackgrounds(false); $('locked').hidden = false; $('photos').hidden = true; photoToken++; stopVideo(true); photoHistory = []; historyPosition = -1; events = []; meals = []; photos = []; layers.forEach(function (layer) { layer.removeAttribute('src'); layer.alt = ''; }); renderInformation(); }
-  function tick() { var now = Date.now(); updateClock(); if (!document.hidden && $('locked').hidden) {
+  function lockDisplay() { returnFromRecipe(); closeBackgrounds(false); $('locked').hidden = false; $('photos').hidden = true; photoToken++; stopVideo(true); photoHistory = []; historyPosition = -1; events = []; meals = []; photos = []; layers.forEach(function (layer) { layer.removeAttribute('src'); layer.alt = ''; }); renderInformation(); }
+  function tick() { var now = Date.now(); checkRecipeReturn(); updateClock(); if (!document.hidden && $('locked').hidden) {
     if (!demo && (offlineSnapshot || !navigator.onLine) && (!offlineLeaseUntil || offlineLeaseUntil <= now)) { lockDisplay(); return; }
     if (!manual && $('preferences').hidden && $('background-preview').hidden && !videoActive) { var scheduled = C.modeAt(preferences, (now - cycleStart) / 1000); if (mode !== scheduled) setMode(scheduled); }
     if ((mode === 'pure' || mode === 'ambient') && !paused && !videoActive && $('background-preview').hidden && now - lastSlide >= preferences.interval * 1000) changePhoto(1);
@@ -277,7 +313,7 @@
     if (preferences.liveWeather && now - weatherUpdated >= 900000 && navigator.onLine) loadWeather();
     if (now - snapshotTime >= 900000 && navigator.onLine) loadSnapshot();
   } }
-  document.addEventListener('visibilitychange', function () { if (document.hidden) { video.pause(); video.muted = true; } else { lastSlide = Date.now(); videoStartedAt = Date.now(); updateClock(); playVideo(); if (Date.now() - snapshotTime > 900000) loadSnapshot(); } });
+  document.addEventListener('visibilitychange', function () { if (document.hidden) { video.pause(); video.muted = true; } else { checkRecipeReturn(); lastSlide = Date.now(); videoStartedAt = Date.now(); updateClock(); playVideo(); if (Date.now() - snapshotTime > 900000) loadSnapshot(); } });
   window.addEventListener('online', function () { loadSnapshot(); if (preferences.liveWeather) loadWeather(); });
   window.addEventListener('offline', function () { notify('Offline · using saved photographs. Information may be out of date.'); });
   applyPreferences(); renderWeather(); setMode(preferredPhotoMode()); loadSnapshot(); if (preferences.liveWeather) loadWeather(); setInterval(tick, 1000);

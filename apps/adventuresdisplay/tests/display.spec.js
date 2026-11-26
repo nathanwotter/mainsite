@@ -50,7 +50,7 @@ test.use({ serviceWorkers: 'allow' });
 test('public photo cache supports offline relaunch without caching private API data', async ({ page, context }) => {
   await page.evaluate(async () => { const registration = await navigator.serviceWorker.ready; await registration.active; });
   await page.reload(); await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
-  await expect.poll(() => page.evaluate(async () => { const c = await caches.open('adventuresdisplay-demo-v10'); return !!await c.match('/demo-mode'); })).toBe(true);
+  await expect.poll(() => page.evaluate(async () => { const c = await caches.open('adventuresdisplay-demo-v11'); return !!await c.match('/demo-mode'); })).toBe(true);
   await context.setOffline(true); await page.reload(); await expect(page.locator('#photo-a')).toHaveJSProperty('complete', true); await expect(page.locator('#locked')).toBeHidden();
 });
 });
@@ -212,4 +212,29 @@ test('background comparison handles phone size, inactivity and privacy lock',asy
   await dock(page);await page.getByRole('button',{name:'Backgrounds',exact:true}).click();
   await page.route('**/api/snapshot',route=>route.fulfill({status:401,json:{error:'Authorization required'}}));await page.clock.fastForward(900000);
   await expect(page.locator('#locked')).toBeVisible();await expect(page.locator('#background-preview')).toBeHidden();await expect(page.locator('.background-photo img[src]')).toHaveCount(0);
+});
+
+async function recipeSnapshot(page,context) {
+  await context.route('https://app.plantoeat.com/recipes/**',route=>route.fulfill({contentType:'text/html',body:'<!doctype html><title>Fictional recipe</title><h1>Sample dinner</h1>'}));
+  await page.route('**/api/snapshot',route=>route.fulfill({json:{demo:false,photos:[{id:'test-photo',src:'/photos/lake.jpg'}],meals:[{day:'2026-11-26',title:'Sample dinner',recipeURL:'https://app.plantoeat.com/recipes/12345?private=discarded'},{day:'2026-11-27',title:'Another dinner',recipeURL:'https://app.plantoeat.com/recipes/23456'}],events:[]}}));
+  await page.reload();await expect(page.locator('#demo-status')).toBeHidden();
+}
+test('planned meals link to recipes from photo, Today and weekly views and return manually',async({page,context})=>{
+  await recipeSnapshot(page,context);
+  const meal=page.locator('#dinner-week-list a').first();await expect(meal).toHaveAttribute('href','https://app.plantoeat.com/recipes/12345');
+  await page.screenshot({path:'test-results/'+test.info().project.name+'-recipe-links.png',animations:'disabled'});
+  const popupReady=page.waitForEvent('popup');await meal.click();const popup=await popupReady;await popup.waitForURL('https://app.plantoeat.com/recipes/12345');expect(await popup.evaluate(()=>{try{return !!window.opener.document;}catch(e){return 'cross-origin blocked';}})).toBe('cross-origin blocked');
+  await expect(page.locator('#recipe-return')).toBeVisible();await expect(page.locator('#navigation')).toBeHidden();
+  await page.getByRole('button',{name:'Return to display',exact:true}).click();await expect.poll(()=>popup.isClosed()).toBe(true);await expect(page.locator('#recipe-return')).toBeHidden();await expect(page.locator('#board')).toHaveAttribute('data-mode','ambient');
+  await dock(page);await page.getByRole('button',{name:'Today',exact:true}).click();await expect(page.locator('#today-meals a')).toHaveAttribute('href','https://app.plantoeat.com/recipes/12345');
+  await page.getByRole('button',{name:'Weekly Outlook',exact:true}).click();await expect(page.locator('#week-days a.recipe-link')).toHaveCount(2);
+});
+test('recipe visit resets after one hour and the display remains ready',async({page,context})=>{
+  await recipeSnapshot(page,context);const ready=page.waitForEvent('popup');await page.locator('#dinner-week-list a').first().click();const popup=await ready;await popup.waitForURL('https://app.plantoeat.com/recipes/12345');
+  await page.clock.fastForward(3599000);expect(popup.isClosed()).toBe(false);await expect(page.locator('#recipe-return')).toBeVisible();
+  await page.clock.fastForward(2000);await expect.poll(()=>popup.isClosed()).toBe(true);await expect(page.locator('#recipe-return')).toBeHidden();await expect(page.locator('#board')).toHaveAttribute('data-mode','ambient');
+});
+test('blocked recipe tabs offer a retry; untrusted recipe URLs never become links',async({page,context})=>{
+  await recipeSnapshot(page,context);await page.evaluate(()=>{window.open=()=>null;});await page.locator('#dinner-week-list a').first().click();await expect(page.locator('#notice')).toContainText('Allow pop-ups');await expect(page.locator('#recipe-return')).toBeHidden();
+  await page.route('**/api/snapshot',route=>route.fulfill({json:{demo:false,photos:[],events:[],meals:[{day:'2026-11-26',title:'Unsafe example',recipeURL:'javascript:alert(1)'}]}}));await page.reload();await expect(page.locator('#dinner-week-list a')).toHaveCount(0);await expect(page.locator('#dinner-week-list')).toContainText('Unsafe example');
 });

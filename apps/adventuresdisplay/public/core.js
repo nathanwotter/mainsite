@@ -20,6 +20,9 @@
     if (!result.pure && !result.ambient) result.pure = true;
     return result;
   }
+  function recipeURL(value) {
+    try { var url = new URL(value); if (url.origin !== 'https://app.plantoeat.com' || url.username || url.password || !/^\/recipes\/\d+\/?$/.test(url.pathname)) return ''; return url.origin + url.pathname; } catch (e) { return ''; }
+  }
   function nextIndex(current, length, shuffle, random) {
     if (length < 2) return 0;
     return shuffle ? (current + 1 + Math.floor((random || Math.random)() * (length - 1))) % length : (current + 1) % length;
@@ -91,6 +94,6 @@
     if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start > end || start >= total) return false;
     return { start: start, end: end };
   }
-  var api = { defaults: defaults, settings: settings, nextIndex: nextIndex, zonedDay: zonedDay, addDays: addDays, sampleEvents: sampleEvents, condition: condition, rotation: rotation, modeAt: modeAt, photoShare: photoShare, choosePhoto: choosePhoto, sampleMeals: sampleMeals, byteRange: byteRange };
+  var api = { recipeURL: recipeURL, defaults: defaults, settings: settings, nextIndex: nextIndex, zonedDay: zonedDay, addDays: addDays, sampleEvents: sampleEvents, condition: condition, rotation: rotation, modeAt: modeAt, photoShare: photoShare, choosePhoto: choosePhoto, sampleMeals: sampleMeals, byteRange: byteRange };
   root.AdventuresDisplayCore = api;
 })(typeof window === 'undefined' ? globalThis : window);

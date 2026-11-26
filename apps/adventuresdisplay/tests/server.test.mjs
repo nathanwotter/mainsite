@@ -72,3 +72,8 @@ test('iCloud requires a legacy public album link and checks complete manifests',
   const result = await icloudManifest('https://www.icloud.com/sharedalbum/#A1234567890', async () => Buffer.from('{"itemsReturned":0,"photos":[]}')); assert.deepEqual(result.photos, []);
   await assert.rejects(icloudManifest('https://www.icloud.com/sharedalbum/#A1234567890', async () => Buffer.from('{"itemsReturned":2,"photos":[]}')));
 });
+
+test('recipe URLs survive normalization without feed tokens and unsafe URLs are rejected',()=>{
+  const meal=parseFeed(fixture.replace('/recipes/12345','/recipes/12345?token=fictional#notes'),{...window,recipesOnly:true})[0];assert.equal(meal.recipeURL,'https://app.plantoeat.com/recipes/12345');
+  for(const url of ['https://app.plantoeat.com.evil.example/recipes/12345','javascript:alert(1)','https://app.plantoeat.com/planner/private/recipes/plantoeat-ical.ics'])assert.equal(parseFeed(fixture.replace('https://app.plantoeat.com/recipes/12345',url),{...window,recipesOnly:true}).length,0);
+});

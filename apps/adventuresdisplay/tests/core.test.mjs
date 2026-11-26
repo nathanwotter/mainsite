@@ -43,3 +43,8 @@ test('configured private subscription and album tokens never occur in publishabl
 });
 
 test('photo background accepts known shades and rejects arbitrary CSS',()=>{assert.equal(C.settings().background,'evergreen');for(const color of ['charcoal','taupe','slate','ink'])assert.equal(C.settings({background:color}).background,color);assert.equal(C.settings({background:'url(https://example.com)'}).background,'evergreen');});
+
+test('recipe links accept only Plan to Eat numeric recipe pages and remove query strings',()=>{
+  assert.equal(C.recipeURL('https://app.plantoeat.com/recipes/12345?secret=example#notes'),'https://app.plantoeat.com/recipes/12345');
+  for(const value of ['javascript:alert(1)','http://app.plantoeat.com/recipes/12345','https://app.plantoeat.com.evil.example/recipes/12345','https://user:pass@app.plantoeat.com/recipes/12345','https://app.plantoeat.com/planner/private/recipes/plantoeat-ical.ics','https://app.plantoeat.com/recipes/12345/edit'])assert.equal(C.recipeURL(value),'');
+});

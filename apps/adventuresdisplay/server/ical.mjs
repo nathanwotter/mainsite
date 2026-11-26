@@ -1,4 +1,6 @@
 import ICAL from 'ical.js';
+import '../public/core.js';
+const safeRecipeURL = globalThis.AdventuresDisplayCore.recipeURL;
 import { createHash } from 'node:crypto';
 const clean = text => String(text || '').replace(/https?:\/\/\S+/g, '').replace(/[\u0000-\u001f]/g, ' ').slice(0, 200);
 const hash = text => createHash('sha256').update(text).digest('hex').slice(0, 24);
@@ -25,19 +27,20 @@ export function parseFeed(text, { from, until, calendar = 'Family', recipesOnly 
     const tzid = component.getFirstProperty('dtstart')?.getParameter('tzid');
     if (tzid && tzid !== 'America/New_York' && tzid !== 'UTC' && !ICAL.TimezoneService.get(tzid)) throw new Error('Timezone definition missing');
     if (event.isRecurrenceException() || component.getFirstPropertyValue('status') === 'CANCELLED') continue;
-    const recipeURL = String(component.getFirstPropertyValue('url') || '');
+    const recipeURL = safeRecipeURL(component.getFirstPropertyValue('url'));
     // Verified actual recipes feed: every recipe VEVENT has an app.plantoeat.com /recipes/ URL.
-    if (recipesOnly && !/^https:\/\/app\.plantoeat\.com\/recipes\//.test(recipeURL)) continue;
+    if (recipesOnly && !recipeURL) continue;
     let occurrences = 0;
     const add = (start, end, item = event) => {
       const date = day(start), endDay = day(end);
       if (endDay < from || date > until || item.component.getFirstPropertyValue('status') === 'CANCELLED') return;
       if (start.zone.tzid !== 'floating' && start.zone.tzid !== 'UTC' && start.zone === ICAL.Timezone.localTimezone) throw new Error('Unsupported timezone');
-      const recipe = /^https:\/\/app\.plantoeat\.com\/recipes\//.test(String(item.component.getFirstPropertyValue('url') || recipeURL));
+      const link = safeRecipeURL(item.component.getFirstPropertyValue('url') || recipeURL), recipe = !!link;
+      if (recipesOnly && !recipe) return;
       const identity = hash(event.uid + '|' + date + '|' + start.toString());
       const label = timeLabel(start), match = /^(\d+):(\d+)\s*([AP]M)/.exec(label);
       const minute = match ? (Number(match[1]) % 12) * 60 + Number(match[2]) + (match[3] === 'PM' ? 720 : 0) : -1;
-      const base = { id: identity, day: date, time: label, minute, title: clean(item.summary), location: clean(item.location), calendar, recipe, uidHash: hash(event.uid) };
+      const base = { id: identity, day: date, time: label, minute, title: clean(item.summary), location: clean(item.location), calendar, recipe, ...(link ? { recipeURL: link } : {}), uidHash: hash(event.uid) };
       // Date-only ends are exclusive; spread multi-day events within the bounded display window.
       const final = start.isDate ? new Date(endDay + 'T00:00:00Z').getTime() - 86400000 : new Date(endDay + 'T00:00:00Z').getTime();
       for (let value = new Date(date + 'T00:00:00Z').getTime(), n = 0; value <= Math.max(final, new Date(date + 'T00:00:00Z').getTime()) && n < 31; value += 86400000, n++) {
