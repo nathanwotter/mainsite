@@ -31,7 +31,7 @@ Open `/admin.html` from a phone/computer for source administration. Without auth
 
 ## Album videos and optional sound
 
-Album videos play inline among photographs in Pure and Ambient modes. They start **muted by default** and advance to the next item when finished. Tap to reveal controls, then Enable clip sound to hear the current clip. Display preferences can disable videos entirely or allow clip sound; a fresh visit still needs a user gesture for audible playback. If Safari rejects playback, the frame falls back to muted playback or offers Tap to play video. It never bypasses [WebKit’s media policy](https://webkit.org/blog/6784/new-video-policies-for-ios/).
+Album videos play inline among photographs in Pure and Ambient modes. They start **muted by default** and advance to the next item when finished. A small Sound off button appears at the lower left during each clip, even while navigation is hidden. Tap it to turn sound on; tap Sound on to mute. It disappears on still photographs. Display preferences can disable videos entirely or allow clip sound; a fresh visit still needs a user gesture for audible playback. If Safari rejects playback, the frame falls back to muted playback or offers Tap to play video. It never bypasses [WebKit’s media policy](https://webkit.org/blog/6784/new-video-policies-for-ios/).
 
 Pause also pauses the current video. Choosing Today/Weekly Outlook, backgrounding or losing authorization pauses and mutes it. Automatic information-mode changes wait for a clip to finish; a stalled clip is skipped. Sound uses device volume/output routing. Optional album sound does not reintroduce radio, music services, voice assistance or timers. Two image layers and one reusable video element bound frontend memory.
 

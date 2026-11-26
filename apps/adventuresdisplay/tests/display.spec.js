@@ -50,7 +50,7 @@ test.use({ serviceWorkers: 'allow' });
 test('public photo cache supports offline relaunch without caching private API data', async ({ page, context }) => {
   await page.evaluate(async () => { const registration = await navigator.serviceWorker.ready; await registration.active; });
   await page.reload(); await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
-  await expect.poll(() => page.evaluate(async () => { const c = await caches.open('adventuresdisplay-demo-v8'); return !!await c.match('/demo-mode'); })).toBe(true);
+  await expect.poll(() => page.evaluate(async () => { const c = await caches.open('adventuresdisplay-demo-v9'); return !!await c.match('/demo-mode'); })).toBe(true);
   await context.setOffline(true); await page.reload(); await expect(page.locator('#photo-a')).toHaveJSProperty('complete', true); await expect(page.locator('#locked')).toBeHidden();
 });
 });
@@ -171,4 +171,22 @@ test('native touch swipe changes photos without showing navigation',async({page,
   await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
   await expect(page.locator('#photo-count')).not.toHaveText('1 / 4');
   await expect(page.locator('#navigation')).toBeHidden();await expect(page.locator('#photo-controls')).toBeHidden();
+});
+
+test('video sound button stays visible with hidden navigation and toggles audio without advancing',async({page})=>{
+  const toggle=page.locator('#video-sound'), clip=page.locator('#album-video');
+  await expect(toggle).toBeHidden();
+  await dock(page);await page.getByRole('button',{name:'Sample clip',exact:true}).click();
+  await expect(clip).toHaveClass('album-video active');
+  await page.clock.fastForward(9000);
+  await expect(page.locator('#navigation')).toBeHidden();await expect(page.locator('#photo-controls')).toBeHidden();
+  await expect(toggle).toBeVisible();await expect(toggle).toHaveText('Sound off');await expect(toggle).toHaveAttribute('aria-pressed','false');
+  const bounds=await toggle.boundingBox();expect(bounds.width).toBeGreaterThanOrEqual(48);expect(bounds.height).toBeGreaterThanOrEqual(48);
+  const count=await page.locator('#photo-count').textContent();
+  await clip.evaluate(v=>{v.volume=0;});
+  await toggle.click();await expect(clip).toHaveJSProperty('muted',false);await expect(toggle).toHaveText('Sound on');await expect(toggle).toHaveAttribute('aria-pressed','true');
+  await expect(page.locator('#photo-count')).toHaveText(count);await expect(page.locator('#navigation')).toBeHidden();
+  await toggle.click();await expect(clip).toHaveJSProperty('muted',true);await expect(toggle).toHaveText('Sound off');
+  await page.screenshot({path:'test-results/'+test.info().project.name+'-video-sound.png',animations:'disabled'});
+  await swipeFrame(page,180);await expect(clip).not.toHaveClass('album-video active');await expect(toggle).toBeHidden();
 });

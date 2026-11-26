@@ -44,7 +44,16 @@
   }
   document.querySelectorAll('button[data-mode]').forEach(function (b) { b.addEventListener('click', function () { setMode(b.dataset.mode, true); }); });
   document.querySelectorAll('.page').forEach(function (node) { node.addEventListener('click', reveal); });
-  function soundControl() { $('video-sound').hidden = !videoActive; $('video-sound').textContent = video.muted ? 'Enable clip sound' : 'Mute clip sound'; $('video-sound').setAttribute('aria-pressed', String(!video.muted)); }
+  function soundControl() {
+    var audible = !video.muted;
+    $('video-sound').hidden = !videoActive;
+    $('photos').classList.toggle('has-video', videoActive);
+    $('video-sound-label').textContent = audible ? 'Sound on' : 'Sound off';
+    $('video-sound').dataset.sound = audible ? 'on' : 'off';
+    $('video-sound').setAttribute('aria-label', audible ? 'Mute clip sound' : 'Enable clip sound');
+    $('video-sound').setAttribute('aria-pressed', String(audible));
+  }
+  video.addEventListener('volumechange', soundControl);
   function stopVideo(unload) { clearTimeout(videoTimeout); video.pause(); video.muted = true; videoActive = false; video.classList.remove('active'); $('video-play').hidden = true; soundControl(); if (unload) { video.removeAttribute('src'); video.load(); } }
   function playVideo() {
     if (!videoActive || paused || (mode !== 'pure' && mode !== 'ambient')) return;
@@ -111,7 +120,7 @@
   $('pause-slides').addEventListener('click', function () { paused = !paused; this.textContent = paused ? '▶' : 'Ⅱ'; this.setAttribute('aria-label', paused ? 'Resume slideshow' : 'Pause slideshow'); lastSlide = Date.now(); if (paused) video.pause(); else playVideo(); });
   video.addEventListener('ended', function () { video.muted = true; soundControl(); if (!paused) changePhoto(1); });
   $('video-play').addEventListener('click', function () { playVideo(); reveal(); });
-  $('video-sound').addEventListener('click', function () { preferences.videoSound = video.muted; soundUnlocked = preferences.videoSound; video.muted = !preferences.videoSound; soundControl(); try { localStorage.setItem('adventuresdisplay.preferences.v3', JSON.stringify(preferences)); } catch (e) { /* Apply for this visit. */ } if (paused) return; var p = video.play(); if (p) p.catch(function () { video.muted = true; soundControl(); $('video-play').hidden = false; }); });
+  $('video-sound').addEventListener('click', function (e) { e.stopPropagation(); lastInteraction = Date.now(); preferences.videoSound = video.muted; soundUnlocked = preferences.videoSound; video.muted = !preferences.videoSound; soundControl(); try { localStorage.setItem('adventuresdisplay.preferences.v3', JSON.stringify(preferences)); } catch (e) { /* Apply for this visit. */ } if (paused) return; var p = video.play(); if (p) p.catch(function () { video.muted = true; soundControl(); $('video-play').hidden = false; }); });
   $('demo-video').addEventListener('click', function () { if (!preferences.videos) { notify('Enable album videos in Display preferences first.'); return; } var index = photos.findIndex(function (p) { return p.type === 'video'; }); if (index >= 0) changePhoto(1, index); });
   var touchX = null, touchY = null, touchId = null, suppressTapUntil = 0;
   function cancelSwipe() { touchX = null; touchY = null; touchId = null; }

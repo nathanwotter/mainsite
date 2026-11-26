@@ -22,7 +22,7 @@ a { color:inherit; }
 .album-video { position:absolute; inset:0; width:100%; height:100%; object-fit:contain; opacity:0; pointer-events:none; transition:opacity 1.8s ease; background:#12251e; }
 .album-video.active { opacity:1; }
 #video-play { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); z-index:3; color:white; background:#173127e8; border-radius:15px; padding:12px 22px; }
-#photo-controls #video-sound,#photo-controls #demo-video { font-size:13px; padding:5px 10px; }
+#photo-controls #demo-video { font-size:13px; padding:5px 10px; }
 #photo-controls { max-width:94%; flex-wrap:wrap; justify-content:center; }
 .shade { pointer-events:none; opacity:0; background:linear-gradient(180deg,#081c1a38,transparent 40%,transparent 55%,#081c1a90); transition:opacity 1.2s; }
 #overlays { color:#fff; text-shadow:0 2px 20px #081a18a0; pointer-events:none; opacity:0; transition:opacity 1.2s; }
@@ -128,3 +128,10 @@ fieldset { border:0; border-top:1px solid var(--line); padding:16px 0; margin:25
 @media(max-width:760px) { .layout-kitchen #highlow { font-size:15px; } }
 
 @media(max-height:600px) { #dinner-week-overlay.few-dinners .dinner-name { -webkit-line-clamp:2; } }
+
+/* A quiet, independent sound toggle stays available throughout each clip. */
+.clip-sound { position:absolute; left:44px; bottom:38px; z-index:3; display:flex; align-items:center; gap:9px; min-width:118px; min-height:48px; padding:10px 15px; border-radius:24px; color:#fff; background:#10261fba; border:1px solid #ffffff24; text-shadow:0 1px 8px #0008; font-size:14px; line-height:1.2; touch-action:manipulation; }
+.clip-sound svg { width:22px; height:22px; flex:0 0 22px; }
+.clip-sound[data-sound=off] .sound-playing,.clip-sound[data-sound=on] .sound-muted { display:none; }
+@media(max-width:760px) { .clip-sound { left:24px; bottom:24px; } #photos.has-video #dinner-week-overlay { bottom:92px; } }
+@media(max-height:600px) and (min-width:761px) { .clip-sound { bottom:22px; } }
