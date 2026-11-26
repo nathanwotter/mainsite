@@ -1,4 +1,4 @@
 import { store } from '../../server/store.mjs';
 import { createAPI } from '../../server/api.mjs';
 export default async request => createAPI(store(), process.env)(request);
-export const config = { path: '/api/*', excludedPath: '/api/login', rateLimit: { action: 'rate_limit', aggregateBy: ['ip', 'domain'], windowSize: 60, windowLimit: 120 } };
+export const config = { path: '/api/*', excludedPath: ['/api/login', '/api/setup'], rateLimit: { action: 'rate_limit', aggregateBy: ['ip', 'domain'], windowSize: 60, windowLimit: 120 } };

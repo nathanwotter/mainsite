@@ -1,6 +1,10 @@
 import { createHash, randomBytes, scryptSync, timingSafeEqual, createCipheriv, createDecipheriv } from 'node:crypto';
 export const digest = value => createHash('sha256').update(value).digest('hex');
 export const cookieName = '__Host-adventuresdisplay';
+export function hashPassword(password) {
+  if (typeof password !== 'string' || password.length < 14 || password.length > 256) throw new Error('Use 14 to 256 characters');
+  const salt = randomBytes(16).toString('hex'); return salt + ':' + scryptSync(password, salt, 64).toString('hex');
+}
 export function verifyPassword(password, hash) {
   if (typeof password !== 'string' || password.length > 256 || !/^[0-9a-f]{32}:[0-9a-f]{128}$/i.test(hash || '')) return false;
   const [salt, expected] = hash.split(':');

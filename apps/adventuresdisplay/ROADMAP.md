@@ -57,3 +57,9 @@ Order of work: **photographs and visual design, weather, Plan to Eat, family cal
 - [ ] Verify Netlify Blobs permissions/retention, deployed secure cookies, rate limits, scheduled jobs, cache eviction and session lifecycle before private production use.
 - [x] With household approval, publish a separate Git-connected sample demo at https://otter-adventuresdisplay.netlify.app from the prototype branch. Existing apps and DNS unchanged.
 - [ ] Obtain approval for Otter Adventures custom-domain DNS changes; configure authenticated household operation separately.
+
+## Current connection work
+
+- Household chose a separate legacy Shared Album with Public Website. Await its link from the iPad Air 2. Actual modern album settings show People You Choose; preserve that album unchanged.
+- Implemented and tested expiring, atomic one-time administrator enrollment with encrypted credential storage and dedicated rate limiting. Production environment import and real enrollment remain pending.
+

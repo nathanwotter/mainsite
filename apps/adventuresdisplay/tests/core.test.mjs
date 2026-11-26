@@ -26,7 +26,7 @@ test('Eastern dates, month rollover and fictional dinners', () => {
 });
 test('weather interpretation', () => { assert.equal(C.condition(0), 'Clear skies'); assert.equal(C.condition(75), 'Snow'); assert.equal(C.condition(95), 'Thunderstorms'); });
 test('all display scripts parse as ES2018 and removed capabilities stay out of the app', async () => {
-  for (const file of ['core.js', 'app.js', 'admin.js', 'sw.js']) parse(await readFile(new URL('../public/' + file, import.meta.url), 'utf8'), { ecmaVersion: 2018 });
+  for (const file of ['core.js', 'app.js', 'admin.js', 'setup.js', 'sw.js']) parse(await readFile(new URL('../public/' + file, import.meta.url), 'utf8'), { ecmaVersion: 2018 });
   const html = await readFile(new URL('../public/index.html', import.meta.url), 'utf8'); assert.doesNotMatch(html, /<audio|WUNC|Todoist|timer-form|dashboard/);
   for (const photo of ['lake', 'coast', 'mountains']) assert.ok((await stat(new URL('../public/photos/' + photo + '.jpg', import.meta.url))).size < 600000);
 });
