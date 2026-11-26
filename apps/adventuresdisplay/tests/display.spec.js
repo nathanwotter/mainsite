@@ -50,7 +50,7 @@ test.use({ serviceWorkers: 'allow' });
 test('public photo cache supports offline relaunch without caching private API data', async ({ page, context }) => {
   await page.evaluate(async () => { const registration = await navigator.serviceWorker.ready; await registration.active; });
   await page.reload(); await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
-  await expect.poll(() => page.evaluate(async () => { const c = await caches.open('adventuresdisplay-demo-v6'); return !!await c.match('/demo-mode'); })).toBe(true);
+  await expect.poll(() => page.evaluate(async () => { const c = await caches.open('adventuresdisplay-demo-v7'); return !!await c.match('/demo-mode'); })).toBe(true);
   await context.setOffline(true); await page.reload(); await expect(page.locator('#photo-a')).toHaveJSProperty('complete', true); await expect(page.locator('#locked')).toBeHidden();
 });
 });
@@ -83,11 +83,23 @@ test('blocked muted playback offers a tap rather than attempting audible autopla
 });
  test('household setup without a private link does not expose a password creation form', async ({ page }) => { await page.goto('/setup.html'); await expect(page.locator('#setup-form')).toBeHidden(); await expect(page.locator('#setup-status')).toContainText('Open your private setup link'); });
 
-test('kitchen overlays place the clock, live weather and seven dinners in separate corners',async({page})=>{
- await expect(page.locator('#board')).toHaveAttribute('data-mode','ambient'); await expect(page.locator('#board')).toHaveClass('layout-kitchen'); await expect(page.locator('#dinner-week-list li')).toHaveCount(7); await expect(page.locator('#dinner-week-list li').first()).toContainText('Lemon chicken'); await expect(page.locator('#weather-source')).toContainText('Updated'); await expect(page.locator('#overlay-condition')).toHaveText('Partly cloudy');
+test('kitchen overlays place the clock, live weather and planned dinners in separate corners',async({page})=>{
+ await expect(page.locator('#board')).toHaveAttribute('data-mode','ambient'); await expect(page.locator('#board')).toHaveClass('layout-kitchen'); await expect(page.locator('#dinner-week-list li')).toHaveCount(5); await expect(page.locator('#dinner-week-list')).not.toContainText('Unplanned'); await expect(page.locator('#highlow')).toBeVisible(); await expect(page.locator('#highlow')).toHaveText('High 72° · Low 54°'); await expect(page.locator('#weather-source')).toBeHidden(); await expect(page.locator('#dinner-week-list li').first()).toContainText('Lemon chicken'); await expect(page.locator('#weather-source')).toContainText('Updated'); await expect(page.locator('#overlay-condition')).toHaveText('Partly cloudy');
  const clock=await page.locator('.time-block').boundingBox(),weather=await page.locator('.weather-overlay').boundingBox(),dinners=await page.locator('#dinner-week-overlay').boundingBox(); expect(clock.x).toBeLessThan(80);expect(weather.x).toBeGreaterThan(700);expect(clock.x+clock.width).toBeLessThan(weather.x);expect(dinners.x).toBeGreaterThan(600);expect(dinners.y).toBeGreaterThan(weather.y+weather.height+40);expect(dinners.y+dinners.height).toBeLessThan(768);
  await page.clock.fastForward(9000);await page.screenshot({path:'test-results/'+test.info().project.name+'-kitchen-overlays.png',animations:'disabled'});
 });
 test('existing display preferences migrate once to kitchen overlays while preserving photo settings',async({page})=>{
  await page.evaluate(()=>{localStorage.removeItem('adventuresdisplay.preferences.v3');localStorage.setItem('adventuresdisplay.preferences.v2',JSON.stringify({interval:80,fit:'cover',clock:false,temperature:false,layout:'minimal'}));});await page.reload();await expect(page.locator('#board')).toHaveClass('layout-kitchen');await expect(page.locator('#dinner-week-overlay')).toBeVisible();expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('adventuresdisplay.preferences.v3')).interval)).toBe(80);await expect(page.locator('#clock')).toBeVisible();
+});
+
+test('dinner overlay shows assigned dates only and hides when the week is empty',async({page})=>{
+ await page.setViewportSize({width:1280,height:600});
+ var planned=[{day:'2026-11-30',title:'Roasted vegetables with lemon rice and a creamy tahini dressing'},{day:'2026-12-02',title:'Lemon pasta'}];
+ await page.route('**/api/snapshot',route=>route.fulfill({json:{demo:false,events:[],meals:planned,photos:[{id:'fictional-photo',type:'photo',src:'/photos/lake.jpg',addedAt:'2026-11-26'}]}}));await page.reload();
+ await expect(page.locator('#dinner-week-list li')).toHaveCount(2);await expect(page.locator('#dinner-week-list time')).toHaveText(['Mon','Wed']);await expect(page.locator('#dinner-week-list .dinner-name').first()).toHaveCSS('-webkit-line-clamp','2');await page.clock.fastForward(9000);await page.screenshot({path:'test-results/'+test.info().project.name+'-planned-dinners-wide.png',animations:'disabled'});await expect(page.locator('#dinner-week-list')).not.toContainText('Unplanned');
+ planned=[];await page.reload();await expect(page.locator('#dinner-week-list li')).toHaveCount(0);await expect(page.locator('#dinner-week-overlay')).toBeHidden();
+});
+test('existing iPads enable the day range once and retain a later choice to hide it',async({page})=>{
+ await page.evaluate(()=>{var p=JSON.parse(localStorage.getItem('adventuresdisplay.preferences.v3'));p.highlow=false;localStorage.setItem('adventuresdisplay.preferences.v3',JSON.stringify(p));localStorage.removeItem('adventuresdisplay.weather-range.v1');});await page.reload();await expect(page.locator('#highlow')).toBeVisible();
+ await page.evaluate(()=>{var p=JSON.parse(localStorage.getItem('adventuresdisplay.preferences.v3'));p.highlow=false;localStorage.setItem('adventuresdisplay.preferences.v3',JSON.stringify(p));});await page.reload();await expect(page.locator('#highlow')).toBeHidden();
 });

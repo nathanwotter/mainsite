@@ -1,6 +1,6 @@
 (function (root) {
   'use strict';
-  var defaults = { interval: 45, inactivity: 60, fit: 'contain', shuffle: true, clock: true, date: true, temperature: true, highlow: false, event: false, dinner: false, weeklyDinners: true, night: true, fontSize: 'normal', liveWeather: true, layout: 'kitchen', pure: true, ambient: true, today: true, week: true, pureSeconds: 270, ambientSeconds: 270, todaySeconds: 30, weekSeconds: 30, outlookEvery: 1, nightStart: 22, nightEnd: 7, latitude: 35.7796, longitude: -78.6382, location: 'Raleigh, NC', family: true, home: true, activities: true, videos: true, videoSound: false };
+  var defaults = { interval: 45, inactivity: 60, fit: 'contain', shuffle: true, clock: true, date: true, temperature: true, highlow: true, event: false, dinner: false, weeklyDinners: true, night: true, fontSize: 'normal', liveWeather: true, layout: 'kitchen', pure: true, ambient: true, today: true, week: true, pureSeconds: 270, ambientSeconds: 270, todaySeconds: 30, weekSeconds: 30, outlookEvery: 1, nightStart: 22, nightEnd: 7, latitude: 35.7796, longitude: -78.6382, location: 'Raleigh, NC', family: true, home: true, activities: true, videos: true, videoSound: false };
   function settings(input) {
     var result = Object.assign({}, defaults);
     if (!input || typeof input !== 'object') return result;

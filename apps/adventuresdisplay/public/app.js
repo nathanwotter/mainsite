@@ -6,6 +6,7 @@
     var currentSettings = localStorage.getItem('adventuresdisplay.preferences.v3');
     if (currentSettings) preferences = C.settings(JSON.parse(currentSettings));
     else { var previousSettings = JSON.parse(localStorage.getItem('adventuresdisplay.preferences.v2')) || {}; preferences = C.settings(Object.assign({}, previousSettings, { layout: 'kitchen', clock: true, date: true, temperature: true, weeklyDinners: true, dinner: false, liveWeather: true })); localStorage.setItem('adventuresdisplay.preferences.v3', JSON.stringify(preferences)); }
+    if (!localStorage.getItem('adventuresdisplay.weather-range.v1')) { preferences.highlow = true; localStorage.setItem('adventuresdisplay.preferences.v3', JSON.stringify(preferences)); localStorage.setItem('adventuresdisplay.weather-range.v1', '1'); }
   } catch (e) { preferences = C.settings(); }
   function preferredPhotoMode() { return preferences.layout === 'kitchen' && preferences.ambient ? 'ambient' : preferences.pure ? 'pure' : 'ambient'; }
   var photos = [
@@ -117,11 +118,14 @@
     $('dinner-week-list').textContent = '';
     for (var dinnerDay = 0; dinnerDay < 7; dinnerDay++) {
       var dinnerDate = C.addDays(day, dinnerDay), dinners = meals.filter(function (meal) { return meal.day === dinnerDate; });
-      var dinnerRow = element('li', 'dinner-day' + (dinnerDay === 0 ? ' dinner-today' : '') + (!dinners.length ? ' dinner-unplanned' : ''));
+      if (!dinners.length) continue;
+      var dinnerRow = element('li', 'dinner-day' + (dinnerDay === 0 ? ' dinner-today' : ''));
       var dinnerTime = element('time', '', dinnerDay === 0 ? 'Today' : labelDay(dinnerDate, { weekday: 'short' })); dinnerTime.dateTime = dinnerDate; dinnerRow.appendChild(dinnerTime);
-      dinnerRow.appendChild(element('span', 'dinner-name', dinners.length ? dinners.map(function (meal) { return meal.title; }).join(' · ') : 'Unplanned'));
+      dinnerRow.appendChild(element('span', 'dinner-name', dinners.map(function (meal) { return meal.title; }).join(' · ')));
       $('dinner-week-list').appendChild(dinnerRow);
     }
+    $('dinner-week-overlay').classList.toggle('few-dinners', $('dinner-week-list').children.length <= 3);
+    $('dinner-week-overlay').hidden = !preferences.weeklyDinners || !$('dinner-week-list').children.length;
     $('week-days').textContent = '';
     for (var i = 0; i < 7; i++) {
       var date = C.addDays(day, i), column = element('section', 'week-day'), forecast = weather.daily.filter(function (d) { return d.day === date; })[0];
@@ -139,9 +143,9 @@
     var icon = weather.code >= 51 ? '<path d="M5 16h14M8 21l-1 2m6-2-1 2m6-2-1 2M6 16a4 4 0 010-8 6 6 0 0111-1 4 4 0 012 9"/>' : weather.code > 2 ? '<path d="M5 18a5 5 0 010-10 7 7 0 0113-1 5 5 0 011 11Z"/>' : '<circle cx="12" cy="12" r="4"/><path d="M12 1v3m0 16v3M1 12h3m16 0h3M4 4l2 2m12 12 2 2M4 20l2-2M18 6l2-2"/>';
     if (weather.code === 1 || weather.code === 2) icon = '<circle cx="8" cy="8" r="3"/><path d="M8 1v2M1 8h2M3 3l1.5 1.5M13 3l-1.5 1.5M6 20h12a4 4 0 0 0 .4-8 5.5 5.5 0 0 0-10.6 1A3.5 3.5 0 0 0 6 20Z"/>';
     $('weather-icon').innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round">' + icon + '</svg>';
-    $('highlow').textContent = 'H ' + weather.high + '° · L ' + weather.low + '°';
+    $('highlow').textContent = 'High ' + weather.high + '° · Low ' + weather.low + '°';
     var source = weather.live ? (weather.stale ? 'Weather stale' : 'Updated ' + new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' }).format(new Date(weatherUpdated))) : 'Sample weather';
-    $('weather-source').textContent = source; document.querySelector('.current-temp').textContent = weather.temp + '°'; document.querySelector('.current-condition').textContent = weather.text;
+    $('weather-source').textContent = source; $('weather-source').hidden = weather.live && !weather.stale; document.querySelector('.current-temp').textContent = weather.temp + '°'; document.querySelector('.current-condition').textContent = weather.text;
     document.querySelector('.current-range').textContent = 'High ' + weather.high + '° · Low ' + weather.low + '°'; document.querySelectorAll('.forecast-source').forEach(function (n) { n.textContent = preferences.location + ' · ' + source; });
     $('hourly').textContent = ''; weather.hourly.forEach(function (h) { var node = element('div', 'hour'); node.appendChild(element('span', '', h.label)); node.appendChild(element('strong', '', h.temp + '°')); node.appendChild(element('span', '', h.rain + '% rain')); $('hourly').appendChild(node); }); renderInformation();
   }
