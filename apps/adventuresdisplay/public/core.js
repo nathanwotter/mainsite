@@ -70,15 +70,27 @@
     return steps[0].mode;
   }
   function photoShare(p) { var steps = rotation(p), total = 0, photos = 0; steps.forEach(function (s) { total += s.seconds; if (s.mode === 'pure' || s.mode === 'ambient') photos += s.seconds; }); return Math.round(photos / total * 100); }
-  function choosePhoto(photos, current, turn, random) {
-    if (photos.length < 2) return 0;
-    var ranked = photos.map(function (p, i) { return { i: i, added: p.addedAt || '' }; }).sort(function (a, b) { return b.added.localeCompare(a.added); });
-    // Every fourth turn deliberately resurfaces the archive, round-robin.
-    var recentCount = Math.max(1, Math.ceil(ranked.length / 3));
-    var pool = turn % 4 === 0 ? ranked.slice(recentCount) : ranked.slice(0, recentCount);
-    pool = pool.filter(function (p) { return p.i !== current; });
-    if (!pool.length) pool = ranked.filter(function (p) { return p.i !== current; });
-    return pool[turn % 4 === 0 ? Math.floor(turn / 4) % pool.length : Math.floor((random || Math.random)() * pool.length)].i;
+  function createPhotoShuffle() {
+    var known = [], remaining = [], recent = [];
+    return { next: function (photos, current, random) {
+      if (!photos.length) return -1;
+      var ids = photos.map(function (photo) { return photo.id; }), currentId = ids[current];
+      remaining = remaining.filter(function (id) { return ids.indexOf(id) >= 0 && id !== currentId; });
+      ids.forEach(function (id) { if (known.indexOf(id) < 0 && id !== currentId) remaining.push(id); });
+      known = ids.slice();
+      recent = recent.filter(function (id) { return ids.indexOf(id) >= 0; });
+      if (currentId && recent[recent.length - 1] !== currentId) recent.push(currentId);
+      // Keep one third of the album out of the first choices of the next pass.
+      var buffer = Math.max(1, Math.floor(ids.length / 3));
+      recent = recent.slice(-buffer);
+      if (!remaining.length) remaining = ids.slice();
+      var candidates = remaining.filter(function (id) { return id !== currentId && recent.indexOf(id) < 0; });
+      if (!candidates.length) candidates = remaining.filter(function (id) { return id !== currentId; });
+      if (!candidates.length) return current >= 0 ? current : 0;
+      var chosen = candidates[Math.floor((random || Math.random)() * candidates.length)];
+      remaining.splice(remaining.indexOf(chosen), 1);
+      return ids.indexOf(chosen);
+    } };
   }
   function sampleMeals(day) { return [
     { day: day, title: 'Lemon chicken & herby potatoes' },
@@ -94,6 +106,6 @@
     if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start > end || start >= total) return false;
     return { start: start, end: end };
   }
-  var api = { recipeURL: recipeURL, defaults: defaults, settings: settings, nextIndex: nextIndex, zonedDay: zonedDay, addDays: addDays, sampleEvents: sampleEvents, condition: condition, rotation: rotation, modeAt: modeAt, photoShare: photoShare, choosePhoto: choosePhoto, sampleMeals: sampleMeals, byteRange: byteRange };
+  var api = { recipeURL: recipeURL, defaults: defaults, settings: settings, nextIndex: nextIndex, zonedDay: zonedDay, addDays: addDays, sampleEvents: sampleEvents, condition: condition, rotation: rotation, modeAt: modeAt, photoShare: photoShare, createPhotoShuffle: createPhotoShuffle, sampleMeals: sampleMeals, byteRange: byteRange };
   root.AdventuresDisplayCore = api;
 })(typeof window === 'undefined' ? globalThis : window);

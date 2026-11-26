@@ -16,7 +16,8 @@
     { id: 'coast-video', type: 'video', src: '/videos/coast-demo.mp4', alt: 'A gentle pan across the ocean · sample clip', addedAt: '2026-11-26' }
   ];
   var mode = 'pure', manual = false, cycleStart = Date.now(), lastInteraction = Date.now(), lastSlide = Date.now();
-  var currentPhoto = 0, activeLayer = 0, photoBusy = false, photoToken = 0, turn = 0, paused = false;
+  var currentPhoto = 0, activeLayer = 0, photoBusy = false, photoToken = 0, paused = false;
+  var photoShuffle = C.createPhotoShuffle();
   var photoHistory = [photos[0].id], historyPosition = 0;
   var layers = [$('photo-a'), $('photo-b')], day = C.zonedDay(new Date()), events = C.sampleEvents(day), meals = C.sampleMeals(day);
   var demo = true, snapshotTime = 0, weatherBusy = false, weatherUpdated = 0, noticeTimeout, offlineLeaseUntil = 0, offlineSnapshot = false;
@@ -99,9 +100,8 @@
     if (photoBusy || !photos.length) return;
     var eligible = photos.map(function (p, index) { return { item: p, index: index }; }).filter(function (p) { return preferences.videos || p.item.type !== 'video'; });
     if (!eligible.length || (eligible.length < 2 && currentPhoto >= 0 && selected === undefined)) return;
-    turn++;
     var position = eligible.findIndex(function (p) { return p.index === currentPhoto; });
-    var chosen = position < 0 ? 0 : direction === -1 ? (position + eligible.length - 1) % eligible.length : preferences.shuffle ? C.choosePhoto(eligible.map(function (p) { return p.item; }), position, turn) : C.nextIndex(position, eligible.length, false);
+    var chosen = direction === -1 && position >= 0 ? (position + eligible.length - 1) % eligible.length : preferences.shuffle && selected === undefined ? photoShuffle.next(eligible.map(function (p) { return p.item; }), position) : C.nextIndex(position, eligible.length, false);
     var next = selected === undefined ? eligible[chosen].index : selected;
     var token = ++photoToken; photoBusy = true;
     if (photos[next].type === 'video') { showVideo(next, token, historyTarget); return; }
@@ -250,7 +250,7 @@
   Object.keys(fields).forEach(function (key) { var label = element('label', '', fields[key][0]), input = element('input'); input.name = key; input.required = true; input.type = fields[key].length > 1 ? 'number' : 'text'; if (fields[key].length > 1) { input.min = fields[key][1]; input.max = fields[key][2]; input.step = key === 'latitude' || key === 'longitude' ? 'any' : '1'; } label.appendChild(input); $('preference-fields').appendChild(label); });
   var selects = { background: ['Photo background', [['evergreen', 'Original green'], ['charcoal', 'Charcoal'], ['taupe', 'Warm taupe'], ['slate', 'Slate blue'], ['ink', 'Near-black']]], fit: ['Photo layout', [['contain', 'Fit · preserve the whole photograph'], ['cover', 'Fill · may crop edges']]], layout: ['Overlay placement', [['kitchen', 'Kitchen corners · weekly dinners'], ['corners', 'Quiet corners'], ['bottom', 'Lower edge'], ['minimal', 'Essentials only']]], fontSize: ['Type size', [['normal', 'Comfortable'], ['large', 'Larger']]] };
   Object.keys(selects).forEach(function (key) { var label = element('label', '', selects[key][0]), select = element('select'); select.name = key; selects[key][1].forEach(function (pair) { var opt = element('option', '', pair[1]); opt.value = pair[0]; select.appendChild(opt); }); label.appendChild(select); $('preference-fields').appendChild(label); });
-  var checks = { pure: 'Pure Photos', ambient: 'Ambient Photos', rotatePure: 'Automatically show unobstructed photos', today: 'Today', week: 'Weekly Outlook', clock: 'Clock', date: 'Date', temperature: 'Temperature & icon', highlow: 'Daily high & low', event: 'Next calendar event', dinner: 'Tonight’s dinner', weeklyDinners: 'Seven-day dinner overlay', shuffle: 'Favor recent photos, resurface older ones', videos: 'Play album videos', videoSound: 'Allow clip sound after a tap', night: 'Nighttime visual dimming', liveWeather: 'Live weather', family: 'Family calendar', home: 'Home calendar', activities: 'Activities calendar' };
+  var checks = { pure: 'Pure Photos', ambient: 'Ambient Photos', rotatePure: 'Automatically show unobstructed photos', today: 'Today', week: 'Weekly Outlook', clock: 'Clock', date: 'Date', temperature: 'Temperature & icon', highlow: 'Daily high & low', event: 'Next calendar event', dinner: 'Tonight’s dinner', weeklyDinners: 'Seven-day dinner overlay', shuffle: 'Shuffle album without early repeats', videos: 'Play album videos', videoSound: 'Allow clip sound after a tap', night: 'Nighttime visual dimming', liveWeather: 'Live weather', family: 'Family calendar', home: 'Home calendar', activities: 'Activities calendar' };
   Object.keys(checks).forEach(function (key) { var label = element('label'), input = element('input'); input.name = key; input.type = 'checkbox'; label.appendChild(input); label.appendChild(document.createTextNode(checks[key])); $('preference-checks').appendChild(label); });
   function closePreferences() { $('preferences').hidden = true; lastInteraction = Date.now(); if (returnFocus) returnFocus.focus(); }
   $('preferences-open').addEventListener('click', function () { returnFocus = document.activeElement; Object.keys(preferences).forEach(function (key) { var field = $('preferences-form').elements.namedItem(key); if (field) { if (field.type === 'checkbox') field.checked = preferences[key]; else field.value = preferences[key]; } }); $('photo-share').textContent = C.photoShare(preferences) + '% of automatic rotation is photographs.'; $('preferences').hidden = false; $('preferences-close').focus(); });
@@ -302,7 +302,7 @@
       renderInformation(); if (data.stale) notify('A source could not sync. Showing last saved information.');
     }).catch(function () { /* Preserve loaded content during network interruption. */ });
   }
-  function lockDisplay() { returnFromRecipe(); closeBackgrounds(false); $('locked').hidden = false; $('photos').hidden = true; photoToken++; stopVideo(true); photoHistory = []; historyPosition = -1; events = []; meals = []; photos = []; layers.forEach(function (layer) { layer.removeAttribute('src'); layer.alt = ''; }); renderInformation(); }
+  function lockDisplay() { returnFromRecipe(); closeBackgrounds(false); $('locked').hidden = false; $('photos').hidden = true; photoToken++; stopVideo(true); photoShuffle = C.createPhotoShuffle(); photoHistory = []; historyPosition = -1; events = []; meals = []; photos = []; layers.forEach(function (layer) { layer.removeAttribute('src'); layer.alt = ''; }); renderInformation(); }
   function tick() { var now = Date.now(); checkRecipeReturn(); updateClock(); if (!document.hidden && $('locked').hidden) {
     if (!demo && (offlineSnapshot || !navigator.onLine) && (!offlineLeaseUntil || offlineLeaseUntil <= now)) { lockDisplay(); return; }
     if (!manual && $('preferences').hidden && $('background-preview').hidden && !videoActive) { var scheduled = C.modeAt(preferences, (now - cycleStart) / 1000); if (mode !== scheduled) setMode(scheduled); }

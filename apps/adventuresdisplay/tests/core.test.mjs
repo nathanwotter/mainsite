@@ -14,12 +14,20 @@ test('default rotation spends exactly 90% in photographs and transitions at the 
   assert.equal(C.rotation(C.settings({ today: false, week: false })).length, 2);
   assert.ok(C.photoShare(C.settings({ outlookEvery: 3 })) > 90);
 });
-test('recent-photo preference never repeats immediately and guarantees archive turns', () => {
-  const photos = Array.from({ length: 9 }, (_, i) => ({ addedAt: `2026-01-0${9 - i}` }));
-  let current = 0; const archive = new Set();
-  for (let i = 1; i < 100; i++) { const next = C.choosePhoto(photos, current, i, () => .2); assert.notEqual(next, current); if (i % 4 === 0) { assert.ok(next >= 3); archive.add(next); } current = next; }
-  assert.equal(archive.size, 6);
+test('shuffle covers every album item once per pass and avoids recent repeats across passes', () => {
+  const photos=Array.from({length:12},(_,i)=>({id:'photo-'+i,addedAt:'2026-11-26'}));
+  const shuffle=C.createPhotoShuffle();let current=-1, seed=45, sequence=[];
+  const random=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;};
+  for(let pass=0;pass<15;pass++) {const shown=[];for(let i=0;i<photos.length;i++){const next=shuffle.next(photos,current,random);assert.notEqual(next,current);if(i===0&&pass>0)assert.ok(!sequence.slice(-4).includes(next));shown.push(next);sequence.push(next);current=next;}assert.equal(new Set(shown).size,12);}
+  assert.notDeepEqual(sequence.slice(0,12),sequence.slice(12,24));
 });
+test('shuffle handles small albums, membership changes and an already-visible first photo',()=>{
+  for(const size of [1,2,3,500]) {const photos=Array.from({length:size},(_,i)=>({id:String(i)}));const shuffle=C.createPhotoShuffle();let current=0,seen=[0];for(let i=1;i<size;i++){current=shuffle.next(photos,current,()=>.25);seen.push(current);}assert.equal(new Set(seen).size,size);if(size===1)assert.equal(shuffle.next(photos,0),0);}
+  const shuffle=C.createPhotoShuffle(),photos=[{id:'a'},{id:'b'},{id:'c'}];assert.equal(shuffle.next(photos,0,()=>0),1);
+  assert.equal(shuffle.next([{id:'a'},{id:'new'},{id:'c'}],0,()=>.99),1);
+  assert.equal(shuffle.next([],0),-1);
+});
+
 test('Eastern dates, month rollover and fictional dinners', () => {
   assert.equal(C.zonedDay(new Date('2026-01-01T02:00:00Z')), '2025-12-31'); assert.equal(C.addDays('2026-12-31', 1), '2027-01-01');
   assert.equal(C.sampleEvents('2026-12-31')[3].day, '2027-01-01'); assert.equal(C.sampleMeals('2026-11-26').filter(m => m.day === '2026-11-26').length, 1); assert.equal(C.sampleMeals('2026-11-26')[0].title, 'Lemon chicken & herby potatoes');

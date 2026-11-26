@@ -50,7 +50,7 @@ test.use({ serviceWorkers: 'allow' });
 test('public photo cache supports offline relaunch without caching private API data', async ({ page, context }) => {
   await page.evaluate(async () => { const registration = await navigator.serviceWorker.ready; await registration.active; });
   await page.reload(); await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
-  await expect.poll(() => page.evaluate(async () => { const c = await caches.open('adventuresdisplay-demo-v12'); return !!await c.match('/demo-mode'); })).toBe(true);
+  await expect.poll(() => page.evaluate(async () => { const c = await caches.open('adventuresdisplay-demo-v13'); return !!await c.match('/demo-mode'); })).toBe(true);
   await context.setOffline(true); await page.reload(); await expect(page.locator('#photo-a')).toHaveJSProperty('complete', true); await expect(page.locator('#locked')).toBeHidden();
 });
 });
@@ -250,4 +250,16 @@ test('unobstructed automatic intervals require an explicit saved preference',asy
   await dock(page);await page.getByRole('button',{name:'Display',exact:true}).click();const option=page.locator('[name=rotatePure]');await expect(option).not.toBeChecked();await option.check();await page.locator('[name=videos]').uncheck();await page.getByRole('button',{name:'Save preferences',exact:true}).click();
   await page.reload();await page.clock.fastForward(271000);await expect(page.locator('#board')).toHaveAttribute('data-mode','pure');await expect(page.locator('#overlays')).toHaveCSS('opacity','0');
   await dock(page);await page.getByRole('button',{name:'Display',exact:true}).click();await expect(page.locator('[name=rotatePure]')).toBeChecked();
+});
+
+test('slideshow uses every album photo before repeating and keeps forward swipes in the same pool',async({page})=>{
+  const photos=Array.from({length:8},(_,i)=>({id:'shuffle-photo-'+i,src:'/photos/lake.jpg',addedAt:'2026-11-26'}));
+  await page.route('**/api/snapshot',route=>route.fulfill({json:{demo:false,preferences:{interval:10,today:false,week:false,videos:false},photos,events:[],meals:[]}}));await page.reload();await expect(page.locator('#photo-b')).toHaveClass('photo active');
+  const sequence=[await page.locator('#photo-count').textContent()];
+  for(let i=1;i<24;i++) {
+    if(i%3===0){await page.clock.fastForward(2100);await swipeFrame(page,-180);}else await page.clock.fastForward(12000);
+    await expect(page.locator('#photo-count')).not.toHaveText(sequence[sequence.length-1]);sequence.push(await page.locator('#photo-count').textContent());
+  }
+  for(let start=0;start<24;start+=8)expect(new Set(sequence.slice(start,start+8)).size).toBe(8);
+  await expect(page.locator('#navigation')).toBeHidden();
 });
