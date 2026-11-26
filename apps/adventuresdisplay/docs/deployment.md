@@ -1,4 +1,4 @@
-# Separate Netlify deployment (prepared, not executed)
+# Separate Netlify deployment
 
 Intended URL: `https://adventuresdisplay.otteradventures.org`. Git source: `nathanwotter/mainsite`. App: `apps/adventuresdisplay`. DNS: Cloudflare. Existing root and Room Board projects remain separate.
 
@@ -23,7 +23,7 @@ This uses the same app-local config convention as Room Board, with a static outp
 
 ## Approval gate and automatic deploys
 
-This source checkout is on `feat/adventuresdisplay-prototype`. No repository push or Netlify registration has occurred. Review the local prototype, tests and app config first. Creating/importing a Git-connected project can immediately trigger deployment; **obtain the user's approval before that action**. The implemented authenticated backend still needs deployed security checks before accepting household photographs. A demo deployment, if approved, displays public samples only and does not fetch private feeds.
+This source checkout is on `feat/adventuresdisplay-prototype`. The branch has been pushed and its separate Netlify demo project is live; see the release record below. Review the local prototype, tests and app config first. Creating/importing a Git-connected project can immediately trigger deployment; **obtain the user's approval before that action**. The implemented authenticated backend still needs deployed security checks before accepting household photographs. A demo deployment, if approved, displays public samples only and does not fetch private feeds.
 
 After approval:
 
@@ -49,3 +49,13 @@ The copied local subscription is not automatically uploaded to Netlify by a depl
 ## Video packaging
 
 Video ingestion adds the server-only `ffmpeg-static` native binary alongside Sharp; both are external modules in app-local Netlify config. The package's versioned install script is approved in `package.json`. Verify the Linux binary is executable in the deployed bundle and its transcoding/streaming fits actual function time/size limits. A small sample clip and real transcoding are tested locally, but those tests do not verify Netlify packaging. Large batches may stage derivatives across refreshes. The display receives only optimized MP4 previews from authenticated same-origin URLs; the CSP allows same-origin media only.
+
+## Live demo — November 26, 2026
+
+Published at https://otter-adventuresdisplay.netlify.app in the separate Otter Adventures Netlify project `otter-adventuresdisplay`. The project is connected to `nathanwotter/mainsite`, currently publishing `feat/adventuresdisplay-prototype` automatically. Base: `apps/adventuresdisplay`; publish: `dist`; functions: `netlify/functions`; visual editing disabled. Main-site and Room Board configurations and DNS were not changed.
+
+The user authorized live publication without a private staging deployment. Only bundled sample media and fictional household information are enabled. No private album/calendar/meal URL or Apple browser session was uploaded. Apple account sign-in now opens the supplied album (10 items observed); that browser session is not a server synchronization connector.
+
+Release checks: 29 Node tests, 24 browser tests and the production build passed. Netlify's Linux build published three functions. Live `/api/status` returns demo mode with authentication unconfigured; `/api/snapshot` returns only the demo flag; anonymous config/photo requests return 401. The live display was visually checked at 1024 × 768. Hardware Safari 15, household authentication/storage, real source synchronization, and video ingestion limits still require verification.
+
+When moving publication to `main`, merge/review the app branch first and then update only this Netlify project's production branch. Household mode must be explicitly configured with administrator authentication and encryption secrets before connecting private sources. Custom-domain DNS work remains pending approval.

@@ -16,8 +16,8 @@ Order of work: **photographs and visual design, weather, Plan to Eat, family cal
 - [x] Investigate DAKboard-style public iCloud albums; implement an explicitly disabled experimental legacy adapter with privacy acknowledgment.
 - [x] Confirm the household's chosen sharing setting: anyone with the link can view. Preserve it; do not turn on legacy Public Website automatically.
 - [x] Privately inspect the supplied modern iCloud album link and save only in ignored configuration; add redacted diagnostics and explicit modern/legacy compatibility handling.
-- [x] Inspect Apple's actual viewer: this modern album requires an email access step despite link sharing. No email submitted or access/sharing changes made.
-- [ ] Validate the guest-access flow using a household-authorized email and evaluate durable server authorization. Full photo/video synchronization is not connected yet.
+- [x] Inspect Apple's actual viewer: this modern album requires an email access step despite link sharing. Household-authorized email verification and Apple Account sign-in completed; 10 album items observed. Sharing settings unchanged.
+- [ ] Evaluate durable server authorization: this email requires full Apple Account sign-in after email verification. Browser access works; full photo/video synchronization is not connected yet.
 - [ ] End-to-end test an approved album’s additions/removals, schema changes, empty responses and cached deletions. Current iCloud tests use fictional protocol fixtures, not a live album.
 - [ ] If invited-only privacy is required, build a user-authorized native Mac/Photos bridge. The private manifest adapter is ready; the bridge itself is not yet built. A normal private iCloud album is not available through the experimental server adapter.
 - [ ] Portrait pairing/focal points, duplicate-photo handling, photographer/date captions only if desired, larger-album background ingestion with stronger synchronization coordination.
@@ -55,4 +55,5 @@ Order of work: **photographs and visual design, weather, Plan to Eat, family cal
 - [x] Automated mode/photo, auth/revocation, feed/deletion, optimization, offline-lease and browser tests.
 - [ ] Improve admin’s JSON editor into full phone-friendly controls for every setting; add optional stronger administrator identity/MFA.
 - [ ] Verify Netlify Blobs permissions/retention, deployed secure cookies, rate limits, scheduled jobs, cache eviction and session lifecycle before private production use.
-- [ ] Obtain approval before separate Netlify project/deployment or Otter Adventures DNS changes. No deployment action is bundled with this revision.
+- [x] With household approval, publish a separate Git-connected sample demo at https://otter-adventuresdisplay.netlify.app from the prototype branch. Existing apps and DNS unchanged.
+- [ ] Obtain approval for Otter Adventures custom-domain DNS changes; configure authenticated household operation separately.
