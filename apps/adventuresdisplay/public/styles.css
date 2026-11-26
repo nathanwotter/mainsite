@@ -162,3 +162,14 @@ fieldset { border:0; border-top:1px solid var(--line); padding:16px 0; margin:25
 @media(max-width:600px) { #recipe-return { gap:10px; }#recipe-return small { max-width:200px; } }
 
 #dinner-week-list .has-recipes .recipe-link { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; min-height:44px; padding:2px 0; }
+
+#photo-stage { z-index:0; }
+#photos>.shade { z-index:1; }
+#overlays { z-index:2; }
+[data-mode=ambient] #dinner-week-overlay.has-recipe-links { pointer-events:auto; }
+#dinner-week-list .has-recipes { position:relative; }
+#overlays .recipe-link { position:relative; cursor:pointer; -webkit-tap-highlight-color:#ffffff24; }
+#dinner-week-list .has-recipes .recipe-link { margin:-2px -6px; padding:4px 6px; border-radius:5px; }
+#dinner-week-list .recipe-link::after { content:' ↗'; font-size:.75em; opacity:.65; }
+
+@media(min-width:761px) { #board.has-recipe-links[data-mode=ambient] #navigation { left:20px; transform:none; width:calc(100% - 420px); max-width:none; white-space:normal; flex-wrap:wrap; justify-content:center; } }

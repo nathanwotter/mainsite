@@ -50,7 +50,7 @@ test.use({ serviceWorkers: 'allow' });
 test('public photo cache supports offline relaunch without caching private API data', async ({ page, context }) => {
   await page.evaluate(async () => { const registration = await navigator.serviceWorker.ready; await registration.active; });
   await page.reload(); await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
-  await expect.poll(() => page.evaluate(async () => { const c = await caches.open('adventuresdisplay-demo-v13'); return !!await c.match('/demo-mode'); })).toBe(true);
+  await expect.poll(() => page.evaluate(async () => { const c = await caches.open('adventuresdisplay-demo-v14'); return !!await c.match('/demo-mode'); })).toBe(true);
   await context.setOffline(true); await page.reload(); await expect(page.locator('#photo-a')).toHaveJSProperty('complete', true); await expect(page.locator('#locked')).toBeHidden();
 });
 });
@@ -262,4 +262,22 @@ test('slideshow uses every album photo before repeating and keeps forward swipes
   }
   for(let start=0;start<24;start+=8)expect(new Set(sequence.slice(start,start+8)).size).toBe(8);
   await expect(page.locator('#navigation')).toBeHidden();
+});
+
+test.describe('recipe touch priority',()=>{
+ test.use({hasTouch:true});
+ test('touching older cached meals opens the recipe instead of photo navigation',async({page,context})=>{
+  await context.route('https://app.plantoeat.com/recipes/12345',route=>route.fulfill({contentType:'text/html',body:'<title>Sample recipe</title><h1>Sample recipe</h1>'}));
+  await context.route('**/api/recipe/'+ 'a'.repeat(24),route=>route.fulfill({contentType:'text/html',body:'<meta http-equiv="refresh" content="0;url=https://app.plantoeat.com/recipes/12345">'}));
+  await page.route('**/api/snapshot',route=>route.fulfill({json:{demo:false,photos:[{id:'touch-photo',src:'/photos/lake.jpg'}],events:[],meals:[{id:'a'.repeat(24),day:'2026-11-26',title:'Dinner from an older saved feed'}]}}));await page.reload();
+  const link=page.locator('#dinner-week-list a');await expect(link).toHaveAttribute('href','/api/recipe/'+ 'a'.repeat(24));
+  expect(await link.evaluate(n=>{const r=n.getBoundingClientRect();return document.elementFromPoint(r.x+r.width/2,r.y+r.height/2).closest('a')===n;})).toBe(true);
+  const count=await page.locator('#photo-count').textContent(),ready=page.waitForEvent('popup');await link.tap();const recipe=await ready;await recipe.waitForURL('https://app.plantoeat.com/recipes/12345');
+  await expect(page.locator('#navigation')).toBeHidden();await expect(page.locator('#photo-controls')).toBeHidden();await expect(page.locator('#photo-count')).toHaveText(count);
+  await page.getByRole('button',{name:'Return to display',exact:true}).click();await expect.poll(()=>recipe.isClosed()).toBe(true);
+  await page.locator('#photo-stage').tap();await expect(page.locator('#navigation')).toBeVisible();
+  expect(await link.evaluate(n=>{const r=n.getBoundingClientRect();return document.elementFromPoint(r.x+r.width/2,r.y+r.height/2).closest('a')===n;})).toBe(true);
+  await page.screenshot({path:'test-results/'+test.info().project.name+'-recipe-touch-target.png',animations:'disabled'});
+  const again=page.waitForEvent('popup');await link.tap();const secondRecipe=await again;await secondRecipe.waitForURL('https://app.plantoeat.com/recipes/12345');await page.getByRole('button',{name:'Return to display',exact:true}).click();await expect.poll(()=>secondRecipe.isClosed()).toBe(true);
+ });
 });

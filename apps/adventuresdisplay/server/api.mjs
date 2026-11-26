@@ -1,6 +1,7 @@
 import { cookieName, verifyPassword, sameOrigin, session, issueSession, encrypt } from './security.mjs';
 import { readConfig, synchronize } from './sync.mjs';
-import { validateURL } from './fetch-private.mjs';
+import { parseFeed } from './ical.mjs';
+import { validateURL, fetchPrivate } from './fetch-private.mjs';
 import { videoResponse } from './video.mjs';
 import { classifyAlbumLink } from './icloud-link.mjs';
 import '../public/core.js';
@@ -8,7 +9,7 @@ import { hashPassword, digest, decrypt } from './security.mjs';
 import { timingSafeEqual } from 'node:crypto';
 const sanitizePreferences = globalThis.AdventuresDisplayCore.settings;
 const json = (data, status = 200, headers = {}) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'private, no-store', ...headers } });
-export function createAPI(storage, env) {
+export function createAPI(storage, env, { recipeFetcher = fetchPrivate } = {}) {
   return async request => {
     try {
       const path = new URL(request.url).pathname, demo = (env.ADVENTURESDISPLAY_MODE || 'demo') === 'demo';
@@ -36,6 +37,24 @@ export function createAPI(storage, env) {
       if (path === '/api/snapshot' && request.method === 'GET') {
         const snapshot = await storage.get('snapshot', { type: 'json' }) || { demo: false, events: [], meals: [], photos: [], stale: true };
         return json({ ...snapshot, offlineKey: identity.key, offlineLeaseUntil: identity.role === 'display' && env.PRIVATE_OFFLINE_CACHE === 'true' ? Math.min(identity.expires, Date.now() + 3600000) : 0 });
+      }
+      if (path.startsWith('/api/recipe/') && request.method === 'GET') {
+        const id = path.slice('/api/recipe/'.length);
+        if (!/^[a-f0-9]{24}$/.test(id)) return json({ error: 'Recipe not found' }, 404);
+        const snapshot = await storage.get('snapshot', { type: 'json' });
+        const meal = snapshot?.meals?.find(m => m.id === id);
+        const config = await readConfig(storage, env);
+        if (!meal || !config.mealURL) return json({ error: 'Recipe no longer planned' }, 404);
+        let url = globalThis.AdventuresDisplayCore.recipeURL(meal.recipeURL);
+        if (!url) {
+          try {
+            const feed = await recipeFetcher(config.mealURL, ['app.plantoeat.com']);
+            const matches = parseFeed(feed.toString(), { from: meal.day, until: meal.day, recipesOnly: true });
+            url = globalThis.AdventuresDisplayCore.recipeURL(matches.find(m => m.id === id)?.recipeURL);
+          } catch { /* Never return source URLs or upstream error details. */ }
+        }
+        if (!url) return new Response('<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>Recipe unavailable</title><h1>Recipe unavailable</h1><p>This meal may have changed, or Plan to Eat could not be reached. Close this tab to return to the display.</p><a href="/">Return to display</a>', { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'private, no-store' } });
+        return new Response(null, { status: 302, headers: { Location: url, 'Cache-Control': 'private, no-store', 'Referrer-Policy': 'no-referrer' } });
       }
       if (path.startsWith('/api/photo/') && request.method === 'GET') {
         const id = path.slice('/api/photo/'.length); if (!/^[a-f0-9]{64}$/.test(id)) return json({ error: 'Not found' }, 404);

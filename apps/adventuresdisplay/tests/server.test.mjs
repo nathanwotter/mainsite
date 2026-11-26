@@ -77,3 +77,13 @@ test('recipe URLs survive normalization without feed tokens and unsafe URLs are 
   const meal=parseFeed(fixture.replace('/recipes/12345','/recipes/12345?token=fictional#notes'),{...window,recipesOnly:true})[0];assert.equal(meal.recipeURL,'https://app.plantoeat.com/recipes/12345');
   for(const url of ['https://app.plantoeat.com.evil.example/recipes/12345','javascript:alert(1)','https://app.plantoeat.com/planner/private/recipes/plantoeat-ical.ics'])assert.equal(parseFeed(fixture.replace('https://app.plantoeat.com/recipes/12345',url),{...window,recipesOnly:true}).length,0);
 });
+
+test('authenticated recipe resolver handles older snapshots without exposing feed URLs',async()=>{
+  const store=new MemoryStore(),meal=parseFeed(fixture,{...window,recipesOnly:true})[0];delete meal.recipeURL;
+  await store.setJSON('snapshot',{meals:[meal]});const source='https://app.plantoeat.com/planner/fictional/recipes/plantoeat-ical.ics';await store.setJSON('configuration',encrypt({mealURL:source},env.CONFIG_ENCRYPTION_KEY));
+  let calls=0;const api=createAPI(store,env,{recipeFetcher:async(url,hosts)=>{calls++;assert.equal(url,source);assert.deepEqual(hosts,['app.plantoeat.com']);return Buffer.from(fixture);}});
+  assert.equal((await api(req('recipe/'+meal.id))).status,401);const display=await issueSession(store,'display');const response=await api(req('recipe/'+meal.id,display.token));assert.equal(response.status,302);assert.equal(response.headers.get('Location'),'https://app.plantoeat.com/recipes/12345');assert.equal(calls,1);assert.equal(response.headers.get('Cache-Control'),'private, no-store');assert.ok(!(await response.text()).includes(source));
+  assert.equal((await api(req('recipe/'+ 'b'.repeat(24),display.token))).status,404);assert.equal((await api(req('recipe/https://evil.example',display.token))).status,404);
+  const unavailable=createAPI(store,env,{recipeFetcher:async()=>{throw Error('private source detail');}});const failure=await unavailable(req('recipe/'+meal.id,display.token));assert.equal(failure.status,503);assert.ok(!(await failure.text()).includes('private source detail'));
+  await store.setJSON('configuration',encrypt({mealURL:''},env.CONFIG_ENCRYPTION_KEY));assert.equal((await api(req('recipe/'+meal.id,display.token))).status,404);
+});

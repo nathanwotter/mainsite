@@ -149,7 +149,7 @@
     cancelSwipe();
   }, { passive: false });
   $('photo-stage').addEventListener('touchcancel', cancelSwipe, { passive: true });
-  function tapPhoto() { if (Date.now() < suppressTapUntil) return; if ($('navigation').hidden) reveal(); else navigatePhoto(1); }
+  function tapPhoto(e) { if (e && e.target && e.target.closest('a,button:not(#photo-stage)')) return; if (Date.now() < suppressTapUntil) return; if ($('navigation').hidden) reveal(); else navigatePhoto(1); }
   $('photo-stage').addEventListener('click', tapPhoto);
   $('photo-stage').addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tapPhoto(); } if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); navigatePhoto(e.key === 'ArrowRight' ? 1 : -1); } });
   function visibleEvents() { return events.filter(function (e) { return preferences[String(e.calendar).toLowerCase()] !== false; }); }
@@ -168,7 +168,7 @@
     try { if (recipeWindow && recipeWindow.closed) returnFromRecipe(); } catch (e) { /* Keep the manual return available. */ }
   }
   function recipeName(meal, suffix) {
-    var url = C.recipeURL(meal.recipeURL), title = meal.title + (suffix || '');
+    var url = !demo && /^[a-f0-9]{24}$/.test(meal.id || '') ? '/api/recipe/' + meal.id : C.recipeURL(meal.recipeURL), title = meal.title + (suffix || '');
     if (!url) return element('span', '', title);
     var link = element('a', 'recipe-link', title); link.href = url; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.referrerPolicy = 'no-referrer'; link.setAttribute('aria-label', 'Open ' + meal.title + ' in Plan to Eat');
     link.addEventListener('click', function (e) {
@@ -178,7 +178,7 @@
       try { opened = window.open('about:blank', '_blank'); } catch (error) { /* Show an honest retry hint below. */ }
       if (!opened) { notify('Allow pop-ups for this display, then tap the recipe again.'); return; }
       // Retain the script-opened relationship so the browser permits closing this tab.
-      // Destinations are restricted to Plan to Eat recipe pages; no subscription URL is navigable.
+      // The authenticated resolver redirects only to validated Plan to Eat recipe pages.
       try { opened.location.replace(url); } catch (error) { opened.close(); notify('The recipe could not open. Please try again.'); return; }
       if (recipeWindow) { try { recipeWindow.close(); } catch (error) { /* Previous tab may already be closed. */ } }
       recipeWindow = opened; recipeDeadline = Date.now() + 3600000; $('recipe-return').hidden = false;
@@ -210,6 +210,8 @@
       var names = element('span', 'dinner-name'); dinners.forEach(function (meal, i) { if (i) names.appendChild(document.createTextNode(' · ')); names.appendChild(recipeName(meal)); }); names.classList.toggle('has-recipes', !!names.querySelector('a')); dinnerRow.appendChild(names);
       $('dinner-week-list').appendChild(dinnerRow);
     }
+    $('dinner-week-overlay').classList.toggle('has-recipe-links', !!$('dinner-week-list').querySelector('a'));
+    $('board').classList.toggle('has-recipe-links', preferences.weeklyDinners && !!$('dinner-week-list').querySelector('a'));
     $('dinner-week-overlay').classList.toggle('few-dinners', $('dinner-week-list').children.length <= 3);
     $('dinner-week-overlay').hidden = !preferences.weeklyDinners || !$('dinner-week-list').children.length;
     document.querySelectorAll('#overlays .recipe-link').forEach(function (link) { link.tabIndex = mode === 'ambient' ? 0 : -1; });
