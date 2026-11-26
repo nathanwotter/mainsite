@@ -50,7 +50,7 @@ test.use({ serviceWorkers: 'allow' });
 test('public photo cache supports offline relaunch without caching private API data', async ({ page, context }) => {
   await page.evaluate(async () => { const registration = await navigator.serviceWorker.ready; await registration.active; });
   await page.reload(); await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
-  await expect.poll(() => page.evaluate(async () => { const c = await caches.open('adventuresdisplay-demo-v9'); return !!await c.match('/demo-mode'); })).toBe(true);
+  await expect.poll(() => page.evaluate(async () => { const c = await caches.open('adventuresdisplay-demo-v10'); return !!await c.match('/demo-mode'); })).toBe(true);
   await context.setOffline(true); await page.reload(); await expect(page.locator('#photo-a')).toHaveJSProperty('complete', true); await expect(page.locator('#locked')).toBeHidden();
 });
 });
@@ -189,4 +189,27 @@ test('video sound button stays visible with hidden navigation and toggles audio 
   await toggle.click();await expect(clip).toHaveJSProperty('muted',true);await expect(toggle).toHaveText('Sound off');
   await page.screenshot({path:'test-results/'+test.info().project.name+'-video-sound.png',animations:'disabled'});
   await swipeFrame(page,180);await expect(clip).not.toHaveClass('album-video active');await expect(toggle).toBeHidden();
+});
+
+test('background comparison shows four matching photo samples and saves a selected shade',async({page})=>{
+  await dock(page);await page.getByRole('button',{name:'Backgrounds',exact:true}).click();
+  const preview=page.locator('#background-preview');await expect(preview).toBeVisible();await expect(page.locator('.background-option')).toHaveCount(4);
+  const sources=await page.locator('.background-photo img').evaluateAll(imgs=>imgs.map(i=>i.getAttribute('src')));expect(sources.length).toBe(4);expect(new Set(sources).size).toBe(1);
+  const boxes=await page.locator('.background-option').evaluateAll(nodes=>nodes.map(n=>{const b=n.getBoundingClientRect();return{x:b.x,y:b.y,width:b.width,height:b.height};}));
+  expect(boxes[0].x).toBeLessThan(boxes[1].x);expect(boxes[0].y).toBe(boxes[1].y);expect(boxes[2].y).toBeGreaterThan(boxes[0].y);expect(boxes[2].x).toBe(boxes[0].x);
+  const count=await page.locator('#photo-count').textContent();await page.clock.fastForward(46000);await expect(page.locator('#photo-count')).toHaveText(count);
+  await page.screenshot({path:'test-results/'+test.info().project.name+'-background-comparison.png',animations:'disabled'});
+  await page.getByRole('button',{name:'Use Slate blue background',exact:true}).click();await expect(preview).toBeHidden();await expect(page.locator('#photos')).toHaveCSS('background-color','rgb(48, 62, 75)');
+  await page.route('**/api/snapshot',route=>route.fulfill({json:{demo:false,preferences:{background:'evergreen'},photos:[{id:'test-lake',src:'/photos/lake.jpg'}],events:[],meals:[]}}));
+  await page.reload();await expect(page.locator('#demo-status')).toBeHidden();await expect(page.locator('#photos')).toHaveCSS('background-color','rgb(48, 62, 75)');await expect(page.locator('#album-video')).toHaveCSS('background-color','rgb(48, 62, 75)');
+  await dock(page);await page.getByRole('button',{name:'Backgrounds',exact:true}).click();await page.getByRole('button',{name:'Close background comparison'}).click();await expect(page.locator('#photos')).toHaveCSS('background-color','rgb(48, 62, 75)');
+  await expect(page.locator('.background-photo img[src]')).toHaveCount(0);
+});
+test('background comparison handles phone size, inactivity and privacy lock',async({page})=>{
+  await page.setViewportSize({width:390,height:844});await dock(page);await page.getByRole('button',{name:'Backgrounds',exact:true}).click();
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBe(390);await expect(page.locator('.background-option').last()).toBeInViewport();
+  await page.clock.fastForward(61000);await expect(page.locator('#background-preview')).toBeHidden();
+  await dock(page);await page.getByRole('button',{name:'Backgrounds',exact:true}).click();
+  await page.route('**/api/snapshot',route=>route.fulfill({status:401,json:{error:'Authorization required'}}));await page.clock.fastForward(900000);
+  await expect(page.locator('#locked')).toBeVisible();await expect(page.locator('#background-preview')).toBeHidden();await expect(page.locator('.background-photo img[src]')).toHaveCount(0);
 });

@@ -41,3 +41,5 @@ test('configured private subscription and album tokens never occur in publishabl
   }
   }
 });
+
+test('photo background accepts known shades and rejects arbitrary CSS',()=>{assert.equal(C.settings().background,'evergreen');for(const color of ['charcoal','taupe','slate','ink'])assert.equal(C.settings({background:color}).background,color);assert.equal(C.settings({background:'url(https://example.com)'}).background,'evergreen');});

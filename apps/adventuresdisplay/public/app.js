@@ -56,7 +56,7 @@
   video.addEventListener('volumechange', soundControl);
   function stopVideo(unload) { clearTimeout(videoTimeout); video.pause(); video.muted = true; videoActive = false; video.classList.remove('active'); $('video-play').hidden = true; soundControl(); if (unload) { video.removeAttribute('src'); video.load(); } }
   function playVideo() {
-    if (!videoActive || paused || (mode !== 'pure' && mode !== 'ambient')) return;
+    if (!videoActive || paused || !$('background-preview').hidden || (mode !== 'pure' && mode !== 'ambient')) return;
     if (video.paused) videoStartedAt = Date.now();
     video.muted = !(preferences.videoSound && soundUnlocked); soundControl();
     var token = photoToken, promise = video.play(); if (promise) promise.then(function () { if (token === photoToken) $('video-play').hidden = true; }).catch(function () {
@@ -212,7 +212,7 @@
   }
   var fields = { interval: ['Seconds per photograph', 10, 600], inactivity: ['Return to photos after (seconds)', 15, 600], pureSeconds: ['Pure Photos duration (seconds)', 15, 3600], ambientSeconds: ['Ambient Photos duration (seconds)', 15, 3600], todaySeconds: ['Today duration (seconds)', 15, 300], weekSeconds: ['Weekly Outlook duration (seconds)', 15, 300], outlookEvery: ['Show outlook after this many photo cycles', 1, 12], nightStart: ['Dim from hour (Eastern, 0–23)', 0, 23], nightEnd: ['Dim until hour (Eastern, 0–23)', 0, 23], location: ['Weather location name'], latitude: ['Latitude', -90, 90], longitude: ['Longitude', -180, 180] };
   Object.keys(fields).forEach(function (key) { var label = element('label', '', fields[key][0]), input = element('input'); input.name = key; input.required = true; input.type = fields[key].length > 1 ? 'number' : 'text'; if (fields[key].length > 1) { input.min = fields[key][1]; input.max = fields[key][2]; input.step = key === 'latitude' || key === 'longitude' ? 'any' : '1'; } label.appendChild(input); $('preference-fields').appendChild(label); });
-  var selects = { fit: ['Photo layout', [['contain', 'Fit · preserve the whole photograph'], ['cover', 'Fill · may crop edges']]], layout: ['Overlay placement', [['kitchen', 'Kitchen corners · weekly dinners'], ['corners', 'Quiet corners'], ['bottom', 'Lower edge'], ['minimal', 'Essentials only']]], fontSize: ['Type size', [['normal', 'Comfortable'], ['large', 'Larger']]] };
+  var selects = { background: ['Photo background', [['evergreen', 'Original green'], ['charcoal', 'Charcoal'], ['taupe', 'Warm taupe'], ['slate', 'Slate blue'], ['ink', 'Near-black']]], fit: ['Photo layout', [['contain', 'Fit · preserve the whole photograph'], ['cover', 'Fill · may crop edges']]], layout: ['Overlay placement', [['kitchen', 'Kitchen corners · weekly dinners'], ['corners', 'Quiet corners'], ['bottom', 'Lower edge'], ['minimal', 'Essentials only']]], fontSize: ['Type size', [['normal', 'Comfortable'], ['large', 'Larger']]] };
   Object.keys(selects).forEach(function (key) { var label = element('label', '', selects[key][0]), select = element('select'); select.name = key; selects[key][1].forEach(function (pair) { var opt = element('option', '', pair[1]); opt.value = pair[0]; select.appendChild(opt); }); label.appendChild(select); $('preference-fields').appendChild(label); });
   var checks = { pure: 'Pure Photos', ambient: 'Ambient Photos', today: 'Today', week: 'Weekly Outlook', clock: 'Clock', date: 'Date', temperature: 'Temperature & icon', highlow: 'Daily high & low', event: 'Next calendar event', dinner: 'Tonight’s dinner', weeklyDinners: 'Seven-day dinner overlay', shuffle: 'Favor recent photos, resurface older ones', videos: 'Play album videos', videoSound: 'Allow clip sound after a tap', night: 'Nighttime visual dimming', liveWeather: 'Live weather', family: 'Family calendar', home: 'Home calendar', activities: 'Activities calendar' };
   Object.keys(checks).forEach(function (key) { var label = element('label'), input = element('input'); input.name = key; input.type = 'checkbox'; label.appendChild(input); label.appendChild(document.createTextNode(checks[key])); $('preference-checks').appendChild(label); });
@@ -220,28 +220,59 @@
   $('preferences-open').addEventListener('click', function () { returnFocus = document.activeElement; Object.keys(preferences).forEach(function (key) { var field = $('preferences-form').elements.namedItem(key); if (field) { if (field.type === 'checkbox') field.checked = preferences[key]; else field.value = preferences[key]; } }); $('photo-share').textContent = C.photoShare(preferences) + '% of automatic rotation is photographs.'; $('preferences').hidden = false; $('preferences-close').focus(); });
   $('preferences-close').addEventListener('click', closePreferences);
   $('preferences').addEventListener('keydown', function (e) { if (e.key === 'Escape') closePreferences(); if (e.key === 'Tab') { var nodes = this.querySelectorAll('button,input,select'), first = nodes[0], last = nodes[nodes.length - 1]; if (e.shiftKey && document.activeElement === first) { last.focus(); e.preventDefault(); } else if (!e.shiftKey && document.activeElement === last) { first.focus(); e.preventDefault(); } } });
-  $('preferences-form').addEventListener('submit', function (e) { e.preventDefault(); var values = {}; Object.keys(preferences).forEach(function (key) { var f = $('preferences-form').elements.namedItem(key); if (f) values[key] = f.type === 'checkbox' ? f.checked : f.value; }); preferences = C.settings(values); try { localStorage.setItem('adventuresdisplay.preferences.v3', JSON.stringify(preferences)); } catch (error) { notify('Preferences apply until this page closes; local storage is unavailable.'); } applyPreferences(); cycleStart = Date.now(); manual = false; setMode(preferredPhotoMode()); closePreferences(); if (preferences.liveWeather) loadWeather(); });
+  $('preferences-form').addEventListener('submit', function (e) { e.preventDefault(); var values = {}; Object.keys(preferences).forEach(function (key) { var f = $('preferences-form').elements.namedItem(key); if (f) values[key] = f.type === 'checkbox' ? f.checked : f.value; }); preferences = C.settings(values); try { localStorage.setItem('adventuresdisplay.background.v1', preferences.background); localStorage.setItem('adventuresdisplay.preferences.v3', JSON.stringify(preferences)); } catch (error) { notify('Preferences apply until this page closes; local storage is unavailable.'); } applyPreferences(); cycleStart = Date.now(); manual = false; setMode(preferredPhotoMode()); closePreferences(); if (preferences.liveWeather) loadWeather(); });
   $('refresh-weather').addEventListener('click', loadWeather);
-  function applyPreferences() { layers.forEach(function (p) { p.style.objectFit = preferences.fit; }); video.style.objectFit = preferences.fit; if (!preferences.videoSound) { video.muted = true; soundUnlocked = false; } if (!preferences.videos && videoActive) { stopVideo(true); currentPhoto = -1; photoBusy = false; changePhoto(1); } soundControl(); $('board').className = 'layout-' + preferences.layout + (preferences.fontSize === 'large' ? ' large-type' : '');
+  var backgroundColors = { evergreen: '#12251e', charcoal: '#252628', taupe: '#403832', slate: '#303e4b', ink: '#101113' };
+  var backgroundFocus;
+  function closeBackgrounds(resume) {
+    $('background-preview').hidden = true;
+    $('background-options').querySelectorAll('img').forEach(function (img) { img.removeAttribute('src'); });
+    lastInteraction = lastSlide = Date.now();
+    if (resume !== false) { playVideo(); if (backgroundFocus) backgroundFocus.focus(); }
+  }
+  function openBackgrounds() {
+    if (!$('locked').hidden) return;
+    backgroundFocus = document.activeElement;
+    if (!$('preferences').hidden) closePreferences();
+    video.pause(); video.muted = true;
+    $('background-options').textContent = '';
+    var source = layers[activeLayer].getAttribute('src');
+    [['charcoal', 'Charcoal'], ['taupe', 'Warm taupe'], ['slate', 'Slate blue'], ['ink', 'Near-black']].forEach(function (shade) {
+      var button = element('button', 'background-option'); button.type = 'button'; button.dataset.background = shade[0]; button.style.backgroundColor = backgroundColors[shade[0]]; button.setAttribute('aria-label', 'Use ' + shade[1] + ' background'); button.setAttribute('aria-pressed', String(preferences.background === shade[0]));
+      var label = element('span', 'background-name', shade[1]); label.appendChild(element('small', '', backgroundColors[shade[0]].toUpperCase())); button.appendChild(label);
+      var frame = element('span', 'background-photo'); if (source) { var img = element('img'); img.src = source; img.alt = 'Current album photograph'; frame.appendChild(img); } button.appendChild(frame);
+      button.addEventListener('click', function () { preferences.background = shade[0]; try { localStorage.setItem('adventuresdisplay.background.v1', shade[0]); localStorage.setItem('adventuresdisplay.preferences.v3', JSON.stringify(preferences)); } catch (e) { notify('Background applies until this page closes.'); } applyPreferences(); closeBackgrounds(); });
+      $('background-options').appendChild(button);
+    });
+    $('navigation').hidden = true; $('photo-controls').hidden = true;
+    $('background-preview').hidden = false; $('backgrounds-close').focus(); lastInteraction = Date.now();
+  }
+  $('backgrounds-open').addEventListener('click', openBackgrounds);
+  $('backgrounds-close').addEventListener('click', function () { closeBackgrounds(); });
+  $('background-preview').addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') closeBackgrounds();
+    if (e.key === 'Tab') { var nodes = this.querySelectorAll('button'), first = nodes[0], last = nodes[nodes.length - 1]; if (e.shiftKey && document.activeElement === first) { last.focus(); e.preventDefault(); } else if (!e.shiftKey && document.activeElement === last) { first.focus(); e.preventDefault(); } }
+  });
+  function applyPreferences() { document.documentElement.style.setProperty('--frame-background', backgroundColors[preferences.background]); layers.forEach(function (p) { p.style.objectFit = preferences.fit; }); video.style.objectFit = preferences.fit; if (!preferences.videoSound) { video.muted = true; soundUnlocked = false; } if (!preferences.videos && videoActive) { stopVideo(true); currentPhoto = -1; photoBusy = false; changePhoto(1); } soundControl(); $('board').className = 'layout-' + preferences.layout + (preferences.fontSize === 'large' ? ' large-type' : '');
     ['clock', 'date', 'highlow'].forEach(function (key) { $(key).hidden = !preferences[key]; }); document.querySelector('.weather-overlay').hidden = !preferences.temperature; $('event-overlay').hidden = !preferences.event; $('dinner-overlay').hidden = !preferences.dinner || preferences.weeklyDinners; $('dinner-week-overlay').hidden = !preferences.weeklyDinners;
     document.querySelectorAll('button[data-mode]').forEach(function (b) { b.hidden = !preferences[b.dataset.mode]; }); renderInformation(); updateClock(); }
   function updateClock() { var now = new Date(); $('clock').textContent = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' }).format(now).replace(/\s[AP]M$/, ''); $('clock').dateTime = now.toISOString(); $('date').textContent = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'long', month: 'long', day: 'numeric' }).format(now); document.querySelectorAll('.date-label').forEach(function (n) { n.textContent = $('date').textContent; }); var h = Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'America/New_York', hour: '2-digit', hourCycle: 'h23' }).format(now)); var night = preferences.nightStart > preferences.nightEnd ? h >= preferences.nightStart || h < preferences.nightEnd : h >= preferences.nightStart && h < preferences.nightEnd; $('night-shade').hidden = !preferences.night || !night; var d = C.zonedDay(now); if (d !== day) { day = d; if (demo) { events = C.sampleEvents(day); meals = C.sampleMeals(day); } renderInformation(); } }
   function loadSnapshot() {
     snapshotTime = Date.now(); fetch('/api/snapshot', { credentials: 'same-origin', cache: 'no-store' }).then(function (r) { if (r.status === 401) { lockDisplay(); throw new Error(); } if (!r.ok) return null; return r.json(); }).then(function (data) {
       if (!data || data.demo) return; demo = false; $('demo-status').hidden = true; offlineLeaseUntil = data.offlineLeaseUntil || 0; offlineSnapshot = !!data.offline; $('locked').hidden = true; events = data.events || []; meals = data.meals || []; $('sample-label').textContent = data.stale ? 'Sync interrupted · last saved information' : 'Household display'; $('data-source').textContent = data.stale ? 'Last saved information · sync interrupted' : 'Household calendars & Plan to Eat';
-      if (data.preferences) { preferences = C.settings(data.preferences); applyPreferences(); }
+      if (data.preferences) { preferences = C.settings(data.preferences); try { var deviceBackground = localStorage.getItem('adventuresdisplay.background.v1'); if (Object.prototype.hasOwnProperty.call(backgroundColors, deviceBackground)) preferences.background = deviceBackground; } catch (e) { /* Use household defaults when storage is unavailable. */ } applyPreferences(); }
       $('demo-video').hidden = true;
       if (Array.isArray(data.photos)) { var oldId = photos[currentPhoto] && photos[currentPhoto].id; photos = data.photos; var retained = photos.findIndex(function (p) { return p.id === oldId; }); currentPhoto = retained; if (retained < 0) { photoHistory = []; historyPosition = -1; photoToken++; stopVideo(true); photoBusy = false; layers.forEach(function (layer) { layer.removeAttribute('src'); layer.alt = ''; }); if (photos.length) changePhoto(1); else notify('Your album is empty. Connect a photo source in administration.'); } $('photo-count').textContent = photos.length ? Math.max(1, currentPhoto + 1) + ' / ' + photos.length : 'No album items'; }
       renderInformation(); if (data.stale) notify('A source could not sync. Showing last saved information.');
     }).catch(function () { /* Preserve loaded content during network interruption. */ });
   }
-  function lockDisplay() { $('locked').hidden = false; $('photos').hidden = true; photoToken++; stopVideo(true); photoHistory = []; historyPosition = -1; events = []; meals = []; photos = []; layers.forEach(function (layer) { layer.removeAttribute('src'); layer.alt = ''; }); renderInformation(); }
+  function lockDisplay() { closeBackgrounds(false); $('locked').hidden = false; $('photos').hidden = true; photoToken++; stopVideo(true); photoHistory = []; historyPosition = -1; events = []; meals = []; photos = []; layers.forEach(function (layer) { layer.removeAttribute('src'); layer.alt = ''; }); renderInformation(); }
   function tick() { var now = Date.now(); updateClock(); if (!document.hidden && $('locked').hidden) {
     if (!demo && (offlineSnapshot || !navigator.onLine) && (!offlineLeaseUntil || offlineLeaseUntil <= now)) { lockDisplay(); return; }
-    if (!manual && $('preferences').hidden && !videoActive) { var scheduled = C.modeAt(preferences, (now - cycleStart) / 1000); if (mode !== scheduled) setMode(scheduled); }
-    if ((mode === 'pure' || mode === 'ambient') && !paused && !videoActive && now - lastSlide >= preferences.interval * 1000) changePhoto(1);
-    if (videoActive && !paused && (mode === 'pure' || mode === 'ambient') && now - videoStartedAt > 105000) { notify('Skipping a stalled video.'); changePhoto(1); }
-    if (now - lastInteraction > preferences.inactivity * 1000) { if (!$('preferences').hidden) closePreferences(); if (manual) { manual = false; cycleStart = now; setMode(preferredPhotoMode()); } $('navigation').hidden = true; $('photo-controls').hidden = true; }
+    if (!manual && $('preferences').hidden && $('background-preview').hidden && !videoActive) { var scheduled = C.modeAt(preferences, (now - cycleStart) / 1000); if (mode !== scheduled) setMode(scheduled); }
+    if ((mode === 'pure' || mode === 'ambient') && !paused && !videoActive && $('background-preview').hidden && now - lastSlide >= preferences.interval * 1000) changePhoto(1);
+    if (videoActive && !paused && $('background-preview').hidden && (mode === 'pure' || mode === 'ambient') && now - videoStartedAt > 105000) { notify('Skipping a stalled video.'); changePhoto(1); }
+    if (now - lastInteraction > preferences.inactivity * 1000) { if (!$('background-preview').hidden) closeBackgrounds(); if (!$('preferences').hidden) closePreferences(); if (manual) { manual = false; cycleStart = now; setMode(preferredPhotoMode()); } $('navigation').hidden = true; $('photo-controls').hidden = true; }
     else if (now - lastInteraction > 8000) { $('navigation').hidden = true; $('photo-controls').hidden = true; }
     if (preferences.liveWeather && now - weatherUpdated >= 900000 && navigator.onLine) loadWeather();
     if (now - snapshotTime >= 900000 && navigator.onLine) loadSnapshot();

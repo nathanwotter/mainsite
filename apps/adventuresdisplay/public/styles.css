@@ -1,6 +1,6 @@
 :root { color-scheme:light; --paper:#f2f3ec; --ink:#263c34; --muted:#65746b; --line:#d5ddcf; --accent:#3b6251; }
 * { box-sizing:border-box; }
-html,body { margin:0; width:100%; height:100%; font:16px -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; color:var(--ink); background:#12251e; }
+html,body { margin:0; width:100%; height:100%; font:16px -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; color:var(--ink); background:var(--frame-background,#12251e); }
 button,input,select { font:inherit; color:inherit; }
 button,a { -webkit-tap-highlight-color:transparent; }
 button { cursor:pointer; border:0; min-height:48px; background:transparent; }
@@ -14,12 +14,12 @@ small,.fineprint { font-size:13px; line-height:1.5; color:var(--muted); }
 a { color:inherit; }
 #board { height:100%; position:relative; }
 #photos,#photo-stage,.photo,.shade,#overlays { position:absolute; inset:0; width:100%; height:100%; }
-#photos { background:#12251e; overflow:hidden; }
+#photos { background:var(--frame-background,#12251e); overflow:hidden; }
 #photo-stage { cursor:pointer; touch-action:pan-y pinch-zoom; -webkit-user-select:none; user-select:none; }
 #photo-stage img { -webkit-user-drag:none; }
 .photo { object-fit:contain; object-position:center; opacity:0; transition:opacity 1.8s ease; }
 .photo.active { opacity:1; }
-.album-video { position:absolute; inset:0; width:100%; height:100%; object-fit:contain; opacity:0; pointer-events:none; transition:opacity 1.8s ease; background:#12251e; }
+.album-video { position:absolute; inset:0; width:100%; height:100%; object-fit:contain; opacity:0; pointer-events:none; transition:opacity 1.8s ease; background:var(--frame-background,#12251e); }
 .album-video.active { opacity:1; }
 #video-play { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); z-index:3; color:white; background:#173127e8; border-radius:15px; padding:12px 22px; }
 #photo-controls #demo-video { font-size:13px; padding:5px 10px; }
@@ -135,3 +135,19 @@ fieldset { border:0; border-top:1px solid var(--line); padding:16px 0; margin:25
 .clip-sound[data-sound=off] .sound-playing,.clip-sound[data-sound=on] .sound-muted { display:none; }
 @media(max-width:760px) { .clip-sound { left:24px; bottom:24px; } #photos.has-video #dinner-week-overlay { bottom:92px; } }
 @media(max-height:600px) and (min-width:761px) { .clip-sound { bottom:22px; } }
+
+/* Four background samples share one existing photograph; no extra image processing. */
+#background-preview { position:fixed; inset:0; z-index:9; background:#171a1c; color:#fff; display:flex; flex-direction:column; padding:22px; }
+#background-preview header { display:flex; justify-content:space-between; align-items:center; padding:0 4px 16px; gap:16px; }
+#background-preview h2 { font:400 28px/1.2 Georgia,serif; margin:0 0 6px; }
+#background-preview p { font-size:14px; color:#c6cbce; margin:0; }
+#backgrounds-close { font-size:32px; min-width:48px; color:white; }
+#background-options { flex:1; min-height:0; display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr; gap:3px; }
+.background-option { position:relative; overflow:hidden; border-radius:10px; color:white; text-align:left; padding:0; }
+.background-option[aria-pressed=true] { box-shadow:inset 0 0 0 2px #fff; }
+.background-name { position:absolute; top:16px; left:20px; right:20px; display:flex; align-items:center; justify-content:space-between; font-size:17px; gap:8px; }
+.background-name small { color:#fff; opacity:.6; font-size:11px; letter-spacing:1px; }
+.background-photo { position:absolute; top:56px; left:28px; right:28px; bottom:22px; }
+.background-photo img { display:block; width:100%; height:100%; object-fit:contain; pointer-events:none; }
+#background-preview .background-note { padding-top:14px; text-align:center; font-size:12px; }
+@media(max-width:600px) { #background-preview{padding:12px}#background-preview h2{font-size:24px}#background-preview header p{font-size:12px}.background-name{left:12px;top:14px;display:block;font-size:15px}.background-name small{display:block;margin-top:4px}.background-photo{left:12px;right:12px;top:68px;bottom:18px} }

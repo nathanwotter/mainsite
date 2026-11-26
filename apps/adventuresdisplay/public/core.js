@@ -1,6 +1,6 @@
 (function (root) {
   'use strict';
-  var defaults = { interval: 45, inactivity: 60, fit: 'contain', shuffle: true, clock: true, date: true, temperature: true, highlow: true, event: false, dinner: false, weeklyDinners: true, night: true, fontSize: 'normal', liveWeather: true, layout: 'kitchen', pure: true, ambient: true, today: true, week: true, pureSeconds: 270, ambientSeconds: 270, todaySeconds: 30, weekSeconds: 30, outlookEvery: 1, nightStart: 22, nightEnd: 7, latitude: 35.7796, longitude: -78.6382, location: 'Raleigh, NC', family: true, home: true, activities: true, videos: true, videoSound: false };
+  var defaults = { interval: 45, inactivity: 60, fit: 'contain', background: 'evergreen', shuffle: true, clock: true, date: true, temperature: true, highlow: true, event: false, dinner: false, weeklyDinners: true, night: true, fontSize: 'normal', liveWeather: true, layout: 'kitchen', pure: true, ambient: true, today: true, week: true, pureSeconds: 270, ambientSeconds: 270, todaySeconds: 30, weekSeconds: 30, outlookEvery: 1, nightStart: 22, nightEnd: 7, latitude: 35.7796, longitude: -78.6382, location: 'Raleigh, NC', family: true, home: true, activities: true, videos: true, videoSound: false };
   function settings(input) {
     var result = Object.assign({}, defaults);
     if (!input || typeof input !== 'object') return result;
@@ -13,6 +13,7 @@
       if (input[key] !== undefined && Number.isFinite(value) && value >= ranges[key][0] && value <= ranges[key][1]) result[key] = key === 'latitude' || key === 'longitude' ? value : Math.round(value);
     });
     if (['contain', 'cover'].indexOf(input.fit) >= 0) result.fit = input.fit;
+    if (['evergreen', 'charcoal', 'taupe', 'slate', 'ink'].indexOf(input.background) >= 0) result.background = input.background;
     if (['normal', 'large'].indexOf(input.fontSize) >= 0) result.fontSize = input.fontSize;
     if (['kitchen', 'corners', 'bottom', 'minimal'].indexOf(input.layout) >= 0) result.layout = input.layout;
     if (typeof input.location === 'string' && input.location.trim()) result.location = input.location.trim().slice(0, 70);
