@@ -1,6 +1,6 @@
 (function (root) {
   'use strict';
-  var defaults = { interval: 45, inactivity: 60, fit: 'contain', shuffle: true, clock: true, date: true, temperature: true, highlow: false, event: false, dinner: true, night: true, fontSize: 'normal', liveWeather: false, layout: 'corners', pure: true, ambient: true, today: true, week: true, pureSeconds: 270, ambientSeconds: 270, todaySeconds: 30, weekSeconds: 30, outlookEvery: 1, nightStart: 22, nightEnd: 7, latitude: 35.7796, longitude: -78.6382, location: 'Raleigh, NC', family: true, home: true, activities: true, videos: true, videoSound: false };
+  var defaults = { interval: 45, inactivity: 60, fit: 'contain', shuffle: true, clock: true, date: true, temperature: true, highlow: false, event: false, dinner: false, weeklyDinners: true, night: true, fontSize: 'normal', liveWeather: true, layout: 'kitchen', pure: true, ambient: true, today: true, week: true, pureSeconds: 270, ambientSeconds: 270, todaySeconds: 30, weekSeconds: 30, outlookEvery: 1, nightStart: 22, nightEnd: 7, latitude: 35.7796, longitude: -78.6382, location: 'Raleigh, NC', family: true, home: true, activities: true, videos: true, videoSound: false };
   function settings(input) {
     var result = Object.assign({}, defaults);
     if (!input || typeof input !== 'object') return result;
@@ -14,7 +14,7 @@
     });
     if (['contain', 'cover'].indexOf(input.fit) >= 0) result.fit = input.fit;
     if (['normal', 'large'].indexOf(input.fontSize) >= 0) result.fontSize = input.fontSize;
-    if (['corners', 'bottom', 'minimal'].indexOf(input.layout) >= 0) result.layout = input.layout;
+    if (['kitchen', 'corners', 'bottom', 'minimal'].indexOf(input.layout) >= 0) result.layout = input.layout;
     if (typeof input.location === 'string' && input.location.trim()) result.location = input.location.trim().slice(0, 70);
     if (!result.pure && !result.ambient) result.pure = true;
     return result;
@@ -55,7 +55,7 @@
   function rotation(p) {
     var steps = [];
     for (var c = 0; c < p.outlookEvery; c++) {
-      ['pure', 'ambient'].forEach(function (mode) { if (p[mode]) steps.push({ mode: mode, seconds: p[mode + 'Seconds'] }); });
+      (p.layout === 'kitchen' ? ['ambient', 'pure'] : ['pure', 'ambient']).forEach(function (mode) { if (p[mode]) steps.push({ mode: mode, seconds: p[mode + 'Seconds'] }); });
     }
     ['today', 'week'].forEach(function (mode) { if (p[mode]) steps.push({ mode: mode, seconds: p[mode + 'Seconds'] }); });
     return steps;

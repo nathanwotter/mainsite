@@ -2,7 +2,12 @@
   'use strict';
   var C = window.AdventuresDisplayCore, $ = function (id) { return document.getElementById(id); };
   var preferences;
-  try { preferences = C.settings(JSON.parse(localStorage.getItem('adventuresdisplay.preferences.v2'))); } catch (e) { preferences = C.settings(); }
+  try {
+    var currentSettings = localStorage.getItem('adventuresdisplay.preferences.v3');
+    if (currentSettings) preferences = C.settings(JSON.parse(currentSettings));
+    else { var previousSettings = JSON.parse(localStorage.getItem('adventuresdisplay.preferences.v2')) || {}; preferences = C.settings(Object.assign({}, previousSettings, { layout: 'kitchen', clock: true, date: true, temperature: true, weeklyDinners: true, dinner: false, liveWeather: true })); localStorage.setItem('adventuresdisplay.preferences.v3', JSON.stringify(preferences)); }
+  } catch (e) { preferences = C.settings(); }
+  function preferredPhotoMode() { return preferences.layout === 'kitchen' && preferences.ambient ? 'ambient' : preferences.pure ? 'pure' : 'ambient'; }
   var photos = [
     { id: 'lake', src: '/photos/lake.jpg', alt: 'Still mountain lake in evening light', addedAt: '2026-11-26' },
     { id: 'coast', src: '/photos/coast.jpg', alt: 'Sunlight across quiet ocean waves', addedAt: '2026-10-01' },
@@ -86,7 +91,7 @@
   $('pause-slides').addEventListener('click', function () { paused = !paused; this.textContent = paused ? '▶' : 'Ⅱ'; this.setAttribute('aria-label', paused ? 'Resume slideshow' : 'Pause slideshow'); lastSlide = Date.now(); if (paused) video.pause(); else playVideo(); });
   video.addEventListener('ended', function () { video.muted = true; soundControl(); if (!paused) changePhoto(1); });
   $('video-play').addEventListener('click', function () { playVideo(); reveal(); });
-  $('video-sound').addEventListener('click', function () { preferences.videoSound = video.muted; soundUnlocked = preferences.videoSound; video.muted = !preferences.videoSound; soundControl(); try { localStorage.setItem('adventuresdisplay.preferences.v2', JSON.stringify(preferences)); } catch (e) { /* Apply for this visit. */ } if (paused) return; var p = video.play(); if (p) p.catch(function () { video.muted = true; soundControl(); $('video-play').hidden = false; }); });
+  $('video-sound').addEventListener('click', function () { preferences.videoSound = video.muted; soundUnlocked = preferences.videoSound; video.muted = !preferences.videoSound; soundControl(); try { localStorage.setItem('adventuresdisplay.preferences.v3', JSON.stringify(preferences)); } catch (e) { /* Apply for this visit. */ } if (paused) return; var p = video.play(); if (p) p.catch(function () { video.muted = true; soundControl(); $('video-play').hidden = false; }); });
   $('demo-video').addEventListener('click', function () { if (!preferences.videos) { notify('Enable album videos in Display preferences first.'); return; } var index = photos.findIndex(function (p) { return p.type === 'video'; }); if (index >= 0) changePhoto(1, index); });
   var touchX = null, touchY = null, swiped = false;
   $('photo-stage').addEventListener('touchstart', function (e) { touchX = e.changedTouches[0].clientX; touchY = e.changedTouches[0].clientY; }, { passive: true });
@@ -108,6 +113,15 @@
     var nextEvent = todayEvents.filter(function (e) { var match = /^(\d+):(\d+)\s*([AP]M)/.exec(e.time); return match && ((Number(match[1]) % 12) * 60 + Number(match[2]) + (match[3] === 'PM' ? 720 : 0)) >= minutes; })[0]; $('next-event').textContent = nextEvent ? nextEvent.time + ' · ' + nextEvent.title : 'Nothing else on the calendar';
     $('dinner-text').textContent = todayMeals.length ? todayMeals.map(function (m) { return m.title; }).join(' · ') : 'No dinner planned';
     $('dinner-label').textContent = demo ? 'TONIGHT’S DINNER · SAMPLE' : 'TONIGHT’S DINNER';
+    $('dinner-week-label').textContent = demo ? 'DINNERS THIS WEEK · SAMPLE' : 'DINNERS THIS WEEK';
+    $('dinner-week-list').textContent = '';
+    for (var dinnerDay = 0; dinnerDay < 7; dinnerDay++) {
+      var dinnerDate = C.addDays(day, dinnerDay), dinners = meals.filter(function (meal) { return meal.day === dinnerDate; });
+      var dinnerRow = element('li', 'dinner-day' + (dinnerDay === 0 ? ' dinner-today' : '') + (!dinners.length ? ' dinner-unplanned' : ''));
+      var dinnerTime = element('time', '', dinnerDay === 0 ? 'Today' : labelDay(dinnerDate, { weekday: 'short' })); dinnerTime.dateTime = dinnerDate; dinnerRow.appendChild(dinnerTime);
+      dinnerRow.appendChild(element('span', 'dinner-name', dinners.length ? dinners.map(function (meal) { return meal.title; }).join(' · ') : 'Unplanned'));
+      $('dinner-week-list').appendChild(dinnerRow);
+    }
     $('week-days').textContent = '';
     for (var i = 0; i < 7; i++) {
       var date = C.addDays(day, i), column = element('section', 'week-day'), forecast = weather.daily.filter(function (d) { return d.day === date; })[0];
@@ -121,8 +135,9 @@
     }
   }
   function renderWeather() {
-    $('temperature').textContent = weather.temp + '°';
+    $('temperature').textContent = weather.temp + '°'; $('overlay-condition').textContent = weather.text;
     var icon = weather.code >= 51 ? '<path d="M5 16h14M8 21l-1 2m6-2-1 2m6-2-1 2M6 16a4 4 0 010-8 6 6 0 0111-1 4 4 0 012 9"/>' : weather.code > 2 ? '<path d="M5 18a5 5 0 010-10 7 7 0 0113-1 5 5 0 011 11Z"/>' : '<circle cx="12" cy="12" r="4"/><path d="M12 1v3m0 16v3M1 12h3m16 0h3M4 4l2 2m12 12 2 2M4 20l2-2M18 6l2-2"/>';
+    if (weather.code === 1 || weather.code === 2) icon = '<circle cx="8" cy="8" r="3"/><path d="M8 1v2M1 8h2M3 3l1.5 1.5M13 3l-1.5 1.5M6 20h12a4 4 0 0 0 .4-8 5.5 5.5 0 0 0-10.6 1A3.5 3.5 0 0 0 6 20Z"/>';
     $('weather-icon').innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round">' + icon + '</svg>';
     $('highlow').textContent = 'H ' + weather.high + '° · L ' + weather.low + '°';
     var source = weather.live ? (weather.stale ? 'Weather stale' : 'Updated ' + new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' }).format(new Date(weatherUpdated))) : 'Sample weather';
@@ -142,18 +157,18 @@
   }
   var fields = { interval: ['Seconds per photograph', 10, 600], inactivity: ['Return to photos after (seconds)', 15, 600], pureSeconds: ['Pure Photos duration (seconds)', 15, 3600], ambientSeconds: ['Ambient Photos duration (seconds)', 15, 3600], todaySeconds: ['Today duration (seconds)', 15, 300], weekSeconds: ['Weekly Outlook duration (seconds)', 15, 300], outlookEvery: ['Show outlook after this many photo cycles', 1, 12], nightStart: ['Dim from hour (Eastern, 0–23)', 0, 23], nightEnd: ['Dim until hour (Eastern, 0–23)', 0, 23], location: ['Weather location name'], latitude: ['Latitude', -90, 90], longitude: ['Longitude', -180, 180] };
   Object.keys(fields).forEach(function (key) { var label = element('label', '', fields[key][0]), input = element('input'); input.name = key; input.required = true; input.type = fields[key].length > 1 ? 'number' : 'text'; if (fields[key].length > 1) { input.min = fields[key][1]; input.max = fields[key][2]; input.step = key === 'latitude' || key === 'longitude' ? 'any' : '1'; } label.appendChild(input); $('preference-fields').appendChild(label); });
-  var selects = { fit: ['Photo layout', [['contain', 'Fit · preserve the whole photograph'], ['cover', 'Fill · may crop edges']]], layout: ['Overlay placement', [['corners', 'Quiet corners'], ['bottom', 'Lower edge'], ['minimal', 'Essentials only']]], fontSize: ['Type size', [['normal', 'Comfortable'], ['large', 'Larger']]] };
+  var selects = { fit: ['Photo layout', [['contain', 'Fit · preserve the whole photograph'], ['cover', 'Fill · may crop edges']]], layout: ['Overlay placement', [['kitchen', 'Kitchen corners · weekly dinners'], ['corners', 'Quiet corners'], ['bottom', 'Lower edge'], ['minimal', 'Essentials only']]], fontSize: ['Type size', [['normal', 'Comfortable'], ['large', 'Larger']]] };
   Object.keys(selects).forEach(function (key) { var label = element('label', '', selects[key][0]), select = element('select'); select.name = key; selects[key][1].forEach(function (pair) { var opt = element('option', '', pair[1]); opt.value = pair[0]; select.appendChild(opt); }); label.appendChild(select); $('preference-fields').appendChild(label); });
-  var checks = { pure: 'Pure Photos', ambient: 'Ambient Photos', today: 'Today', week: 'Weekly Outlook', clock: 'Clock', date: 'Date', temperature: 'Temperature & icon', highlow: 'Daily high & low', event: 'Next calendar event', dinner: 'Tonight’s dinner', shuffle: 'Favor recent photos, resurface older ones', videos: 'Play album videos', videoSound: 'Allow clip sound after a tap', night: 'Nighttime visual dimming', liveWeather: 'Live weather', family: 'Family calendar', home: 'Home calendar', activities: 'Activities calendar' };
+  var checks = { pure: 'Pure Photos', ambient: 'Ambient Photos', today: 'Today', week: 'Weekly Outlook', clock: 'Clock', date: 'Date', temperature: 'Temperature & icon', highlow: 'Daily high & low', event: 'Next calendar event', dinner: 'Tonight’s dinner', weeklyDinners: 'Seven-day dinner overlay', shuffle: 'Favor recent photos, resurface older ones', videos: 'Play album videos', videoSound: 'Allow clip sound after a tap', night: 'Nighttime visual dimming', liveWeather: 'Live weather', family: 'Family calendar', home: 'Home calendar', activities: 'Activities calendar' };
   Object.keys(checks).forEach(function (key) { var label = element('label'), input = element('input'); input.name = key; input.type = 'checkbox'; label.appendChild(input); label.appendChild(document.createTextNode(checks[key])); $('preference-checks').appendChild(label); });
   function closePreferences() { $('preferences').hidden = true; lastInteraction = Date.now(); if (returnFocus) returnFocus.focus(); }
   $('preferences-open').addEventListener('click', function () { returnFocus = document.activeElement; Object.keys(preferences).forEach(function (key) { var field = $('preferences-form').elements.namedItem(key); if (field) { if (field.type === 'checkbox') field.checked = preferences[key]; else field.value = preferences[key]; } }); $('photo-share').textContent = C.photoShare(preferences) + '% of automatic rotation is photographs.'; $('preferences').hidden = false; $('preferences-close').focus(); });
   $('preferences-close').addEventListener('click', closePreferences);
   $('preferences').addEventListener('keydown', function (e) { if (e.key === 'Escape') closePreferences(); if (e.key === 'Tab') { var nodes = this.querySelectorAll('button,input,select'), first = nodes[0], last = nodes[nodes.length - 1]; if (e.shiftKey && document.activeElement === first) { last.focus(); e.preventDefault(); } else if (!e.shiftKey && document.activeElement === last) { first.focus(); e.preventDefault(); } } });
-  $('preferences-form').addEventListener('submit', function (e) { e.preventDefault(); var values = {}; Object.keys(preferences).forEach(function (key) { var f = $('preferences-form').elements.namedItem(key); if (f) values[key] = f.type === 'checkbox' ? f.checked : f.value; }); preferences = C.settings(values); try { localStorage.setItem('adventuresdisplay.preferences.v2', JSON.stringify(preferences)); } catch (error) { notify('Preferences apply until this page closes; local storage is unavailable.'); } applyPreferences(); cycleStart = Date.now(); manual = false; setMode(preferences.pure ? 'pure' : 'ambient'); closePreferences(); if (preferences.liveWeather) loadWeather(); });
+  $('preferences-form').addEventListener('submit', function (e) { e.preventDefault(); var values = {}; Object.keys(preferences).forEach(function (key) { var f = $('preferences-form').elements.namedItem(key); if (f) values[key] = f.type === 'checkbox' ? f.checked : f.value; }); preferences = C.settings(values); try { localStorage.setItem('adventuresdisplay.preferences.v3', JSON.stringify(preferences)); } catch (error) { notify('Preferences apply until this page closes; local storage is unavailable.'); } applyPreferences(); cycleStart = Date.now(); manual = false; setMode(preferredPhotoMode()); closePreferences(); if (preferences.liveWeather) loadWeather(); });
   $('refresh-weather').addEventListener('click', loadWeather);
   function applyPreferences() { layers.forEach(function (p) { p.style.objectFit = preferences.fit; }); video.style.objectFit = preferences.fit; if (!preferences.videoSound) { video.muted = true; soundUnlocked = false; } if (!preferences.videos && videoActive) { stopVideo(true); currentPhoto = -1; photoBusy = false; changePhoto(1); } soundControl(); $('board').className = 'layout-' + preferences.layout + (preferences.fontSize === 'large' ? ' large-type' : '');
-    ['clock', 'date', 'highlow'].forEach(function (key) { $(key).hidden = !preferences[key]; }); document.querySelector('.weather-overlay').hidden = !preferences.temperature; $('event-overlay').hidden = !preferences.event; $('dinner-overlay').hidden = !preferences.dinner;
+    ['clock', 'date', 'highlow'].forEach(function (key) { $(key).hidden = !preferences[key]; }); document.querySelector('.weather-overlay').hidden = !preferences.temperature; $('event-overlay').hidden = !preferences.event; $('dinner-overlay').hidden = !preferences.dinner || preferences.weeklyDinners; $('dinner-week-overlay').hidden = !preferences.weeklyDinners;
     document.querySelectorAll('button[data-mode]').forEach(function (b) { b.hidden = !preferences[b.dataset.mode]; }); renderInformation(); updateClock(); }
   function updateClock() { var now = new Date(); $('clock').textContent = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' }).format(now).replace(/\s[AP]M$/, ''); $('clock').dateTime = now.toISOString(); $('date').textContent = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'long', month: 'long', day: 'numeric' }).format(now); document.querySelectorAll('.date-label').forEach(function (n) { n.textContent = $('date').textContent; }); var h = Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'America/New_York', hour: '2-digit', hourCycle: 'h23' }).format(now)); var night = preferences.nightStart > preferences.nightEnd ? h >= preferences.nightStart || h < preferences.nightEnd : h >= preferences.nightStart && h < preferences.nightEnd; $('night-shade').hidden = !preferences.night || !night; var d = C.zonedDay(now); if (d !== day) { day = d; if (demo) { events = C.sampleEvents(day); meals = C.sampleMeals(day); } renderInformation(); } }
   function loadSnapshot() {
@@ -171,7 +186,7 @@
     if (!manual && $('preferences').hidden && !videoActive) { var scheduled = C.modeAt(preferences, (now - cycleStart) / 1000); if (mode !== scheduled) setMode(scheduled); }
     if ((mode === 'pure' || mode === 'ambient') && !paused && !videoActive && now - lastSlide >= preferences.interval * 1000) changePhoto(1);
     if (videoActive && !paused && (mode === 'pure' || mode === 'ambient') && now - videoStartedAt > 105000) { notify('Skipping a stalled video.'); changePhoto(1); }
-    if (now - lastInteraction > preferences.inactivity * 1000) { if (!$('preferences').hidden) closePreferences(); if (manual) { manual = false; cycleStart = now; setMode(preferences.pure ? 'pure' : 'ambient'); } $('navigation').hidden = true; $('photo-controls').hidden = true; }
+    if (now - lastInteraction > preferences.inactivity * 1000) { if (!$('preferences').hidden) closePreferences(); if (manual) { manual = false; cycleStart = now; setMode(preferredPhotoMode()); } $('navigation').hidden = true; $('photo-controls').hidden = true; }
     else if (now - lastInteraction > 8000) { $('navigation').hidden = true; $('photo-controls').hidden = true; }
     if (preferences.liveWeather && now - weatherUpdated >= 900000 && navigator.onLine) loadWeather();
     if (now - snapshotTime >= 900000 && navigator.onLine) loadSnapshot();
@@ -179,6 +194,6 @@
   document.addEventListener('visibilitychange', function () { if (document.hidden) { video.pause(); video.muted = true; } else { lastSlide = Date.now(); videoStartedAt = Date.now(); updateClock(); playVideo(); if (Date.now() - snapshotTime > 900000) loadSnapshot(); } });
   window.addEventListener('online', function () { loadSnapshot(); if (preferences.liveWeather) loadWeather(); });
   window.addEventListener('offline', function () { notify('Offline · using saved photographs. Information may be out of date.'); });
-  applyPreferences(); renderWeather(); setMode(preferences.pure ? 'pure' : 'ambient'); loadSnapshot(); if (preferences.liveWeather) loadWeather(); setInterval(tick, 1000);
+  applyPreferences(); renderWeather(); setMode(preferredPhotoMode()); loadSnapshot(); if (preferences.liveWeather) loadWeather(); setInterval(tick, 1000);
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(function () { /* The online frame remains available. */ });
 })();

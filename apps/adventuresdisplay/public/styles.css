@@ -102,3 +102,22 @@ fieldset { border:0; border-top:1px solid var(--line); padding:16px 0; margin:25
 @media(max-width:760px) { .week-day{display:grid;grid-template-columns:75px 1fr;gap:8px 16px}.week-date-block{grid-column:1;grid-row:1 / 3}.week-forecast{grid-column:2;grid-row:1}.week-agenda,.week-meal{grid-column:2}.week-forecast span{display:inline}.week-meal{border:0;padding:0} }
 @media(prefers-reduced-motion:reduce) { .photo,.album-video,.shade,#overlays{transition:none}.page{animation:none} }
 #demo-status { position:fixed; top:max(16px,env(safe-area-inset-top)); left:50%; transform:translateX(-50%); z-index:3; max-width:90%; width:max-content; margin:0; padding:10px 16px; border-radius:12px; background:#173127ed; color:#fff; text-align:center; font-size:16px; line-height:1.4; pointer-events:none; }
+
+/* Kitchen photo overlays: no blur filters or additional image layers. */
+#overlay-condition { font-size:18px; line-height:1.35; margin:8px 0 0; }
+.layout-kitchen .time-block { top:42px; left:44px; max-width:56%; }
+.layout-kitchen .weather-overlay { top:42px; right:44px; max-width:30%; }
+.layout-kitchen .weather-overlay>div { font-size:56px; line-height:1; }
+.layout-kitchen #weather-source { display:block; margin-top:7px; font-size:12px; }
+#dinner-week-overlay { position:absolute; right:40px; bottom:38px; width:340px; max-width:calc(100% - 80px); padding:18px 20px; border-radius:16px; background:linear-gradient(120deg,#0d201b70,#0d201bba); text-shadow:0 1px 8px #0008; }
+#dinner-week-label { font:500 13px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; letter-spacing:1.8px; opacity:.8; margin:0 0 12px; }
+#dinner-week-list { list-style:none; margin:0; padding:0; display:grid; gap:9px; }
+.dinner-day { display:grid; grid-template-columns:52px minmax(0,1fr); column-gap:14px; align-items:baseline; font-size:18px; line-height:1.3; }
+.dinner-day time { font-size:15px; opacity:.76; }
+.dinner-name { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; }
+.dinner-today { font-weight:600; }.dinner-today time { opacity:1; }.dinner-unplanned .dinner-name { opacity:.55; font-weight:400; }
+.large-type .dinner-day { font-size:21px; }.large-type .dinner-day time { font-size:17px; }
+@media(max-width:760px) { .layout-kitchen .time-block{left:24px;top:34px;max-width:55%}.layout-kitchen .weather-overlay{right:24px;top:36px;max-width:37%}.layout-kitchen .weather-overlay>div{font-size:36px}.layout-kitchen #date{font-size:15px;line-height:1.4}.layout-kitchen #overlay-condition{font-size:15px}#dinner-week-overlay{right:22px;bottom:34px;width:330px;max-width:calc(100% - 44px);padding:16px 18px}.dinner-day{font-size:17px}.dinner-day time{font-size:14px} }
+@media(max-height:600px) { #dinner-week-overlay{bottom:22px;width:310px;padding:12px 15px}#dinner-week-list{gap:5px}#dinner-week-label{margin-bottom:8px;font-size:12px}.dinner-day,.large-type .dinner-day{font-size:15px;line-height:1.2}.dinner-day time,.large-type .dinner-day time{font-size:13px}.dinner-name{-webkit-line-clamp:1}.layout-kitchen #clock{font-size:58px}.layout-kitchen .time-block,.layout-kitchen .weather-overlay{top:26px} }
+
+.layout-kitchen .weather-overlay>div { display:flex; align-items:center; justify-content:flex-end; gap:12px; }.layout-kitchen #weather-icon { margin-right:0; flex:0 0 34px; }

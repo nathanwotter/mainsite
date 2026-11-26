@@ -10,7 +10,7 @@ test('settings validate ranges and always enable a photograph mode', () => {
 });
 test('default rotation spends exactly 90% in photographs and transitions at the right times', () => {
   const p = C.settings(); assert.equal(C.photoShare(p), 90);
-  assert.equal(C.modeAt(p, 269), 'pure'); assert.equal(C.modeAt(p, 270), 'ambient'); assert.equal(C.modeAt(p, 540), 'today'); assert.equal(C.modeAt(p, 570), 'week'); assert.equal(C.modeAt(p, 600), 'pure');
+  assert.equal(C.modeAt(p, 269), 'ambient'); assert.equal(C.modeAt(p, 270), 'pure'); assert.equal(C.modeAt(p, 540), 'today'); assert.equal(C.modeAt(p, 570), 'week'); assert.equal(C.modeAt(p, 600), 'ambient');
   assert.equal(C.rotation(C.settings({ today: false, week: false })).length, 2);
   assert.ok(C.photoShare(C.settings({ outlookEvery: 3 })) > 90);
 });
