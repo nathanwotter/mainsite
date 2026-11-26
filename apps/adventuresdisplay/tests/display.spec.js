@@ -3,6 +3,7 @@ test.beforeEach(async ({ page }) => { await page.clock.install({ time: new Date(
 async function dock(page) { await page.locator('#photo-stage').click(); await expect(page.locator('#navigation')).toBeVisible(); }
 test('Pure Photos starts unobstructed with no permanent navigation or removed modules', async ({ page }) => {
   await expect(page.locator('#board')).toHaveAttribute('data-mode', 'pure'); await expect(page.locator('#overlays')).toHaveCSS('opacity', '0'); await expect(page.locator('#navigation')).toBeHidden();
+  await expect(page.locator('#demo-status')).toBeVisible(); await expect(page.locator('#demo-status')).toContainText('Your album is not connected yet');
   await expect(page.locator('#photo-a')).toHaveJSProperty('complete', true); expect(await page.locator('#photo-a').evaluate(n => n.naturalWidth)).toBeGreaterThan(1000);
   expect(await page.evaluate(() => document.documentElement.scrollHeight)).toBe(768); expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(1024);
   await expect(page.locator('audio')).toHaveCount(0); await page.screenshot({ animations: 'disabled', path: 'test-results/' + test.info().project.name + '-pure.png' });
@@ -48,7 +49,7 @@ test.use({ serviceWorkers: 'allow' });
 test('public photo cache supports offline relaunch without caching private API data', async ({ page, context }) => {
   await page.evaluate(async () => { const registration = await navigator.serviceWorker.ready; await registration.active; });
   await page.reload(); await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
-  await expect.poll(() => page.evaluate(async () => { const c = await caches.open('adventuresdisplay-demo-v4'); return !!await c.match('/demo-mode'); })).toBe(true);
+  await expect.poll(() => page.evaluate(async () => { const c = await caches.open('adventuresdisplay-demo-v5'); return !!await c.match('/demo-mode'); })).toBe(true);
   await context.setOffline(true); await page.reload(); await expect(page.locator('#photo-a')).toHaveJSProperty('complete', true); await expect(page.locator('#locked')).toBeHidden();
 });
 });
