@@ -21,3 +21,12 @@ The user authorized live publication without a private staging deployment. Only 
 Release checks: 29 Node tests, 24 browser tests and the production build passed. Netlify's Linux build published three functions. Live `/api/status` returns demo mode with authentication unconfigured; `/api/snapshot` returns only the demo flag; anonymous config/photo requests return 401. The live display was visually checked at 1024 × 768. Hardware Safari 15, household authentication/storage, real source synchronization, and video ingestion limits still require verification.
 
 When moving publication to `main`, merge/review the app branch first and then update only this Netlify project's production branch. Household mode must be explicitly configured with administrator authentication and encryption secrets before connecting private sources. Custom-domain DNS work remains pending approval.
+
+
+## Modern public album connector — current status
+
+The household enabled anonymous viewing on the existing modern album. Anonymous CloudKit resolution and a complete paginated media query now succeed without Apple account cookies. The new server adapter reads this format as well as legacy Public Website albums. A private end-to-end ingestion check retrieved and optimized 12 photographs and transcoded 1 video in two staging passes. JPEG output is bounded to 1600 px and strips EXIF. One original listing offered only a small JPEG derivative; higher-quality HEIC conversion is a future improvement. Source URLs, anonymous tokens and all household media remain outside Git/public assets.
+
+The adapter refreshes its anonymous token on each sync, validates Apple regional/media hosts, follows bounded continuation markers and joins master/asset records. Missing references, malformed pages and changed schemas preserve the last complete snapshot. Successful complete empty/deleted lists reconcile removals. Video support is now exercised against a real household clip locally; deployed function limits still require verification. This is an experimental Apple-specific protocol rather than a supported Photos service API.
+
+The existing album can be used; creating a second legacy album is no longer required. Runtime source defaults require ALLOW_PUBLIC_ICLOUD=true and ICLOUD_ALBUM_ACKNOWLEDGED=true together. Authentication enrollment and the private production environment import remain pending; do not enable household media in the public demo.

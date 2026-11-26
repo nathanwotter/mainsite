@@ -63,3 +63,6 @@ Order of work: **photographs and visual design, weather, Plan to Eat, family cal
 - Household chose a separate legacy Shared Album with Public Website. Await its link from the iPad Air 2. Actual modern album settings show People You Choose; preserve that album unchanged.
 - Implemented and tested expiring, atomic one-time administrator enrollment with encrypted credential storage and dedicated rate limiting. Production environment import and real enrollment remain pending.
 
+
+- [x] Existing modern album is now anonymously viewable. Implement modern read-only CloudKit adapter; verify 12 photo optimizations and 1 video transcode locally. Separate legacy album is no longer necessary.
+- [ ] Complete private runtime configuration/enrollment and verify the real album on the deployed authenticated frame.

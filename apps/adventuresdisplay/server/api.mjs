@@ -1,7 +1,6 @@
 import { cookieName, verifyPassword, sameOrigin, session, issueSession, encrypt } from './security.mjs';
 import { readConfig, synchronize } from './sync.mjs';
 import { validateURL } from './fetch-private.mjs';
-import { albumToken } from './icloud.mjs';
 import { videoResponse } from './video.mjs';
 import { classifyAlbumLink } from './icloud-link.mjs';
 import '../public/core.js';
@@ -76,9 +75,9 @@ export function createAPI(storage, env) {
         if (body.mealURL !== undefined && body.mealURL !== '') { config.mealURL = validateURL(body.mealURL, ['app.plantoeat.com']).href; if (!/\/recipes\/plantoeat-ical\.ics$/.test(new URL(config.mealURL).pathname)) return json({ error: 'Use the recipes-only Plan to Eat subscription' }, 400); }
         if (body.photoSource !== undefined && body.photoSource !== '') { config.photoSource = validateURL(body.photoSource, hosts).href; config.icloudURL = ''; }
         if (body.icloudURL) {
-          if (classifyAlbumLink(body.icloudURL) === 'modern') return json({ error: 'This newer photos.icloud.com album link is not supported by the legacy sync adapter. Check anonymous access with the private album diagnostic before choosing a connector. No sharing settings have been changed.' }, 409);
+          classifyAlbumLink(body.icloudURL);
           if (env.ALLOW_PUBLIC_ICLOUD !== 'true' || body.publicAlbumAcknowledged !== true) return json({ error: 'Public album use requires explicit privacy acknowledgment and server opt-in' }, 400);
-          albumToken(body.icloudURL); config.icloudURL = body.icloudURL; config.publicAlbumAcknowledged = true; config.photoSource = '';
+          config.icloudURL = body.icloudURL; config.publicAlbumAcknowledged = true; config.photoSource = '';
         }
         if (body.disconnectMeals) config.mealURL = '';
         if (body.disconnectPhotos) { config.photoSource = ''; config.icloudURL = ''; }

@@ -1,12 +1,15 @@
 // Experimental undocumented SharedStreams protocol; no Apple account credentials.
 // Protocol research: ghostops/ICloud-Shared-Album (MIT). No package dependency.
 import { fetchPrivate } from './fetch-private.mjs';
+import { classifyAlbumLink } from './icloud-link.mjs';
+import { modernIcloudManifest } from './icloud-modern.mjs';
 export function albumToken(input) {
   const url = new URL(input);
   if (url.protocol !== 'https:' || url.hostname !== 'www.icloud.com' || url.pathname !== '/sharedalbum/' || !/^#[A-Za-z0-9]{10,100}$/.test(url.hash)) throw new Error('Use a legacy iCloud Shared Album Public Website link');
   return url.hash.slice(1);
 }
 export async function icloudManifest(input, fetcher = fetchPrivate) {
+  if (classifyAlbumLink(input) === 'modern') return modernIcloudManifest(input, fetcher);
   const token = albumToken(input), chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
   const partition = (token[0] === 'A' ? token.slice(1, 2) : token.slice(1, 3)).split('').reduce((n, c) => n * 62 + chars.indexOf(c), 0);
   let host = 'p' + String(partition).padStart(2, '0') + '-sharedstreams.icloud.com';

@@ -20,9 +20,9 @@ test('even a returned anonymous token stays server-side and does not falsely rep
   const result = await inspectModernAlbum('https://photos.icloud.com/shared/album/fictionalLink123456', fetcher);
   assert.equal(result.anonymousAccess, true); assert.equal(result.synchronized, false); assert.doesNotMatch(JSON.stringify(result), /fictional-secret-token/);
 });
-test('administration reports unsupported modern links clearly without saving or enabling public sharing', async () => {
+test('administration requires explicit public-link consent and server opt-in for modern links', async () => {
   const storage = new MemoryStore(), identity = await issueSession(storage, 'admin');
   const api = createAPI(storage, { ADVENTURESDISPLAY_MODE: 'household', CONFIG_ENCRYPTION_KEY: 'f'.repeat(64) });
   const response = await api(new Request('https://frame.example/api/config', { method: 'POST', headers: { origin: 'https://frame.example', cookie: cookieName + '=' + identity.token, 'Content-Type': 'application/json' }, body: JSON.stringify({ icloudURL: 'https://photos.icloud.com/shared/album/fictionalLink123456' }) }));
-  assert.equal(response.status, 409); assert.match((await response.json()).error, /newer photos.icloud.com/); assert.equal(await storage.get('configuration'), null);
+  assert.equal(response.status, 400); assert.match((await response.json()).error, /privacy acknowledgment/); assert.equal(await storage.get('configuration'), null);
 });

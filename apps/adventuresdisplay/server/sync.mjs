@@ -8,7 +8,7 @@ import '../public/core.js';
 import { optimizeVideo } from './video.mjs';
 export async function readConfig(storage, env) {
   const saved = await storage.get('configuration', { type: 'json' });
-  return saved ? decrypt(saved, env.CONFIG_ENCRYPTION_KEY) : { mealURL: env.PLAN_TO_EAT_FEED_URL || '', calendars: [], photoSource: '' };
+  return saved ? decrypt(saved, env.CONFIG_ENCRYPTION_KEY) : { mealURL: env.PLAN_TO_EAT_FEED_URL || '', calendars: [], photoSource: '', icloudURL: env.ALLOW_PUBLIC_ICLOUD === 'true' && env.ICLOUD_ALBUM_ACKNOWLEDGED === 'true' ? env.ICLOUD_ALBUM_URL || '' : '', publicAlbumAcknowledged: env.ICLOUD_ALBUM_ACKNOWLEDGED === 'true' };
 }
 export async function synchronize(storage, env, { now = new Date(), fetcher = fetchPrivate } = {}) {
   const config = await readConfig(storage, env);
