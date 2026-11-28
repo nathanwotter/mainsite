@@ -20,10 +20,10 @@ Tap to reveal navigation; controls fade after eight seconds. The default rotatio
 | --- | --- | --- |
 | Ambient Photos | 540 seconds | Clock/date/weather/dinner overlays stay visible throughout photo playback |
 | Pure Photos | Manual / opt-in | Entirely unobstructed photographs |
-| Today | 30 seconds | Current/hourly weather, today’s events/meals and tomorrow’s highlights |
-| Weekly Outlook | 30 seconds | Seven readable rows of weather, events and dinners |
+| Today | Manual only | Current/hourly weather, today’s events/meals and tomorrow’s highlights |
+| Weekly Outlook | Manual only | Seven readable rows of weather, events and dinners |
 
-That is **90% photographs**. Display preferences control mode enablement, duration, number of photo cycles between outlooks, slideshow speed, fit/fill, random album playback, overlay contents, three placements, type size, weather coordinates and night hours. At least one photo mode remains enabled. Manual navigation returns to photos after the inactivity timeout; automatic information modes return according to the rotation. There is no permanent navigation, branding or demo banner on photographs.
+Automatic playback is **100% photographs**. Display preferences control mode enablement, duration, number of photo cycles between outlooks, slideshow speed, fit/fill, random album playback, overlay contents, three placements, type size, weather coordinates and night hours. At least one photo mode remains enabled. Manual navigation returns to photos after the inactivity timeout; automatic information modes return according to the rotation. There is no permanent navigation, branding or demo banner on photographs.
 
 Pure Photos has no overlay/shading. Ambient offers Quiet corners, Lower edge and Essentials only layouts. Fit preserves portrait and landscape photographs without cropping; fill can crop. Face detection and portrait pairing are not claimed. Shuffle visits the entire enabled album in a random order before starting another pass, with a recent-photo buffer across pass boundaries. New album items join the remaining pool on the next refresh. Two reusable image layers bound decoded memory; incoming-image failure preserves the existing photo. Reduced-motion preferences remove transitions.
 
@@ -101,3 +101,7 @@ Automatic photo playback now retains its overlays by default. The original cycle
 Shuffle state is bounded to the current album’s opaque IDs and stays in memory. Automatic playback and forward swipes share the same random pool; swipe-back deliberately revisits history. Unavailable items are skipped for that pass. Reloading starts a fresh random pass; disabled videos and deleted items leave the pool automatically. Very small albums necessarily repeat more often.
 
 Recipe touch targets sit above the photo layer. Household meals use an authenticated `/api/recipe/<opaque-id>` redirect, so older cached meals without recipe URL metadata can still resolve their link from the private feed on demand. Missing/deleted entries and network failures show a return-to-display message; the resolver never accepts an arbitrary destination or exposes a subscription URL.
+
+Automatic rotation now stays entirely in photo modes. Today and Weekly Outlook open only when tapped and return to photos after inactivity; enabling them controls their navigation buttons, not automatic rotation. Display-device authorization uses a separate Secure/HttpOnly 90-day cookie so later 12-hour Admin logins cannot replace it. Existing valid legacy display cookies remain accepted. Explicit sign-out and device revocation still revoke access. Home-screen Safari storage can be separate from browser storage: authorize once from the actual installed display.
+
+A network interruption or an expired offline-photo lease now shows Reconnecting rather than implying sign-out. No unauthorized private data is shown; it retries every 15 seconds and restores the display after successful authentication. A genuine server 401 still clears household content and requires sign-in.

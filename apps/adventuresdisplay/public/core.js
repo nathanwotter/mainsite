@@ -61,7 +61,6 @@
     for (var c = 0; c < p.outlookEvery; c++) {
       (p.layout === 'kitchen' ? ['ambient', 'pure'] : ['pure', 'ambient']).forEach(function (mode) { if (p[mode]) { var scheduledMode = mode === 'pure' && p.ambient && !p.rotatePure ? 'ambient' : mode; steps.push({ mode: scheduledMode, seconds: p[mode + 'Seconds'] }); } });
     }
-    ['today', 'week'].forEach(function (mode) { if (p[mode]) steps.push({ mode: mode, seconds: p[mode + 'Seconds'] }); });
     return steps;
   }
   function modeAt(p, seconds) {

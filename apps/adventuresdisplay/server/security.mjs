@@ -1,6 +1,7 @@
 import { createHash, randomBytes, scryptSync, timingSafeEqual, createCipheriv, createDecipheriv } from 'node:crypto';
 export const digest = value => createHash('sha256').update(value).digest('hex');
 export const cookieName = '__Host-adventuresdisplay';
+export const displayCookieName = '__Host-adventuresdisplay-device';
 export function hashPassword(password) {
   if (typeof password !== 'string' || password.length < 8 || password.length > 256) throw new Error('Use 8 to 256 characters');
   const salt = randomBytes(16).toString('hex'); return salt + ':' + scryptSync(password, salt, 64).toString('hex');
@@ -11,16 +12,20 @@ export function verifyPassword(password, hash) {
   return timingSafeEqual(scryptSync(password, salt, 64), Buffer.from(expected, 'hex'));
 }
 export function sameOrigin(request) { return request.headers.get('origin') === new URL(request.url).origin; }
-export async function session(request, storage, now = Date.now()) {
-  const token = request.headers.get('cookie')?.split(';').map(s => s.trim()).find(s => s.startsWith(cookieName + '='))?.slice(cookieName.length + 1);
-  if (!token || !/^[a-f0-9]{64}$/.test(token)) return null;
-  const record = await storage.get('sessions/' + digest(token), { type: 'json' });
-  return record && record.expires > now ? { ...record, key: digest(token) } : null;
+export async function session(request, storage, now = Date.now(), preferDisplay = false) {
+  const cookies = (request.headers.get('cookie') || '').split(';').map(s => s.trim());
+  for (const name of preferDisplay ? [displayCookieName, cookieName] : [cookieName, displayCookieName]) {
+    const token = cookies.find(s => s.startsWith(name + '='))?.slice(name.length + 1);
+    if (!token || !/^[a-f0-9]{64}$/.test(token)) continue;
+    const record = await storage.get('sessions/' + digest(token), { type: 'json' });
+    if (record && record.expires > now && (name !== displayCookieName || record.role === 'display')) return { ...record, key: digest(token), cookieName: name };
+  }
+  return null;
 }
 export async function issueSession(storage, role, label = 'Household device', now = Date.now()) {
   const token = randomBytes(32).toString('hex'), age = role === 'admin' ? 43200 : 7776000;
   await storage.setJSON('sessions/' + digest(token), { role, label: String(label).slice(0, 60), expires: now + age * 1000 });
-  return { token, cookie: cookieName + '=' + token + '; Path=/; Secure; HttpOnly; SameSite=Strict; Max-Age=' + age };
+  return { token, cookie: (role === 'display' ? displayCookieName : cookieName) + '=' + token + '; Path=/; Secure; HttpOnly; SameSite=Strict; Max-Age=' + age };
 }
 export function encrypt(value, key) {
   if (!/^[a-f0-9]{64}$/i.test(key || '')) throw new Error('Encryption unavailable');

@@ -1,4 +1,4 @@
-import { cookieName, verifyPassword, sameOrigin, session, issueSession, encrypt } from './security.mjs';
+import { cookieName, displayCookieName, verifyPassword, sameOrigin, session, issueSession, encrypt } from './security.mjs';
 import { readConfig, synchronize } from './sync.mjs';
 import { parseFeed } from './ical.mjs';
 import { validateURL, fetchPrivate } from './fetch-private.mjs';
@@ -32,11 +32,21 @@ export function createAPI(storage, env, { recipeFetcher = fetchPrivate } = {}) {
         if (!env.CONFIG_ENCRYPTION_KEY || !verifyPassword(body.password, passwordHash)) return json({ error: 'Sign-in unavailable or credentials invalid' }, 401);
         const issued = await issueSession(storage, 'admin'); return json({ ok: true }, 200, { 'Set-Cookie': issued.cookie });
       }
-      const identity = await session(request, storage); if (!identity) return json({ error: 'Authorization required' }, 401);
-      if (path === '/api/logout' && request.method === 'POST') { await storage.delete('sessions/' + identity.key); return json({ ok: true }, 200, { 'Set-Cookie': cookieName + '=; Path=/; Secure; HttpOnly; SameSite=Strict; Max-Age=0' }); }
+      const identity = await session(request, storage, Date.now(), /^\/api\/(snapshot$|photo\/|video\/|recipe\/)/.test(path)); if (!identity) return json({ error: 'Authorization required' }, 401);
+      if (path === '/api/logout' && request.method === 'POST') {
+        for (const prefer of [false, true]) { const active = await session(request, storage, Date.now(), prefer); if (active) await storage.delete('sessions/' + active.key); }
+        const response = json({ ok: true });
+        for (const name of [cookieName, displayCookieName]) response.headers.append('Set-Cookie', name + '=; Path=/; Secure; HttpOnly; SameSite=Strict; Max-Age=0');
+        return response;
+      }
       if (path === '/api/snapshot' && request.method === 'GET') {
         const snapshot = await storage.get('snapshot', { type: 'json' }) || { demo: false, events: [], meals: [], photos: [], stale: true };
-        return json({ ...snapshot, offlineKey: identity.key, offlineLeaseUntil: identity.role === 'display' && env.PRIVATE_OFFLINE_CACHE === 'true' ? Math.min(identity.expires, Date.now() + 3600000) : 0 });
+        const response = json({ ...snapshot, offlineKey: identity.key, offlineLeaseUntil: identity.role === 'display' && env.PRIVATE_OFFLINE_CACHE === 'true' ? Math.min(identity.expires, Date.now() + 3600000) : 0 });
+        if (identity.role === 'display' && identity.cookieName === cookieName) {
+          const token = request.headers.get('cookie').split(';').map(c => c.trim()).find(c => c.startsWith(cookieName + '=')).slice(cookieName.length + 1);
+          response.headers.set('Set-Cookie', displayCookieName + '=' + token + '; Path=/; Secure; HttpOnly; SameSite=Strict; Max-Age=' + Math.max(1, Math.floor((identity.expires - Date.now()) / 1000)));
+        }
+        return response;
       }
       if (path.startsWith('/api/recipe/') && request.method === 'GET') {
         const id = path.slice('/api/recipe/'.length);

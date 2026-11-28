@@ -87,3 +87,17 @@ test('authenticated recipe resolver handles older snapshots without exposing fee
   const unavailable=createAPI(store,env,{recipeFetcher:async()=>{throw Error('private source detail');}});const failure=await unavailable(req('recipe/'+meal.id,display.token));assert.equal(failure.status,503);assert.ok(!(await failure.text()).includes('private source detail'));
   await store.setJSON('configuration',encrypt({mealURL:''},env.CONFIG_ENCRYPTION_KEY));assert.equal((await api(req('recipe/'+meal.id,display.token))).status,404);
 });
+
+test('remembered display survives expired administrator login and stays revocable',async()=>{
+  const {displayCookieName,session,digest}=await import('../server/security.mjs');const store=new MemoryStore(),now=Date.now();
+  const display=await issueSession(store,'display','Kitchen',now-13*3600000),admin=await issueSession(store,'admin','Admin',now-13*3600000);
+  assert.ok(display.cookie.startsWith(displayCookieName+'='));assert.match(display.cookie,/Max-Age=7776000/);
+  const headers={cookie:cookieName+'='+admin.token+'; '+displayCookieName+'='+display.token,origin:'https://frame.example'};
+  const request=new Request('https://frame.example/api/snapshot',{headers});assert.equal((await session(request,store)).role,'display');
+  const api=createAPI(store,{...env,PRIVATE_OFFLINE_CACHE:'true'});const migrated=await api(req('snapshot',display.token));assert.ok(migrated.headers.get('set-cookie').startsWith(displayCookieName+'='));assert.ok(!(await migrated.text()).includes(display.token));
+  const snapshot=await api(request);assert.equal(snapshot.status,200);assert.ok((await snapshot.json()).offlineLeaseUntil>now);
+  const validAdmin=await issueSession(store,'admin');headers.cookie=cookieName+'='+validAdmin.token+'; '+displayCookieName+'='+display.token;
+  const remembered=await api(new Request('https://frame.example/api/snapshot',{headers}));assert.ok((await remembered.json()).offlineLeaseUntil>now);
+  assert.equal((await api(new Request('https://frame.example/api/config',{headers}))).status,200);
+  const logout=await api(new Request('https://frame.example/api/logout',{method:'POST',headers}));assert.equal(logout.status,200);assert.ok(logout.headers.get('set-cookie').includes(displayCookieName+'='));assert.equal(await store.get('sessions/'+digest(display.token)),null);assert.equal(await store.get('sessions/'+digest(validAdmin.token)),null);
+});

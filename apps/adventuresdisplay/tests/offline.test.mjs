@@ -16,7 +16,7 @@ test('private offline lease allows bounded photos, marks stale data, and expires
   w.setFetch(async request => String(typeof request === 'string' ? request : request.url).includes('/api/photo/') ? new Response('jpeg') : Response.json({ demo: false, offlineKey: 'b'.repeat(64), offlineLeaseUntil: w.until(), photos: [{ src: photo }], meals: [{ title: 'Fictional pasta' }] }));
   await w.get('/api/snapshot'); w.setFetch(async () => { throw new Error('offline'); });
   assert.equal(await (await w.get(photo)).text(), 'jpeg'); assert.equal((await (await w.get('/api/snapshot')).json()).stale, true);
-  w.expire(); assert.equal((await w.get(photo)).status, 401); assert.ok(!Array.from(w.stores.keys()).some(k => k.startsWith('adventuresdisplay-household-')));
+  w.expire(); assert.equal((await w.get(photo)).status, 503); assert.ok(!Array.from(w.stores.keys()).some(k => k.startsWith('adventuresdisplay-household-')));
 });
 test('revocation clears private cache and a successful empty manifest removes cached photographs', async () => {
   const w = await worker(), photo = '/api/photo/' + 'a'.repeat(64); let photos = [{ src: photo }];
@@ -30,5 +30,5 @@ test('private cached videos answer offline byte ranges and lose access at lease 
   w.setFetch(async request => String(typeof request === 'string' ? request : request.url).includes('/api/video/') ? new Response('0123456789') : Response.json({ demo: false, offlineKey: 'b'.repeat(64), offlineLeaseUntil: w.until(), photos: [{ type: 'video', src: video }] }));
   await w.get('/api/snapshot'); w.setFetch(async () => { throw new Error('offline'); });
   const response = await w.get(video, 'bytes=2-5'); assert.equal(response.status, 206); assert.equal(response.headers.get('content-range'), 'bytes 2-5/10'); assert.equal(await response.text(), '2345');
-  w.expire(); assert.equal((await w.get(video, 'bytes=0-1')).status, 401);
+  w.expire(); assert.equal((await w.get(video, 'bytes=0-1')).status, 503);
 });

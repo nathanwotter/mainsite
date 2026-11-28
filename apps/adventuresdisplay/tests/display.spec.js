@@ -50,7 +50,7 @@ test.use({ serviceWorkers: 'allow' });
 test('public photo cache supports offline relaunch without caching private API data', async ({ page, context }) => {
   await page.evaluate(async () => { const registration = await navigator.serviceWorker.ready; await registration.active; });
   await page.reload(); await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
-  await expect.poll(() => page.evaluate(async () => { const c = await caches.open('adventuresdisplay-demo-v14'); return !!await c.match('/demo-mode'); })).toBe(true);
+  await expect.poll(() => page.evaluate(async () => { const c = await caches.open('adventuresdisplay-demo-v15'); return !!await c.match('/demo-mode'); })).toBe(true);
   await context.setOffline(true); await page.reload(); await expect(page.locator('#photo-a')).toHaveJSProperty('complete', true); await expect(page.locator('#locked')).toBeHidden();
 });
 });
@@ -280,4 +280,17 @@ test.describe('recipe touch priority',()=>{
   await page.screenshot({path:'test-results/'+test.info().project.name+'-recipe-touch-target.png',animations:'disabled'});
   const again=page.waitForEvent('popup');await link.tap();const secondRecipe=await again;await secondRecipe.waitForURL('https://app.plantoeat.com/recipes/12345');await page.getByRole('button',{name:'Return to display',exact:true}).click();await expect.poll(()=>secondRecipe.isClosed()).toBe(true);
  });
+});
+
+test('temporary disconnection reconnects without treating the device as signed out',async({page,context})=>{
+  await page.route('**/api/snapshot',route=>route.fulfill({json:{demo:false,photos:[{id:'reconnect-photo',src:'/photos/lake.jpg'}],meals:[],events:[]}}));await page.reload();await expect(page.locator('#demo-status')).toBeHidden();
+  await context.setOffline(true);await page.clock.fastForward(2000);await expect(page.locator('#connection-lost')).toBeVisible();await expect(page.locator('#locked')).toBeHidden();await expect(page.locator('#photos')).toBeHidden();
+  await context.setOffline(false);await expect(page.locator('#connection-lost')).toBeHidden();await expect(page.locator('#locked')).toBeHidden();await expect(page.locator('#photos')).toBeVisible();
+  let available=false;await page.route('**/api/snapshot',route=>route.fulfill(available?{json:{demo:false,photos:[{id:'reconnect-photo',src:'/photos/lake.jpg'}],meals:[],events:[]}}:{status:503,json:{offline:true}}));
+  await page.clock.fastForward(900000);await expect(page.locator('#connection-lost')).toBeVisible();await expect(page.locator('#locked')).toBeHidden();available=true;await page.clock.fastForward(16000);await expect(page.locator('#connection-lost')).toBeHidden();await expect(page.locator('#photos')).toBeVisible();
+});
+test('information views remain manual-only over hours of automatic photo playback',async({page})=>{
+  await page.route('**/api/snapshot',route=>route.fulfill({json:{demo:false,preferences:{today:true,week:true,videos:false},photos:[{id:'photo-only',src:'/photos/lake.jpg'}],meals:[],events:[]}}));await page.reload();await expect(page.locator('#demo-status')).toBeHidden();
+  for(const delta of [550000,30000,400000,7200000]){await page.clock.fastForward(delta);await expect(page.locator('#photos')).toBeVisible();await expect(page.locator('#today')).toBeHidden();await expect(page.locator('#week')).toBeHidden();}
+  await dock(page);await page.getByRole('button',{name:'Weekly Outlook',exact:true}).click();await expect(page.locator('#week')).toBeVisible();await page.clock.fastForward(61000);await expect(page.locator('#photos')).toBeVisible();await expect(page.locator('#week')).toBeHidden();
 });

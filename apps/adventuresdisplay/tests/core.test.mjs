@@ -8,9 +8,9 @@ test('settings validate ranges and always enable a photograph mode', () => {
   const p = C.settings({ pure: false, ambient: false, today: true, interval: -1, nightStart: 29, latitude: 100, location: '<kitchen>', unknown: 'secret' });
   assert.equal(p.pure, true); assert.equal(p.interval, 45); assert.equal(p.nightStart, 22); assert.equal(p.latitude, 35.7796); assert.equal(p.unknown, undefined);
 });
-test('default rotation spends exactly 90% in photographs and transitions at the right times', () => {
-  const p = C.settings(); assert.equal(C.photoShare(p), 90);
-  assert.equal(C.modeAt(p, 269), 'ambient'); assert.equal(C.modeAt(p, 270), 'ambient'); assert.equal(C.modeAt(p, 540), 'today'); assert.equal(C.modeAt(p, 570), 'week'); assert.equal(C.modeAt(p, 600), 'ambient');
+test('automatic rotation stays in photos while information modes remain available', () => {
+  const p = C.settings(); assert.equal(C.photoShare(p), 100);
+  assert.equal(C.modeAt(p, 269), 'ambient'); assert.equal(C.modeAt(p, 270), 'ambient'); assert.equal(C.modeAt(p, 540), 'ambient'); assert.equal(C.modeAt(p, 570), 'ambient'); assert.equal(C.modeAt(p, 600), 'ambient');
   assert.equal(C.rotation(C.settings({ today: false, week: false })).length, 2);
   assert.ok(C.photoShare(C.settings({ outlookEvery: 3 })) > 90);
 });
@@ -60,7 +60,7 @@ test('recipe links accept only Plan to Eat numeric recipe pages and remove query
 test('automatic photo overlays persist for legacy settings, with unobstructed intervals opt-in',()=>{
   const legacy=C.settings({pure:true,ambient:true,pureSeconds:270,ambientSeconds:270});
   for(const layout of ['kitchen','corners','bottom','minimal']) {
-    const p=C.settings({...legacy,layout});for(let seconds=0;seconds<540;seconds++)assert.equal(C.modeAt(p,seconds),'ambient');assert.equal(C.photoShare(p),90);
+    const p=C.settings({...legacy,layout});for(let seconds=0;seconds<540;seconds++)assert.equal(C.modeAt(p,seconds),'ambient');assert.equal(C.photoShare(p),100);
   }
   assert.equal(C.modeAt(C.settings({rotatePure:true}),270),'pure');
   assert.equal(C.modeAt(C.settings({ambient:false}),0),'pure');
