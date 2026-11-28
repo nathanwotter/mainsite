@@ -1,5 +1,5 @@
 importScripts('/core.js');
-var CACHE = 'adventuresdisplay-demo-v15', CONTROL = 'adventuresdisplay-offline-control-v1';
+var CACHE = 'adventuresdisplay-demo-v16', CONTROL = 'adventuresdisplay-offline-control-v1';
 var ASSETS = ['/', '/index.html', '/styles.css', '/core.js', '/app.js', '/manifest.webmanifest', '/apple-touch-icon.png', '/photos/lake.jpg', '/photos/coast.jpg', '/photos/mountains.jpg', '/videos/coast-demo.mp4'];
 self.addEventListener('install', function (e) { e.waitUntil(caches.open(CACHE).then(function (cache) { return cache.addAll(ASSETS); })); });
 self.addEventListener('activate', function (e) { e.waitUntil(caches.keys().then(function (keys) { return Promise.all(keys.filter(function (k) { return k.indexOf('adventuresdisplay-demo-') === 0 && k !== CACHE; }).map(function (k) { return caches.delete(k); })); }).then(function () { return self.clients.claim(); })); });

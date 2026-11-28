@@ -50,7 +50,7 @@ test.use({ serviceWorkers: 'allow' });
 test('public photo cache supports offline relaunch without caching private API data', async ({ page, context }) => {
   await page.evaluate(async () => { const registration = await navigator.serviceWorker.ready; await registration.active; });
   await page.reload(); await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
-  await expect.poll(() => page.evaluate(async () => { const c = await caches.open('adventuresdisplay-demo-v15'); return !!await c.match('/demo-mode'); })).toBe(true);
+  await expect.poll(() => page.evaluate(async () => { const c = await caches.open('adventuresdisplay-demo-v16'); return !!await c.match('/demo-mode'); })).toBe(true);
   await context.setOffline(true); await page.reload(); await expect(page.locator('#photo-a')).toHaveJSProperty('complete', true); await expect(page.locator('#locked')).toBeHidden();
 });
 });
@@ -293,4 +293,9 @@ test('information views remain manual-only over hours of automatic photo playbac
   await page.route('**/api/snapshot',route=>route.fulfill({json:{demo:false,preferences:{today:true,week:true,videos:false},photos:[{id:'photo-only',src:'/photos/lake.jpg'}],meals:[],events:[]}}));await page.reload();await expect(page.locator('#demo-status')).toBeHidden();
   for(const delta of [550000,30000,400000,7200000]){await page.clock.fastForward(delta);await expect(page.locator('#photos')).toBeVisible();await expect(page.locator('#today')).toBeHidden();await expect(page.locator('#week')).toBeHidden();}
   await dock(page);await page.getByRole('button',{name:'Weekly Outlook',exact:true}).click();await expect(page.locator('#week')).toBeVisible();await page.clock.fastForward(61000);await expect(page.locator('#photos')).toBeVisible();await expect(page.locator('#week')).toBeHidden();
+});
+
+test('pending album imports show progress instead of a source failure and true failures remain visible',async({page})=>{
+ let failed=false;await page.route('**/api/snapshot',route=>route.fulfill({json:{demo:false,stale:failed,sourceStatus:{photos:'importing',meals:failed?'failed':'ok',calendars:'disabled'},photoProgress:{ready:8,total:20,skipped:0},photos:[{id:'progress-photo',src:'/photos/lake.jpg'}],events:[],meals:[]}}));await page.reload();await expect(page.locator('#notice')).toContainText('Adding album photos');await expect(page.locator('#notice')).not.toContainText('could not sync');await expect(page.locator('#photos')).toBeVisible();
+ failed=true;await page.clock.fastForward(900000);await expect(page.locator('#notice')).toContainText('Dinner plan could not refresh');await expect(page.locator('#photos')).toBeVisible();
 });

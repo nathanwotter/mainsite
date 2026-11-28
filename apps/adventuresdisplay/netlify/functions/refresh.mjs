@@ -1,7 +1,3 @@
-import { store } from '../../server/store.mjs';
-import { synchronize } from '../../server/sync.mjs';
-export default async () => {
-  if (process.env.ADVENTURESDISPLAY_MODE !== 'household') return;
-  try { await synchronize(store(), process.env); } catch { console.error('Household refresh failed; source details suppressed.'); }
-};
-export const config = { schedule: '*/15 * * * *' };
+import {enqueueImport} from '../../server/import-job.mjs';
+export default async () => { if(process.env.ADVENTURESDISPLAY_MODE!=='household') return; try { await enqueueImport(process.env); } catch { console.error('Household import worker could not be started.'); } };
+export const config = {schedule:'*/15 * * * *'};

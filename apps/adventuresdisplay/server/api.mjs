@@ -1,3 +1,4 @@
+import {enqueueImport} from './import-job.mjs';
 import { cookieName, displayCookieName, verifyPassword, sameOrigin, session, issueSession, encrypt } from './security.mjs';
 import { readConfig, synchronize } from './sync.mjs';
 import { parseFeed } from './ical.mjs';
@@ -119,7 +120,7 @@ export function createAPI(storage, env, { recipeFetcher = fetchPrivate } = {}) {
         await storage.setJSON('configuration', encrypt(config, env.CONFIG_ENCRYPTION_KEY));
         return json({ ok: true });
       }
-      if (path === '/api/sync' && request.method === 'POST') { if (demo) return json({ error: 'Demo does not sync private sources' }, 409); const data = await synchronize(storage, env); return json({ ok: true, stale: data.stale, photoCount: data.photos.length, mealCount: data.meals.length }); }
+      if (path === '/api/sync' && request.method === 'POST') { if (demo) return json({ error: 'Demo does not sync private sources' }, 409); if (env.URL) { await enqueueImport(env); return json({ok:true,queued:true},202); } const data = await synchronize(storage, env); return json({ ok: true, stale: data.stale, photoCount: data.photos.length, mealCount: data.meals.length }); }
       return json({ error: 'Not found' }, 404);
     } catch { return json({ error: 'Request could not be completed. Check server configuration.' }, 503); }
   };

@@ -295,13 +295,27 @@
     ['clock', 'date', 'highlow'].forEach(function (key) { $(key).hidden = !preferences[key]; }); document.querySelector('.weather-overlay').hidden = !preferences.temperature; $('event-overlay').hidden = !preferences.event; $('dinner-overlay').hidden = !preferences.dinner || preferences.weeklyDinners; $('dinner-week-overlay').hidden = !preferences.weeklyDinners;
     document.querySelectorAll('button[data-mode]').forEach(function (b) { b.hidden = !preferences[b.dataset.mode]; }); renderInformation(); updateClock(); }
   function updateClock() { var now = new Date(); $('clock').textContent = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' }).format(now).replace(/\s[AP]M$/, ''); $('clock').dateTime = now.toISOString(); $('date').textContent = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'long', month: 'long', day: 'numeric' }).format(now); document.querySelectorAll('.date-label').forEach(function (n) { n.textContent = $('date').textContent; }); var h = Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'America/New_York', hour: '2-digit', hourCycle: 'h23' }).format(now)); var night = preferences.nightStart > preferences.nightEnd ? h >= preferences.nightStart || h < preferences.nightEnd : h >= preferences.nightStart && h < preferences.nightEnd; $('night-shade').hidden = !preferences.night || !night; var d = C.zonedDay(now); if (d !== day) { day = d; if (demo) { events = C.sampleEvents(day); meals = C.sampleMeals(day); } renderInformation(); } }
+  var lastSyncNotice = '';
+  function syncNotice(data) {
+    var status = data.sourceStatus, message = '';
+    if (status) {
+      if (status.meals === 'failed') message = 'Dinner plan could not refresh. Showing the last saved meals.';
+      else if (status.calendars === 'failed') message = 'Calendar could not refresh. Showing the last saved events.';
+      else if (status.photos === 'unavailable') message = 'Apple album is temporarily unavailable. Continuing saved photos.';
+      else if (status.photos === 'media-error') message = 'A new album item could not be imported. Continuing saved photos.';
+      else if (status.photos === 'importing' && data.photoProgress) message = 'Adding album photos · ' + data.photoProgress.ready + ' of ' + data.photoProgress.total + ' ready';
+      else if (status.photos === 'partial') message = 'Some album items could not be imported. Continuing available photos.';
+    } else if (data.stale) message = 'A source could not sync. Showing last saved information.';
+    if (message && message !== lastSyncNotice) notify(message);
+    lastSyncNotice = message;
+  }
   function loadSnapshot() {
     snapshotTime = Date.now(); fetch('/api/snapshot', { credentials: 'same-origin', cache: 'no-store' }).then(function (r) { if (r.status === 401) { lockDisplay(); throw new Error(); } if (!r.ok) throw new Error(); return r.json(); }).then(function (data) {
       if (!data || data.demo) return; demo = false; $('demo-status').hidden = true; offlineLeaseUntil = data.offlineLeaseUntil || 0; offlineSnapshot = !!data.offline; $('locked').hidden = true; $('connection-lost').hidden = true; events = data.events || []; meals = data.meals || []; $('sample-label').textContent = data.stale ? 'Sync interrupted · last saved information' : 'Household display'; $('data-source').textContent = data.stale ? 'Last saved information · sync interrupted' : 'Household calendars & Plan to Eat';
       if (data.preferences) { preferences = C.settings(data.preferences); try { var deviceBackground = localStorage.getItem('adventuresdisplay.background.v1'); if (Object.prototype.hasOwnProperty.call(backgroundColors, deviceBackground)) preferences.background = deviceBackground; } catch (e) { /* Use household defaults when storage is unavailable. */ } applyPreferences(); }
       $('demo-video').hidden = true;
       if (Array.isArray(data.photos)) { var oldId = photos[currentPhoto] && photos[currentPhoto].id; photos = data.photos; var retained = photos.findIndex(function (p) { return p.id === oldId; }); currentPhoto = retained; if (retained < 0) { photoHistory = []; historyPosition = -1; photoToken++; stopVideo(true); photoBusy = false; layers.forEach(function (layer) { layer.removeAttribute('src'); layer.alt = ''; }); if (photos.length) changePhoto(1); else notify('Your album is empty. Connect a photo source in administration.'); } $('photo-count').textContent = photos.length ? Math.max(1, currentPhoto + 1) + ' / ' + photos.length : 'No album items'; }
-      setMode(preferences[mode] ? mode : preferredPhotoMode()); renderInformation(); if (data.stale) notify('A source could not sync. Showing last saved information.');
+      setMode(preferences[mode] ? mode : preferredPhotoMode()); renderInformation(); syncNotice(data);
     }).catch(function () { if (!demo && $('locked').hidden && (!offlineLeaseUntil || offlineLeaseUntil <= Date.now())) reconnectDisplay(); });
   }
   function reconnectDisplay() {
